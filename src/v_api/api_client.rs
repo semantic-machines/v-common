@@ -1,15 +1,15 @@
-#[macro_use]
-extern crate log;
-
-pub mod app;
-
-use app::*;
 use nng::{Message, Protocol, Socket};
 use serde_json::json;
 use serde_json::Value;
-use std::error::Error;
+//use std::error::Error;
 use std::fmt;
-use v_onto::individual::Individual;
+
+use crate::onto::individual::Individual;
+use crate::v_api::obj::ResultCode;
+use nng::options::{Options, RecvTimeout, SendTimeout};
+use std::time::Duration;
+
+pub const ALL_MODULES: i64 = 0;
 
 #[derive(Debug)]
 pub struct ApiError {
@@ -23,7 +23,7 @@ impl fmt::Display for ApiError {
     }
 }
 
-impl Error for ApiError {}
+//impl Error for ApiError {}
 
 impl Default for ApiError {
     fn default() -> Self {
@@ -152,16 +152,23 @@ impl APIClient {
         } else {
             info!("success connect to main module, [{}]", self.addr);
             self.is_ready = true;
+
+            if let Err(e) = self.client.set_opt::<RecvTimeout>(Some(Duration::from_secs(30))) {
+                error!("fail set recv timeout, err={}", e);
+            }
+            if let Err(e) = self.client.set_opt::<SendTimeout>(Some(Duration::from_secs(30))) {
+                error!("fail set send timeout, err={}", e);
+            }
         }
         self.is_ready
     }
 
     pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
-        self.update_with_event(ticket, "", "", cmd, indv)
+        self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv)
     }
 
     pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
-        let res = self.update_with_event(ticket, event_id, src, cmd, indv);
+        let res = self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv);
         if res.result == ResultCode::Ok {
             Ok(res)
         } else {
@@ -172,7 +179,7 @@ impl APIClient {
         }
     }
 
-    pub fn update_with_event(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
+    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> OpResult {
         if !self.is_ready {
             self.connect();
         }
@@ -185,7 +192,7 @@ impl APIClient {
             "function": cmd.as_string(),
             "ticket": ticket,
             "individuals": [ indv.get_obj().as_json() ],
-            "assigned_subsystems": 0,
+            "assigned_subsystems": assigned_subsystems,
             "event_id" : event_id,
             "src" : src
         });
@@ -247,15 +254,15 @@ impl APIClient {
                 return OpResult::res(ResultCode::BadRequest);
             }
         } else {
-            if let Some(res) = json["result"].as_i64() {
-                return OpResult {
+            return if let Some(res) = json["result"].as_i64() {
+                OpResult {
                     result: ResultCode::from_i64(res),
                     op_id: 0,
-                };
+                }
             } else {
                 error!("api:update - not found \"data\"");
-                return OpResult::res(ResultCode::BadRequest);
-            }
+                OpResult::res(ResultCode::BadRequest)
+            };
         }
 
         OpResult::res(ResultCode::BadRequest)

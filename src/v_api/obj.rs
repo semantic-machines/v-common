@@ -1,5 +1,3 @@
-extern crate nanoid;
-
 use nanoid::nanoid;
 use serde::Serialize;
 use serde::Serializer;
