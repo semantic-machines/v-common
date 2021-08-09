@@ -17,3 +17,6 @@ pub mod onto;
 pub mod search;
 pub mod storage;
 pub mod v_api;
+
+pub use v_authorization;
+pub use v_queue;

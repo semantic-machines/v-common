@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.1.52"
+version = "0.1.53"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2018"
 description = "common part of the veda platform"
@@ -52,5 +52,5 @@ warp = { version = "0.2.5", features = ["tls"] }
 anyhow = "1.0.32"
 align-data = "0.1.0"
 
-v_authorization = "=0.1.1"
+v_authorization = "=0.1.2"
 v_queue = "=0.1.9"
