@@ -144,7 +144,22 @@ impl Storage for TTStorage {
         Vec::default()
     }
 
-    fn count(&mut self, _storage: StorageId) -> usize {
-        todo!()
+    fn count(&mut self, storage: StorageId) -> usize {
+        let space_name = if storage == StorageId::Tickets {
+            "TICKETS"
+        } else if storage == StorageId::Az {
+            "AZ"
+        } else {
+            "INDIVIDUALS"
+        };
+
+        if let Ok(response) = self.rt.block_on(self.client.eval(format!("return box.space.{}:len()", space_name), &(0,))) {
+            if let Ok(res) = response.decode::<(u64,)>() {
+                return res.0 as usize;
+            }
+        }
+
+        error!("failed to count the number of records: db [{}]", space_name);
+        0
     }
 }
