@@ -1,4 +1,4 @@
-use crate::az_lmdb::az_lmdb::f_authorize;
+use crate::az_impl::common::f_authorize;
 use crate::search::common::QueryResult;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use clickhouse_rs::errors::Error;

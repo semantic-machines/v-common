@@ -1,4 +1,4 @@
-use crate::az_lmdb::az_lmdb::f_authorize;
+use crate::az_impl::common::f_authorize;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};

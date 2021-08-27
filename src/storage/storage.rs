@@ -30,10 +30,10 @@ pub(crate) enum EStorage {
 
 pub trait Storage {
     fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> bool;
-    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool;
-    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool;
     fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String>;
     fn get_raw(&mut self, storage: StorageId, key: &str) -> Vec<u8>;
+    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool;
+    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool;
     fn remove(&mut self, storage: StorageId, key: &str) -> bool;
     fn count(&mut self, storage: StorageId) -> usize;
 }
