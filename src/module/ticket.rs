@@ -41,6 +41,8 @@ impl Ticket {
 
         if self.user_uri.is_empty() {
             error!("found a session ticket is not complete, the user can not be found.");
+            self.user_uri = String::default();
+            return;
         }
 
         if !self.user_uri.is_empty() && (when.is_none() || duration < 10) {
