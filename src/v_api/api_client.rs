@@ -39,15 +39,6 @@ pub enum IndvOp {
     /// Сохранить
     Put = 1,
 
-    /// Сохранить
-    Get = 2,
-
-    /// Получить тикет
-    GetTicket = 3,
-
-    /// Авторизовать
-    Authorize = 8,
-
     /// Установить в
     SetIn = 45,
 
@@ -67,13 +58,10 @@ impl IndvOp {
     pub fn from_i64(value: i64) -> IndvOp {
         match value {
             1 => IndvOp::Put,
-            2 => IndvOp::Get,
             51 => IndvOp::Remove,
             47 => IndvOp::AddTo,
             45 => IndvOp::SetIn,
             48 => IndvOp::RemoveFrom,
-            8 => IndvOp::Authorize,
-            3 => IndvOp::GetTicket,
             // ...
             _ => IndvOp::None,
         }
@@ -82,13 +70,10 @@ impl IndvOp {
     pub fn to_i64(&self) -> i64 {
         match self {
             IndvOp::Put => 1,
-            IndvOp::Get => 2,
             IndvOp::Remove => 51,
             IndvOp::AddTo => 47,
             IndvOp::SetIn => 45,
             IndvOp::RemoveFrom => 48,
-            IndvOp::Authorize => 8,
-            IndvOp::GetTicket => 3,
             // ...
             IndvOp::None => 52,
         }
@@ -96,14 +81,11 @@ impl IndvOp {
 
     pub fn as_string(&self) -> String {
         match self {
-            IndvOp::Get => "get",
             IndvOp::Put => "put",
             IndvOp::Remove => "remove",
             IndvOp::AddTo => "add_to",
             IndvOp::SetIn => "set_in",
             IndvOp::RemoveFrom => "remove_from",
-            IndvOp::Authorize => "authorize",
-            IndvOp::GetTicket => "get_ticket",
             // ...
             IndvOp::None => "none",
         }
