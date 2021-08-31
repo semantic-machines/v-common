@@ -3,7 +3,7 @@ use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
 use crate::storage::storage::{StorageId, StorageMode, VStorage};
-use crate::v_api::api_client::{APIClient, IndvOp};
+use crate::v_api::api_client::{MStorageClient, IndvOp};
 use crate::v_api::obj::ResultCode;
 use ini::Ini;
 use std::env;
@@ -11,7 +11,7 @@ use std::env;
 pub struct Backend {
     pub storage: VStorage,
     pub fts: FTClient,
-    pub api: APIClient,
+    pub api: MStorageClient,
 }
 
 impl Default for Backend {
@@ -55,10 +55,10 @@ impl Backend {
 
         let param_name = "main_module_url";
         let api = if let Some(url) = Module::get_property(param_name) {
-            APIClient::new(url)
+            MStorageClient::new(url)
         } else {
             error!("not found param {} in properties file", param_name);
-            APIClient::new("".to_owned())
+            MStorageClient::new("".to_owned())
         };
 
         Backend {

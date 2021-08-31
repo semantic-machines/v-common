@@ -1,7 +1,6 @@
 use nng::{Message, Protocol, Socket};
 use serde_json::json;
 use serde_json::Value;
-//use std::error::Error;
 use std::fmt;
 
 use crate::onto::individual::Individual;
@@ -18,9 +17,7 @@ pub struct ApiError {
 }
 
 impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "There is an error: {} {:?}", self.info, self.result)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "There is an error: {} {:?}", self.info, self.result) }
 }
 
 //impl Error for ApiError {}
@@ -108,15 +105,15 @@ impl OpResult {
     }
 }
 
-pub struct APIClient {
+pub struct MStorageClient {
     client: Socket,
     addr: String,
     is_ready: bool,
 }
 
-impl APIClient {
-    pub fn new(_addr: String) -> APIClient {
-        APIClient {
+impl MStorageClient {
+    pub fn new(_addr: String) -> MStorageClient {
+        MStorageClient {
             client: Socket::new(Protocol::Req0).unwrap(),
             addr: _addr,
             is_ready: false,
@@ -125,12 +122,12 @@ impl APIClient {
 
     pub fn connect(&mut self) -> bool {
         if self.addr.is_empty() {
-            error!("api-client:invalid addr: [{}]", self.addr);
+            error!("mstorage-client:invalid addr: [{}]", self.addr);
             return self.is_ready;
         }
 
         if let Err(e) = self.client.dial(self.addr.as_str()) {
-            error!("api-client:fail dial to main module, [{}], err={}", self.addr, e);
+            error!("mstorage-client:fail dial to main module, [{}], err={}", self.addr, e);
         } else {
             info!("success connect to main module, [{}]", self.addr);
             self.is_ready = true;
@@ -145,9 +142,7 @@ impl APIClient {
         self.is_ready
     }
 
-    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
-        self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv)
-    }
+    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult { self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) }
 
     pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
         let res = self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv);
