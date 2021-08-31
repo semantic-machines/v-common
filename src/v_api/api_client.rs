@@ -196,6 +196,8 @@ impl AuthClient {
         }
     }
 
+    pub fn connect(&mut self) -> bool { self.client.connect() }
+
     pub fn authenticate(&mut self, login: &str, password: &str, secret: Option<String>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "authenticate",
@@ -233,6 +235,8 @@ impl MStorageClient {
             client: NngClient::new(addr),
         }
     }
+
+    pub fn connect(&mut self) -> bool { self.client.connect() }
 
     pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
         match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
