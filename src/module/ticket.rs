@@ -1,6 +1,7 @@
 use crate::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
 use chrono::{NaiveDateTime, Utc};
+use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct Ticket {
@@ -27,6 +28,29 @@ impl Default for Ticket {
             start_time: 0,
             end_time: 0,
         }
+    }
+}
+
+impl From<serde_json::Value> for Ticket {
+    fn from(val: Value) -> Self {
+        let mut t = Ticket::default();
+        if let Some(v) = val["id"].as_str() {
+            t.id = v.to_owned();
+        }
+        if let Some(v) = val["user_uri"].as_str() {
+            t.user_uri = v.to_owned();
+        }
+        if let Some(v) = val["user_login"].as_str() {
+            t.user_login = v.to_owned();
+        }
+        if let Some(v) = val["result"].as_i64() {
+            t.result = ResultCode::from_i64(v);
+        }
+        if let Some(v) = val["end_time"].as_i64() {
+            t.end_time = v.into();
+        }
+
+        t
     }
 }
 

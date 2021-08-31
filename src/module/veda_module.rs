@@ -54,8 +54,8 @@ impl Module {
                         error!("heartbeat: found fatal error, stop listen queue");
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
 
             if let Some(s) = self.connect_to_notify_channel() {
@@ -96,16 +96,16 @@ impl Module {
                     match e {
                         ErrorQueue::FailReadTailMessage => {
                             break;
-                        }
+                        },
                         ErrorQueue::InvalidChecksum => {
                             error!("[module] consumer:pop_body: invalid CRC, attempt seek next record");
                             queue_consumer.seek_next_pos();
                             break;
-                        }
+                        },
                         _ => {
                             error!("{} get msg from queue: {}", self.queue_prepared_count, e.as_str());
                             break;
-                        }
+                        },
                     }
                 }
 
@@ -148,10 +148,10 @@ impl Module {
                                         warn!("prepare: found fatal error, stop listen queue");
                                         return;
                                     }
-                                }
+                                },
                                 Ok(b) => {
                                     need_commit = b;
-                                }
+                                },
                             }
                         }
                     }
@@ -173,13 +173,13 @@ impl Module {
                         if b {
                             queue_consumer.commit();
                         }
-                    }
+                    },
                     Err(e) => {
                         if let PrepareError::Fatal = e {
                             warn!("after_batch: found fatal error, stop listen queue");
                             return;
                         }
-                    }
+                    },
                 }
             }
 

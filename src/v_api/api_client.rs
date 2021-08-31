@@ -1,18 +1,17 @@
+use crate::onto::individual::Individual;
+use crate::v_api::obj::ResultCode;
+use nng::options::{Options, RecvTimeout, SendTimeout};
 use nng::{Message, Protocol, Socket};
 use serde_json::json;
 use serde_json::Value;
 use std::fmt;
-
-use crate::onto::individual::Individual;
-use crate::v_api::obj::ResultCode;
-use nng::options::{Options, RecvTimeout, SendTimeout};
 use std::time::Duration;
 
 pub const ALL_MODULES: i64 = 0;
 
 #[derive(Debug)]
 pub struct ApiError {
-    result: ResultCode,
+    pub result: ResultCode,
     info: String,
 }
 
@@ -21,6 +20,15 @@ impl fmt::Display for ApiError {
 }
 
 //impl Error for ApiError {}
+
+impl ApiError {
+    fn new(result: ResultCode, info: &str) -> Self {
+        ApiError {
+            result,
+            info: info.to_owned(),
+        }
+    }
+}
 
 impl Default for ApiError {
     fn default() -> Self {
@@ -105,17 +113,17 @@ impl OpResult {
     }
 }
 
-pub struct MStorageClient {
-    client: Socket,
+pub struct NngClient {
+    soc: Socket,
     addr: String,
     is_ready: bool,
 }
 
-impl MStorageClient {
-    pub fn new(_addr: String) -> MStorageClient {
-        MStorageClient {
-            client: Socket::new(Protocol::Req0).unwrap(),
-            addr: _addr,
+impl NngClient {
+    pub fn new(addr: String) -> NngClient {
+        NngClient {
+            soc: Socket::new(Protocol::Req0).unwrap(),
+            addr,
             is_ready: false,
         }
     }
@@ -126,68 +134,42 @@ impl MStorageClient {
             return self.is_ready;
         }
 
-        if let Err(e) = self.client.dial(self.addr.as_str()) {
+        if let Err(e) = self.soc.dial(self.addr.as_str()) {
             error!("mstorage-client:fail dial to main module, [{}], err={}", self.addr, e);
         } else {
             info!("success connect to main module, [{}]", self.addr);
             self.is_ready = true;
 
-            if let Err(e) = self.client.set_opt::<RecvTimeout>(Some(Duration::from_secs(30))) {
+            if let Err(e) = self.soc.set_opt::<RecvTimeout>(Some(Duration::from_secs(30))) {
                 error!("fail set recv timeout, err={}", e);
             }
-            if let Err(e) = self.client.set_opt::<SendTimeout>(Some(Duration::from_secs(30))) {
+            if let Err(e) = self.soc.set_opt::<SendTimeout>(Some(Duration::from_secs(30))) {
                 error!("fail set send timeout, err={}", e);
             }
         }
         self.is_ready
     }
 
-    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult { self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) }
-
-    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
-        let res = self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv);
-        if res.result == ResultCode::Ok {
-            Ok(res)
-        } else {
-            Err(ApiError {
-                result: res.result,
-                info: "update_or_err".to_owned(),
-            })
-        }
-    }
-
-    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> OpResult {
+    pub(crate) fn req_recv(&mut self, query: Value) -> Result<Value, ApiError> {
         if !self.is_ready {
             self.connect();
         }
-
         if !self.is_ready {
-            return OpResult::res(ResultCode::NotReady);
+            return Err(ApiError::new(ResultCode::NotReady, "fail connect"));
         }
-
-        let query = json!({
-            "function": cmd.as_string(),
-            "ticket": ticket,
-            "individuals": [ indv.get_obj().as_json() ],
-            "assigned_subsystems": assigned_subsystems,
-            "event_id" : event_id,
-            "src" : src
-        });
 
         debug!("SEND {}", query.to_string());
         let req = Message::from(query.to_string().as_bytes());
 
-        if let Err(e) = self.client.send(req) {
-            error!("api:update - fail send to main module, err={:?}", e);
-            return OpResult::res(ResultCode::NotReady);
+        if let Err(e) = self.soc.send(req) {
+            return Err(ApiError::new(ResultCode::NotReady, &format!("fail send to main module, err={:?}", e)));
         }
 
         // Wait for the response from the server.
-        let wmsg = self.client.recv();
+        let wmsg = self.soc.recv();
 
         if let Err(e) = wmsg {
-            error!("api:update - fail recv from main module, err={:?}", e);
-            return OpResult::res(ResultCode::NotReady);
+            return Err(ApiError::new(ResultCode::NotReady, &format!("fail recv from main module, err={:?}", e)));
         }
 
         let msg = wmsg.unwrap();
@@ -197,51 +179,123 @@ impl MStorageClient {
         let reply = serde_json::from_str(&String::from_utf8_lossy(&msg));
 
         if let Err(e) = reply {
-            error!("api:update - fail parse result operation [put], err={:?}", e);
-            return OpResult::res(ResultCode::BadRequest);
+            return Err(ApiError::new(ResultCode::BadRequest, &format!("fail parse result operation [put], err={:?}", e)));
         }
+        Ok(reply.unwrap())
+    }
+}
 
-        let json: Value = reply.unwrap();
+pub struct AuthClient {
+    client: NngClient,
+}
+
+impl AuthClient {
+    pub fn new(addr: String) -> AuthClient {
+        AuthClient {
+            client: NngClient::new(addr),
+        }
+    }
+
+    pub fn authenticate(&mut self, login: &str, password: &str, secret: Option<String>) -> Result<Value, ApiError> {
+        let query = json!({
+            "function": "authenticate",
+            "login": login,
+            "password": password,
+            "secret" : secret
+        });
+
+        match self.client.req_recv(query) {
+            Ok(v) => {
+                if let Some(r) = v["result"].as_i64() {
+                    let res = ResultCode::from_i64(r);
+                    if res != ResultCode::Ok {
+                        return Err(ApiError::new(res, "api:update - invalid \"data\" section"));
+                    }
+                    Ok(v)
+                } else {
+                    return Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"));
+                }
+            },
+            Err(e) => {
+                return Err(e);
+            },
+        }
+    }
+}
+
+pub struct MStorageClient {
+    client: NngClient,
+}
+
+impl MStorageClient {
+    pub fn new(addr: String) -> MStorageClient {
+        MStorageClient {
+            client: NngClient::new(addr),
+        }
+    }
+
+    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
+        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
+            Ok(r) => {
+                return r;
+            },
+            Err(e) => {
+                return OpResult::res(e.result);
+            },
+        }
+    }
+
+    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
+        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv)
+    }
+
+    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
+        let query = json!({
+            "function": cmd.as_string(),
+            "ticket": ticket,
+            "individuals": [ indv.get_obj().as_json() ],
+            "assigned_subsystems": assigned_subsystems,
+            "event_id" : event_id,
+            "src" : src
+        });
+
+        let json: Value = self.client.req_recv(query)?;
 
         if let Some(t) = json["type"].as_str() {
             if t != "OpResult" {
-                error!("api:update - expecten \"type\" = \"OpResult\", found {}", t);
-                return OpResult::res(ResultCode::BadRequest);
+                return Err(ApiError::new(ResultCode::BadRequest, &format!("api:update - expecten \"type\" = \"OpResult\", found {}", t)));
             }
         } else {
-            error!("api:update - not found \"type\"");
-            return OpResult::res(ResultCode::BadRequest);
+            return Err(ApiError::new(ResultCode::BadRequest, "api:update - not found \"type\""));
         }
 
         if let Some(arr) = json["data"].as_array() {
             if arr.len() != 1 {
-                error!("api:update - invalid \"data\" section");
-                return OpResult::res(ResultCode::BadRequest);
+                return Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"));
             }
 
             if let Some(res) = arr[0]["result"].as_i64() {
                 if let Some(op_id) = arr[0]["op_id"].as_i64() {
-                    return OpResult {
+                    return Ok(OpResult {
                         result: ResultCode::from_i64(res),
                         op_id,
-                    };
+                    });
                 }
             } else {
-                error!("api:update - invalid \"data\" section");
-                return OpResult::res(ResultCode::BadRequest);
+                return Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"));
             }
         } else {
             return if let Some(res) = json["result"].as_i64() {
-                OpResult {
+                Ok(OpResult {
                     result: ResultCode::from_i64(res),
                     op_id: 0,
-                }
+                })
             } else {
                 error!("api:update - not found \"data\"");
-                OpResult::res(ResultCode::BadRequest)
+                return Err(ApiError::new(ResultCode::BadRequest, "api:update - not found \"data\""));
             };
         }
 
-        OpResult::res(ResultCode::BadRequest)
+        Err(ApiError::new(ResultCode::BadRequest, "api:update - unknown"))
     }
 }

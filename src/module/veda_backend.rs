@@ -3,7 +3,7 @@ use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
 use crate::storage::storage::{StorageId, StorageMode, VStorage};
-use crate::v_api::api_client::{MStorageClient, IndvOp};
+use crate::v_api::api_client::{IndvOp, MStorageClient, AuthClient};
 use crate::v_api::obj::ResultCode;
 use ini::Ini;
 use std::env;
@@ -11,13 +11,12 @@ use std::env;
 pub struct Backend {
     pub storage: VStorage,
     pub fts: FTClient,
-    pub api: MStorageClient,
+    pub mstorage_api: MStorageClient,
+    pub auth_api: AuthClient
 }
 
 impl Default for Backend {
-    fn default() -> Self {
-        Backend::create(StorageMode::ReadOnly, false)
-    }
+    fn default() -> Self { Backend::create(StorageMode::ReadOnly, false) }
 }
 
 impl Backend {
@@ -54,23 +53,30 @@ impl Backend {
         let ft_client = FTClient::new(ft_query_service_url);
 
         let param_name = "main_module_url";
-        let api = if let Some(url) = Module::get_property(param_name) {
+        let mstorage_api = if let Some(url) = Module::get_property(param_name) {
             MStorageClient::new(url)
         } else {
             error!("not found param {} in properties file", param_name);
             MStorageClient::new("".to_owned())
         };
 
+        let param_name = "auth_url";
+        let auth_api = if let Some(url) = Module::get_property(param_name) {
+            AuthClient::new(url)
+        } else {
+            error!("not found param {} in properties file", param_name);
+            AuthClient::new("".to_owned())
+        };
+
         Backend {
             storage,
             fts: ft_client,
-            api,
+            mstorage_api,
+            auth_api
         }
     }
 
-    pub fn get_sys_ticket_id(&mut self) -> Result<String, i32> {
-        Module::get_sys_ticket_id_from_db(&mut self.storage)
-    }
+    pub fn get_sys_ticket_id(&mut self) -> Result<String, i32> { Module::get_sys_ticket_id_from_db(&mut self.storage) }
 
     pub fn get_literal_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<String> {
         if let Some(v) = indv.get_literals(link) {

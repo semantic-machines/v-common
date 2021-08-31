@@ -48,15 +48,11 @@ pub struct Module {
 }
 
 impl Default for Module {
-    fn default() -> Self {
-        Module::create(None, "")
-    }
+    fn default() -> Self { Module::create(None, "") }
 }
 
 impl Module {
-    pub fn new_with_name(name: &str) -> Self {
-        Module::create(None, name)
-    }
+    pub fn new_with_name(name: &str) -> Self { Module::create(None, name) }
 
     pub fn create(module_id: Option<i64>, module_name: &str) -> Self {
         let args: Vec<String> = env::args().collect();
@@ -139,9 +135,7 @@ impl Module {
         }
     }
 
-    pub fn new() -> Self {
-        Module::create(None, "")
-    }
+    pub fn new() -> Self { Module::create(None, "") }
 
     pub fn get_property(param: &str) -> Option<String> {
         let args: Vec<String> = env::args().collect();
@@ -290,8 +284,8 @@ impl Module {
                         error!("heartbeat: found fatal error, stop listen queue");
                         break;
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
 
             if let Some(s) = self.connect_to_notify_channel() {
@@ -332,16 +326,16 @@ impl Module {
                     match e {
                         ErrorQueue::FailReadTailMessage => {
                             break;
-                        }
+                        },
                         ErrorQueue::InvalidChecksum => {
                             error!("[module] consumer:pop_body: invalid CRC, attempt seek next record");
                             queue_consumer.seek_next_pos();
                             break;
-                        }
+                        },
                         _ => {
                             error!("{} get msg from queue: {}", self.queue_prepared_count, e.as_str());
                             break;
-                        }
+                        },
                     }
                 }
 
@@ -354,10 +348,10 @@ impl Module {
                                 warn!("prepare: found fatal error, stop listen queue");
                                 return;
                             }
-                        }
+                        },
                         Ok(b) => {
                             need_commit = b;
-                        }
+                        },
                     }
                 }
 
@@ -384,10 +378,10 @@ impl Module {
                                         warn!("prepare: found fatal error, stop listen queue");
                                         return;
                                     }
-                                }
+                                },
                                 Ok(b) => {
                                     need_commit = b;
-                                }
+                                },
                             }
                         }
                     }
@@ -409,13 +403,13 @@ impl Module {
                         if b {
                             queue_consumer.commit();
                         }
-                    }
+                    },
                     Err(e) => {
                         if let PrepareError::Fatal = e {
                             warn!("after_batch: found fatal error, stop listen queue");
                             return;
                         }
-                    }
+                    },
                 }
             }
 
@@ -470,9 +464,7 @@ pub fn get_cmd(queue_element: &mut Individual) -> Option<IndvOp> {
     Some(IndvOp::from_i64(wcmd.unwrap_or_default()))
 }
 
-pub fn init_log(module_name: &str) {
-    init_log_with_filter(module_name, None)
-}
+pub fn init_log(module_name: &str) { init_log_with_filter(module_name, None) }
 
 pub fn init_log_with_filter(module_name: &str, filter: Option<&str>) {
     let var_log_name = module_name.to_owned() + "_LOG";
@@ -567,9 +559,7 @@ pub fn get_info_of_module(module_name: &str) -> Option<(i64, i64)> {
     info.read_info()
 }
 
-pub fn wait_load_ontology() -> i64 {
-    wait_module("input-onto", 1)
-}
+pub fn wait_load_ontology() -> i64 { wait_module("input-onto", 1) }
 
 pub fn wait_module(module_name: &str, wait_op_id: i64) -> i64 {
     if wait_op_id < 0 {
