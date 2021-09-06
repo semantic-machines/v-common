@@ -1,62 +1,41 @@
 use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
-
-use std::cell::RefCell;
-use std::sync::Mutex;
 use std::thread;
 use std::time;
-use std::time::SystemTime;
-use v_authorization::common::{Storage, Trace};
+use v_authorization::common::{AuthorizationContext, Storage, Trace};
 use v_authorization::*;
 
 const DB_PATH: &str = "./data/acl-indexes/";
-const MODULE_INFO_PATH: &str = "./data/module-info/acl_preparer_info";
 
-lazy_static! {
+pub struct LmdbAzContext {
+    env: Environment,
+}
 
-#[derive(Debug)]
-    static ref LAST_MODIFIED_INFO : Mutex<RefCell<SystemTime>> = Mutex::new(RefCell::new (SystemTime:: now()));
-
-    static ref ENV : Mutex<RefCell<Environment>> = Mutex::new(RefCell::new ({
-    let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-
-    let env1;
-    loop {
-        match env_builder.open(DB_PATH, 0o644) {
-            Ok(env_res) => {
-                env1 = env_res;
-                break
-            },
-            Err(e) => {
-                eprintln! ("ERR! Authorize: Err opening environment: {:?}", e);
-                thread::sleep(time::Duration::from_secs(3));
-                eprintln! ("Retry");
+impl LmdbAzContext {
+    pub fn new() -> LmdbAzContext {
+        let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+        loop {
+            match env_builder.open(DB_PATH, 0o644) {
+                Ok(env) => {
+                    eprintln!("LIB_AZ: Opened environment {}", DB_PATH);
+                    return LmdbAzContext {
+                        env,
+                    };
+                }
+                Err(e) => {
+                    eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
+                    thread::sleep(time::Duration::from_secs(3));
+                    eprintln!("Retry");
+                }
             }
         }
     }
-    eprintln! ("LIB_AZ: Opened environment ./data/acl-indexes");
-    env1
-    }));
-
 }
 
-fn check_for_reload() -> std::io::Result<bool> {
-    use std::fs::File;
-    let f = File::open(MODULE_INFO_PATH)?;
-
-    let metadata = f.metadata()?;
-
-    if let Ok(new_time) = metadata.modified() {
-        let prev_time = *LAST_MODIFIED_INFO.lock().unwrap().get_mut();
-
-        if new_time != prev_time {
-            LAST_MODIFIED_INFO.lock().unwrap().replace(new_time);
-            //eprintln!("LAST_MODIFIED_INFO={:?}", new_time);
-            return Ok(true);
-        }
+impl AuthorizationContext for LmdbAzContext {
+    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
+        _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace)
     }
-
-    Ok(false)
 }
 
 pub struct LMDBStorage<'a> {
@@ -80,26 +59,7 @@ impl<'a> Storage for LMDBStorage<'a> {
     fn fiber_yield(&self) {}
 }
 
-pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
-    if _is_check_for_reload {
-        if let Ok(true) = check_for_reload() {
-            //eprintln!("INFO: Authorize: reopen db");
-
-            let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-
-            match env_builder.open(DB_PATH, 0o644) {
-                Ok(env_res) => {
-                    ENV.lock().unwrap().replace(env_res);
-                }
-                Err(e) => {
-                    eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
-                }
-            }
-        }
-    }
-
-    let env = ENV.lock().unwrap().get_mut().clone();
-
+pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
     let db_handle;
     loop {
         match env.get_default_db(DbFlags::empty()) {
@@ -127,15 +87,15 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
             let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
 
             match env_builder.open(DB_PATH, 0o644) {
-                Ok(env_res) => {
-                    ENV.lock().unwrap().replace(env_res);
+                Ok(env1) => {
+                    return _f_authorize(&env1, uri, user_uri, request_access, _is_check_for_reload, trace);
                 }
                 Err(e) => {
                     eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
                 }
             }
 
-            return _f_authorize(uri, user_uri, request_access, _is_check_for_reload, trace);
+            return Err(-1);
         }
     }
 

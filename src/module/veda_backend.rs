@@ -3,7 +3,7 @@ use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
 use crate::storage::storage::{StorageId, StorageMode, VStorage};
-use crate::v_api::api_client::{IndvOp, MStorageClient, AuthClient};
+use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
 use crate::v_api::obj::ResultCode;
 use ini::Ini;
 use std::env;
@@ -12,11 +12,13 @@ pub struct Backend {
     pub storage: VStorage,
     pub fts: FTClient,
     pub mstorage_api: MStorageClient,
-    pub auth_api: AuthClient
+    pub auth_api: AuthClient,
 }
 
 impl Default for Backend {
-    fn default() -> Self { Backend::create(StorageMode::ReadOnly, false) }
+    fn default() -> Self {
+        Backend::create(StorageMode::ReadOnly, false)
+    }
 }
 
 impl Backend {
@@ -72,11 +74,13 @@ impl Backend {
             storage,
             fts: ft_client,
             mstorage_api,
-            auth_api
+            auth_api,
         }
     }
 
-    pub fn get_sys_ticket_id(&mut self) -> Result<String, i32> { Module::get_sys_ticket_id_from_db(&mut self.storage) }
+    pub fn get_sys_ticket_id(&mut self) -> Result<String, i32> {
+        Module::get_sys_ticket_id_from_db(&mut self.storage)
+    }
 
     pub fn get_literal_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<String> {
         if let Some(v) = indv.get_literals(link) {

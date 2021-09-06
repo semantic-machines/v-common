@@ -24,6 +24,8 @@ pub fn parse_json_to_individual(src: &JSONValue, dest: &mut Individual) -> bool 
                 res = false;
             }
         }
+    } else {
+        res = false;
     }
 
     res

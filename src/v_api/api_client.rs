@@ -16,7 +16,9 @@ pub struct ApiError {
 }
 
 impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "There is an error: {} {:?}", self.info, self.result) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "There is an error: {} {:?}", self.info, self.result)
+    }
 }
 
 //impl Error for ApiError {}
@@ -196,9 +198,11 @@ impl AuthClient {
         }
     }
 
-    pub fn connect(&mut self) -> bool { self.client.connect() }
+    pub fn connect(&mut self) -> bool {
+        self.client.connect()
+    }
 
-    pub fn authenticate(&mut self, login: &str, password: &str, secret: Option<String>) -> Result<Value, ApiError> {
+    pub fn authenticate(&mut self, login: &str, password: &str, secret: &Option<String>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "authenticate",
             "login": login,
@@ -217,10 +221,10 @@ impl AuthClient {
                 } else {
                     return Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"));
                 }
-            },
+            }
             Err(e) => {
                 return Err(e);
-            },
+            }
         }
     }
 }
@@ -236,16 +240,18 @@ impl MStorageClient {
         }
     }
 
-    pub fn connect(&mut self) -> bool { self.client.connect() }
+    pub fn connect(&mut self) -> bool {
+        self.client.connect()
+    }
 
     pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
         match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
             Ok(r) => {
                 return r;
-            },
+            }
             Err(e) => {
                 return OpResult::res(e.result);
-            },
+            }
         }
     }
 
@@ -257,12 +263,40 @@ impl MStorageClient {
         let query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,
-            "individuals": [ indv.get_obj().as_json() ],
+            "individuals": [indv.get_obj().as_json()],
             "assigned_subsystems": assigned_subsystems,
             "event_id" : event_id,
             "src" : src
         });
 
+        self.update_form_json(query)
+    }
+
+    pub fn updates_use_param(
+        &mut self,
+        ticket: &str,
+        event_id: &str,
+        src: &str,
+        assigned_subsystems: i64,
+        cmd: IndvOp,
+        indvs: &[Individual],
+    ) -> Result<OpResult, ApiError> {
+        let mut jindvs = vec![];
+        for indv in indvs {
+            jindvs.push(indv.get_obj().as_json());
+        }
+        let query = json!({
+            "function": cmd.as_string(),
+            "ticket": ticket,
+            "individuals": jindvs,
+            "assigned_subsystems": assigned_subsystems,
+            "event_id" : event_id,
+            "src" : src
+        });
+        self.update_form_json(query)
+    }
+
+    pub fn update_form_json(&mut self, query: Value) -> Result<OpResult, ApiError> {
         let json: Value = self.client.req_recv(query)?;
 
         if let Some(t) = json["type"].as_str() {

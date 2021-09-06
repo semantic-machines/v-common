@@ -75,11 +75,13 @@ impl FTQuery {
     pub fn as_string(&self) -> String {
         let mut s = String::new();
 
+        s.push_str("[\"");
         if self.ticket.is_empty() {
-            s.push_str("[\"UU=");
-            s.push_str(&self.user);
+            if !self.user.is_empty() {
+                s.push_str("\"UU=");
+                s.push_str(&self.user);
+            }
         } else {
-            s.push_str("[\"");
             s.push_str(&self.ticket);
         }
 

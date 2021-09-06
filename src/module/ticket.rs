@@ -1,7 +1,10 @@
 use crate::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
 use chrono::{NaiveDateTime, Utc};
+use evmap::ShallowCopy;
 use serde_json::Value;
+use std::hash::{Hash, Hasher};
+use std::mem::ManuallyDrop;
 
 #[derive(Debug, Clone)]
 pub struct Ticket {
@@ -16,6 +19,47 @@ pub struct Ticket {
     pub start_time: i64,
     /// Дата окончания действия тикета
     pub end_time: i64,
+}
+
+impl Hash for Ticket {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl Eq for Ticket {}
+
+impl PartialEq for Ticket {
+    fn eq(&self, other: &Self) -> bool {
+        self.result == other.result
+            && self.user_uri == other.user_uri
+            && self.id == other.id
+            && self.end_time == other.end_time
+            && self.start_time == other.start_time
+            && self.user_login == other.user_uri
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.result != other.result
+            || self.user_uri != other.user_uri
+            || self.id != other.id
+            || self.end_time != other.end_time
+            || self.start_time != other.start_time
+            || self.user_login != other.user_uri
+    }
+}
+
+impl ShallowCopy for Ticket {
+    unsafe fn shallow_copy(&self) -> ManuallyDrop<Self> {
+        ManuallyDrop::new(Ticket {
+            id: self.id.clone(),
+            user_uri: self.user_uri.clone(),
+            user_login: self.user_login.clone(),
+            result: self.result,
+            start_time: self.start_time,
+            end_time: self.end_time,
+        })
+    }
 }
 
 impl Default for Ticket {
@@ -85,21 +129,19 @@ impl Ticket {
         }
     }
 
-    pub fn is_ticket_valid(&mut self) -> bool {
+    pub fn is_ticket_valid(&self) -> ResultCode {
         if self.result != ResultCode::Ok {
-            return false;
+            return self.result;
         }
 
         if Utc::now().timestamp() > self.end_time {
-            self.result = ResultCode::TicketExpired;
-            return false;
+            return ResultCode::TicketExpired;
         }
 
         if self.user_uri.is_empty() {
-            self.result = ResultCode::NotReady;
-            return false;
+            return ResultCode::NotReady;
         }
 
-        true
+        ResultCode::Ok
     }
 }

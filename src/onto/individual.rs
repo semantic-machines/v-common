@@ -753,7 +753,8 @@ impl Individual {
             let b_value = b.obj.resources.get(predicate.as_str());
 
             if a_value != b_value {
-                //info!("A != B, uri={}, predicate={}, A={:?}, B={:?}", self.obj.uri, predicate, a_value, b_value);
+                //info!("A != B, uri={}, predicate={}, A={:?}, B={:?}", self.obj.uri,
+                // predicate, a_value, b_value);
                 return false;
             }
         }
@@ -798,9 +799,9 @@ impl IndividualObj {
     //        self.resources.iter().map(|(key, _)| key.clone()).collect()
     //    }
 
-    //    pub fn crawl<T>(&mut self, ctx: &mut T, crawler: fn(predicate : &String, value: &Vec<Resource>, ctx: &mut T)) {
-    //        for (k, v) in &self.resources {
-    //            crawler (k, v, ctx);
+    //    pub fn crawl<T>(&mut self, ctx: &mut T, crawler: fn(predicate : &String,
+    // value: &Vec<Resource>, ctx: &mut T)) {        for (k, v) in
+    // &self.resources {            crawler (k, v, ctx);
     //        }
     //    }
 
