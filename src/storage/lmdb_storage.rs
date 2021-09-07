@@ -4,7 +4,7 @@ use crate::storage::storage::{Storage, StorageId, StorageMode};
 use lmdb_rs_m::core::{EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, DbHandle, EnvBuilder, Environment, MdbError};
 
-pub(crate) struct LMDBStorage {
+pub struct LMDBStorage {
     db_path: String,
 
     individuals_db_handle: Result<DbHandle, MdbError>,

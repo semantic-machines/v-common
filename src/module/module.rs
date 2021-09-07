@@ -475,6 +475,10 @@ pub fn init_log(module_name: &str) {
 }
 
 pub fn init_log_with_filter(module_name: &str, filter: Option<&str>) {
+    init_log_with_params(module_name, filter, false);
+}
+
+pub fn init_log_with_params(module_name: &str, filter: Option<&str>, with_thread_id: bool) {
     let var_log_name = module_name.to_owned() + "_LOG";
     match std::env::var_os(var_log_name.to_owned()) {
         Some(val) => println!("use env var: {}: {:?}", var_log_name, val.to_str()),
@@ -487,11 +491,19 @@ pub fn init_log_with_filter(module_name: &str, filter: Option<&str>) {
         env::var(var_log_name).unwrap_or_default()
     };
 
-    Builder::new()
-        .format(|buf, record| writeln!(buf, "{} [{}] - {}", Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"), record.level(), record.args()))
-        .parse_filters(&filters_str)
-        .try_init()
-        .unwrap_or(())
+    if with_thread_id {
+        Builder::new()
+            .format(|buf, record| writeln!(buf, "{} {} [{}] - {}", thread_id::get(), Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"), record.level(), record.args()))
+            .parse_filters(&filters_str)
+            .try_init()
+            .unwrap_or(())
+    } else {
+        Builder::new()
+            .format(|buf, record| writeln!(buf, "{} [{}] - {}", Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"), record.level(), record.args()))
+            .parse_filters(&filters_str)
+            .try_init()
+            .unwrap_or(())
+    }
 }
 
 pub fn create_new_ticket(login: &str, user_id: &str, duration: i64, ticket: &mut Ticket, storage: &mut VStorage) {

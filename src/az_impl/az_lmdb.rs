@@ -17,15 +17,15 @@ impl LmdbAzContext {
         loop {
             match env_builder.open(DB_PATH, 0o644) {
                 Ok(env) => {
-                    eprintln!("LIB_AZ: Opened environment {}", DB_PATH);
+                    info!("LIB_AZ: Opened environment {}", DB_PATH);
                     return LmdbAzContext {
                         env,
                     };
                 }
                 Err(e) => {
-                    eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
+                    error!("Authorize: Err opening environment: {:?}", e);
                     thread::sleep(time::Duration::from_secs(3));
-                    eprintln!("Retry");
+                    error!("Retry");
                 }
             }
         }
@@ -38,18 +38,18 @@ impl AuthorizationContext for LmdbAzContext {
     }
 }
 
-pub struct LMDBStorage<'a> {
+pub struct AzLmdbStorage<'a> {
     db: &'a Database<'a>,
 }
 
-impl<'a> Storage for LMDBStorage<'a> {
+impl<'a> Storage for AzLmdbStorage<'a> {
     fn get(&self, key: &str) -> Result<String, i64> {
         match self.db.get::<String>(&key) {
             Ok(val) => Ok(val),
             Err(e) => match e {
                 MdbError::NotFound => Err(0),
                 _ => {
-                    eprintln!("ERR! Authorize: db.get {:?}, {}", e, key);
+                    error!("Authorize: db.get {:?}, {}", e, key);
                     Err(-1)
                 }
             },
@@ -68,9 +68,9 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
                 break;
             }
             Err(e) => {
-                eprintln!("ERR! Authorize: Err opening db handle: {:?}", e);
+                error!("Authorize: Err opening db handle: {:?}", e);
                 thread::sleep(time::Duration::from_secs(3));
-                eprintln!("Retry");
+                error!("Retry");
             }
         }
     }
@@ -81,8 +81,8 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
             txn = txn1;
         }
         Err(e) => {
-            eprintln!("ERR! Authorize:CREATING TRANSACTION {:?}", e);
-            eprintln!("reopen db");
+            error!("Authorize:CREATING TRANSACTION {:?}", e);
+            error!("reopen db");
 
             let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
 
@@ -91,7 +91,7 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
                     return _f_authorize(&env1, uri, user_uri, request_access, _is_check_for_reload, trace);
                 }
                 Err(e) => {
-                    eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
+                    error!("Authorize: Err opening environment: {:?}", e);
                 }
             }
 
@@ -100,7 +100,7 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
     }
 
     let db = txn.bind(&db_handle);
-    let storage = LMDBStorage {
+    let storage = AzLmdbStorage {
         db: &db,
     };
 

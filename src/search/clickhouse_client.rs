@@ -10,7 +10,7 @@ use url::Url;
 use v_authorization::common::Access;
 
 pub struct CHClient {
-    client: Pool,
+    client: Option<Pool>,
     addr: String,
     is_ready: bool,
 }
@@ -18,13 +18,13 @@ pub struct CHClient {
 impl CHClient {
     pub fn new(client_addr: String) -> CHClient {
         CHClient {
-            client: Pool::new(String::new()),
+            client: None,
             addr: client_addr,
             is_ready: false,
         }
     }
 
-    pub fn connect(&mut self) -> bool {
+    pub fn connect(&mut self) {
         info!("Configuration to connect to Clickhouse: {}", self.addr);
         match Url::parse(self.addr.as_ref()) {
             Ok(url) => {
@@ -36,25 +36,29 @@ impl CHClient {
                 info!("Trying to connect to Clickhouse, host: {}, port: {}, user: {}, password: {}", host, port, user, pass);
                 info!("Connection url: {}", url);
                 let pool = Pool::new(url);
-                self.client = pool;
+                self.client = Some(pool);
                 self.is_ready = true;
-                true
             }
             Err(e) => {
                 error!("Invalid connection url, err={:?}", e);
                 self.is_ready = false;
-                false
             }
         }
     }
 
     pub fn select(&mut self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> QueryResult {
+        if !self.is_ready {
+            self.connect();
+        }
+
         let start = Instant::now();
         let mut res = QueryResult::default();
 
-        if let Err(e) = block_on(select_from_clickhouse(&mut self.client, &user_uri, query, top, limit, from, op_auth, &mut res)) {
-            error!("fail read from clickhouse: {:?}", e);
-            res.result_code = ResultCode::InternalServerError
+        if let Some(c) = &self.client {
+            if let Err(e) = block_on(select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res)) {
+                error!("fail read from clickhouse: {:?}", e);
+                res.result_code = ResultCode::InternalServerError
+            }
         }
 
         res.total_time = start.elapsed().as_millis() as i64;
@@ -63,10 +67,24 @@ impl CHClient {
 
         res
     }
+
+    pub async fn select_async(&self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> Result<QueryResult, Error> {
+        let start = Instant::now();
+        let mut res = QueryResult::default();
+
+        if let Some(c) = &self.client {
+            select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res).await?;
+        }
+        res.total_time = start.elapsed().as_millis() as i64;
+        res.query_time = res.total_time - res.authorize_time;
+        debug!("result={:?}", res);
+
+        Ok(res)
+    }
 }
 
 async fn select_from_clickhouse(
-    pool: &mut Pool,
+    pool: &Pool,
     user_uri: &str,
     query: &str,
     top: i64,
