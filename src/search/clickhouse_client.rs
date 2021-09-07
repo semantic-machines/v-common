@@ -24,7 +24,7 @@ impl CHClient {
         }
     }
 
-    pub fn connect(&mut self) {
+    pub fn connect(&mut self) -> bool{
         info!("Configuration to connect to Clickhouse: {}", self.addr);
         match Url::parse(self.addr.as_ref()) {
             Ok(url) => {
@@ -44,6 +44,7 @@ impl CHClient {
                 self.is_ready = false;
             }
         }
+        self.is_ready
     }
 
     pub fn select(&mut self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> QueryResult {
