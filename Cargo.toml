@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.1.64"
+version = "0.1.65"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2018"
 description = "common part of the veda platform"
@@ -53,7 +53,7 @@ thread-id = "4.0.0"
 
 evmap = "10.0.2"
 
-v_authorization = "=0.1.4"
+v_authorization = "=0.1.5"
 #v_authorization = { package = "v_authorization", path = "../v-authorization" }
 
 v_queue = "=0.1.9"

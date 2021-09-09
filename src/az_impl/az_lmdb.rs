@@ -2,7 +2,7 @@ use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateN
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 use std::thread;
 use std::time;
-use v_authorization::common::{AuthorizationContext, Storage, Trace};
+use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
 
 const DB_PATH: &str = "./data/acl-indexes/";
@@ -11,30 +11,69 @@ pub struct LmdbAzContext {
     env: Environment,
 }
 
-impl LmdbAzContext {
-    pub fn new() -> LmdbAzContext {
-        let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-        loop {
-            match env_builder.open(DB_PATH, 0o644) {
-                Ok(env) => {
-                    info!("LIB_AZ: Opened environment {}", DB_PATH);
-                    return LmdbAzContext {
-                        env,
-                    };
-                }
-                Err(e) => {
-                    error!("Authorize: Err opening environment: {:?}", e);
-                    thread::sleep(time::Duration::from_secs(3));
-                    error!("Retry");
-                }
+fn open() -> LmdbAzContext {
+    let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+    loop {
+        match env_builder.open(DB_PATH, 0o644) {
+            Ok(env) => {
+                info!("LIB_AZ: Opened environment {}", DB_PATH);
+                return LmdbAzContext {
+                    env,
+                };
+            }
+            Err(e) => {
+                error!("Authorize: Err opening environment: {:?}", e);
+                thread::sleep(time::Duration::from_secs(3));
+                error!("Retry");
             }
         }
     }
 }
 
+impl LmdbAzContext {
+    pub fn new() -> LmdbAzContext {
+        open()
+    }
+}
+
 impl AuthorizationContext for LmdbAzContext {
-    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
-        _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace)
+    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool) -> Result<u8, i64> {
+        let mut t = Trace {
+            acl: &mut String::new(),
+            is_acl: false,
+            group: &mut String::new(),
+            is_group: false,
+            info: &mut String::new(),
+            is_info: false,
+            str_num: 0,
+        };
+
+        self.authorize_and_trace(uri, user_uri, request_access, _is_check_for_reload, &mut t)
+    }
+
+    fn authorize_and_trace(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
+        match _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace) {
+            Ok(r) => {
+                return Ok(r);
+            }
+            Err(e) => {
+                if e < 0 {
+                    info!("reopen");
+                    let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+
+                    match env_builder.open(DB_PATH, 0o644) {
+                        Ok(env1) => {
+                            self.env = env1;
+                        }
+                        Err(e1) => {
+                            error!("Authorize: Err opening environment: {:?}", e1);
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+        }
+        return _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace);
     }
 }
 
@@ -59,19 +98,18 @@ impl<'a> Storage for AzLmdbStorage<'a> {
     fn fiber_yield(&self) {}
 }
 
-pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
+fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
     let db_handle;
-    loop {
-        match env.get_default_db(DbFlags::empty()) {
-            Ok(db_handle_res) => {
-                db_handle = db_handle_res;
-                break;
-            }
-            Err(e) => {
-                error!("Authorize: Err opening db handle: {:?}", e);
-                thread::sleep(time::Duration::from_secs(3));
-                error!("Retry");
-            }
+
+    match env.get_default_db(DbFlags::empty()) {
+        Ok(db_handle_res) => {
+            db_handle = db_handle_res;
+        }
+        Err(e) => {
+            error!("Authorize: Err opening db handle: {:?}", e);
+//            thread::sleep(time::Duration::from_secs(3));
+//            error!("Retry");
+            return Err(-1);
         }
     }
 
@@ -83,18 +121,6 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
         Err(e) => {
             error!("Authorize:CREATING TRANSACTION {:?}", e);
             error!("reopen db");
-
-            let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-
-            match env_builder.open(DB_PATH, 0o644) {
-                Ok(env1) => {
-                    return _f_authorize(&env1, uri, user_uri, request_access, _is_check_for_reload, trace);
-                }
-                Err(e) => {
-                    error!("Authorize: Err opening environment: {:?}", e);
-                }
-            }
-
             return Err(-1);
         }
     }
@@ -104,19 +130,5 @@ pub fn _f_authorize(env: &Environment, uri: &str, user_uri: &str, request_access
         db: &db,
     };
 
-    if let Some(t) = trace {
-        authorize(uri, user_uri, request_access, &storage, t)
-    } else {
-        let mut t = Trace {
-            acl: &mut String::new(),
-            is_acl: false,
-            group: &mut String::new(),
-            is_group: false,
-            info: &mut String::new(),
-            is_info: false,
-            str_num: 0,
-        };
-
-        authorize(uri, user_uri, request_access, &storage, &mut t)
-    }
+    authorize(uri, user_uri, request_access, &storage, trace)
 }
