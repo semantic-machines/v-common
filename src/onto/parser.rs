@@ -1,3 +1,4 @@
+use crate::onto::cbor2individual::{parse_cbor, parse_cbor_to_predicate};
 use crate::onto::individual::*;
 use crate::onto::msgpack2individual::*;
 
@@ -19,6 +20,13 @@ pub fn parse_to_predicate(expect_predicate: &str, iraw: &mut Individual) -> bool
         }
         return true;
     } else if iraw.raw.raw_type == RawType::Cbor {
+        if let Err(e) = parse_cbor_to_predicate(expect_predicate, iraw) {
+            if !e.is_empty() {
+                error!("parse for [{}], err={}", expect_predicate, e);
+            }
+            return false;
+        }
+        return true;
     }
 
     false
@@ -42,7 +50,7 @@ pub fn parse_raw(iraw: &mut Individual) -> Result<(), i8> {
     let res = if iraw.raw.raw_type == RawType::Msgpack {
         parse_msgpack(&mut iraw.raw)
     } else {
-        Err(-1)
+        parse_cbor(&mut iraw.raw)
     };
 
     if let Ok(uri) = res {

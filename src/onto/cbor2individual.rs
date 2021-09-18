@@ -54,9 +54,9 @@ pub fn parse_cbor(raw: &mut RawObj) -> Result<String, i8> {
     Err(-1)
 }
 
-pub fn parse_cbor_to_predicate(expect_predicate: &str, iraw: &mut Individual) -> bool {
+pub fn parse_cbor_to_predicate(expect_predicate: &str, iraw: &mut Individual) -> Result<(), String> {
     if iraw.raw.cur >= iraw.raw.data.len() as u64 {
-        return false;
+        return Err("fail position of cursor".to_owned());
     }
 
     let mut is_found = false;
@@ -78,19 +78,19 @@ pub fn parse_cbor_to_predicate(expect_predicate: &str, iraw: &mut Individual) ->
                 }
                 if !add_value(&predicate, &mut d, &mut iraw.obj) {
                     iraw.raw.cur = d.into_reader().position();
-                    return false;
+                    return Err(String::default());
                 }
             }
         }
 
         if is_found {
             iraw.raw.cur = d.into_reader().position();
-            return true;
+            return Ok(());
         }
     }
 
     iraw.raw.cur = d.into_reader().position();
-    false
+    return Err(String::default());
 }
 
 fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut IndividualObj) -> bool {

@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.1.65"
+version = "0.1.66"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2018"
 description = "common part of the veda platform"
@@ -10,6 +10,8 @@ license     = "MIT"
 #path = "src/lib.rs"
 
 [dependencies]
+tokio = { version = "0.2" }
+futures = "=0.3"
 nng = "0.5.1"
 nanoid = "0.3.0"
 num = "0.2.1"
@@ -27,12 +29,10 @@ rio_turtle = "0.5.3"
 rio_api = "0.5.3"
 derivative = "2.1.1"
 rusty_tarantool = "0.2.10"
-tokio = { version = "0.2" }
 lmdb-rs-m = "0.7.7"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 rust-ini = "0.16"
 clickhouse-rs = {package = "v-clickhouse-rs", version = "0.2.0-alpha.6", default-features = false, features = ["async_std"] }
-futures = "=0.3"
 url = "2.1.1"
 lazy_static = "1.4"
 scan_fmt = "0.1.3"
