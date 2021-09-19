@@ -1,10 +1,11 @@
-use crate::az_impl::common::f_authorize;
+use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};
 use crate::onto::onto::Onto;
 use crate::search::common::QueryResult;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
+use crate::v_authorization::common::AuthorizationContext;
 use chrono::NaiveDateTime;
 use regex::Regex;
 use std::collections::HashSet;
@@ -29,10 +30,11 @@ pub(crate) fn exec_xapian_query_and_queue_authorize<T>(
     limit: i32,
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
-    ctx: &mut T,
+    out_list: &mut T,
+    az: &mut LmdbAzContext,
 ) -> QueryResult {
     let mut sr = QueryResult::default();
-    match exec(user_uri, xapian_enquire, from, top, limit, add_out_element, op_auth, ctx) {
+    match exec(user_uri, xapian_enquire, from, top, limit, add_out_element, op_auth, out_list, az) {
         Ok(res) => return res,
         Err(e) => match e {
             XError::Xapian(err_code) => {
@@ -59,7 +61,8 @@ fn exec<T>(
     in_limit: i32,
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
-    ctx: &mut T,
+    out_list: &mut T,
+    az: &mut LmdbAzContext,
 ) -> Result<QueryResult> {
     let mut sr = QueryResult::default();
 
@@ -108,7 +111,7 @@ fn exec<T>(
 
         if op_auth == OptAuthorize::YES {
             auth_sw.start();
-            if f_authorize(&subject_id, user_uri, Access::CanRead as u8, true, None).unwrap_or(0) != Access::CanRead as u8 {
+            if az.authorize(&subject_id, user_uri, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
                 is_passed = false;
             } else {
                 debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, user_uri);
@@ -117,7 +120,7 @@ fn exec<T>(
         }
 
         if is_passed {
-            add_out_element(&subject_id, ctx);
+            add_out_element(&subject_id, out_list);
             read_count += 1;
             if read_count >= top {
                 break;

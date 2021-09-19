@@ -1,6 +1,7 @@
-use crate::az_impl::common::f_authorize;
+use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::search::common::QueryResult;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
+use crate::v_authorization::common::AuthorizationContext;
 use clickhouse_rs::errors::Error;
 use clickhouse_rs::Pool;
 use futures::executor::block_on;
@@ -13,6 +14,7 @@ pub struct CHClient {
     client: Option<Pool>,
     addr: String,
     is_ready: bool,
+    az: LmdbAzContext,
 }
 
 impl CHClient {
@@ -21,10 +23,11 @@ impl CHClient {
             client: None,
             addr: client_addr,
             is_ready: false,
+            az: LmdbAzContext::new(),
         }
     }
 
-    pub fn connect(&mut self) -> bool{
+    pub fn connect(&mut self) -> bool {
         info!("Configuration to connect to Clickhouse: {}", self.addr);
         match Url::parse(self.addr.as_ref()) {
             Ok(url) => {
@@ -56,7 +59,7 @@ impl CHClient {
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            if let Err(e) = block_on(select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res)) {
+            if let Err(e) = block_on(select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az)) {
                 error!("fail read from clickhouse: {:?}", e);
                 res.result_code = ResultCode::InternalServerError
             }
@@ -69,12 +72,12 @@ impl CHClient {
         res
     }
 
-    pub async fn select_async(&self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> Result<QueryResult, Error> {
+    pub async fn select_async(&mut self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> Result<QueryResult, Error> {
         let start = Instant::now();
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res).await?;
+            select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az).await?;
         }
         res.total_time = start.elapsed().as_millis() as i64;
         res.query_time = res.total_time - res.authorize_time;
@@ -93,6 +96,7 @@ async fn select_from_clickhouse(
     from: i64,
     op_auth: OptAuthorize,
     out_res: &mut QueryResult,
+    az: &mut LmdbAzContext,
 ) -> Result<(), Error> {
     let mut authorized_count = 0;
     let mut total_count = 0;
@@ -116,7 +120,7 @@ async fn select_from_clickhouse(
         if op_auth == OptAuthorize::YES {
             let start = Instant::now();
 
-            match f_authorize(&id, user_uri, Access::CanRead as u8, true, None) {
+            match az.authorize(&id, user_uri, Access::CanRead as u8, true) {
                 Ok(res) => {
                     if res == Access::CanRead as u8 {
                         out_res.result.push(id);

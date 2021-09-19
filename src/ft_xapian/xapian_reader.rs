@@ -1,3 +1,4 @@
+use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::ft_xapian::index_schema::IndexerSchema;
 use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
@@ -46,6 +47,7 @@ pub struct XapianReader {
     db2path: HashMap<String, String>,
     committed_op_id: i64,
     onto_modified: SystemTime,
+    az: LmdbAzContext,
 }
 
 impl XapianReader {
@@ -71,6 +73,7 @@ impl XapianReader {
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::now(),
+            az: LmdbAzContext::new(),
         };
 
         xr.load_index_schema(storage);
@@ -79,13 +82,13 @@ impl XapianReader {
     }
 
     pub fn query(&mut self, request: FTQuery, storage: &mut VStorage) -> QueryResult {
-        let mut ctx = vec![];
+        let mut res_out_list = vec![];
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
 
-        if let Ok(mut res) = self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, storage, &mut ctx) {
-            res.result = ctx;
+        if let Ok(mut res) = self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, storage, &mut res_out_list) {
+            res.result = res_out_list;
             debug!("res={:?}", res);
             return res;
         }
@@ -98,7 +101,7 @@ impl XapianReader {
         add_out_element: fn(uri: &str, ctx: &mut T),
         op_auth: OptAuthorize,
         storage: &mut VStorage,
-        ctx: &mut T,
+        out_list: &mut T,
     ) -> Result<QueryResult> {
         let total_time = Instant::now();
         let mut sr = QueryResult::default();
@@ -168,7 +171,17 @@ impl XapianReader {
                 xapian_enquire.set_sort_by_key(s, true)?;
             }
 
-            sr = exec_xapian_query_and_queue_authorize(&request.user, &mut xapian_enquire, request.from, request.top, request.limit, add_out_element, op_auth, ctx);
+            sr = exec_xapian_query_and_queue_authorize(
+                &request.user,
+                &mut xapian_enquire,
+                request.from,
+                request.top,
+                request.limit,
+                add_out_element,
+                op_auth,
+                out_list,
+                &mut self.az,
+            );
         }
 
         debug!("res={:?}", sr);
