@@ -22,7 +22,7 @@ enum TokenType {
     BOOLEAN,
 }
 
-pub(crate) fn exec_xapian_query_and_queue_authorize<T>(
+pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
     user_uri: &str,
     xapian_enquire: &mut Enquire,
     from: i32,
@@ -34,7 +34,7 @@ pub(crate) fn exec_xapian_query_and_queue_authorize<T>(
     az: &mut LmdbAzContext,
 ) -> QueryResult {
     let mut sr = QueryResult::default();
-    match exec(user_uri, xapian_enquire, from, top, limit, add_out_element, op_auth, out_list, az) {
+    match exec(user_uri, xapian_enquire, from, top, limit, add_out_element, op_auth, out_list, az).await {
         Ok(res) => return res,
         Err(e) => match e {
             XError::Xapian(err_code) => {
@@ -53,7 +53,7 @@ pub(crate) fn exec_xapian_query_and_queue_authorize<T>(
     sr
 }
 
-fn exec<T>(
+async fn exec<T>(
     user_uri: &str,
     xapian_enquire: &mut Enquire,
     from: i32,

@@ -12,6 +12,7 @@ use crate::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::storage::storage::VStorage;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
+use futures::executor::block_on;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::time::Instant;
@@ -87,7 +88,11 @@ impl XapianReader {
             ctx.push(id.to_owned());
         }
 
-        if let Ok(mut res) = self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, storage, &mut res_out_list) {
+        let mut fn_reload_onto = |onto: &mut Onto| {
+            load_onto(storage, onto);
+        };
+
+        if let Ok(mut res) = block_on(self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, &mut res_out_list, &mut fn_reload_onto)) {
             res.result = res_out_list;
             debug!("res={:?}", res);
             return res;
@@ -95,14 +100,17 @@ impl XapianReader {
         QueryResult::default()
     }
 
-    pub fn query_use_collect_fn<T>(
+    pub async fn query_use_collect_fn<T, F>(
         &mut self,
         request: &FTQuery,
         add_out_element: fn(uri: &str, ctx: &mut T),
         op_auth: OptAuthorize,
-        storage: &mut VStorage,
         out_list: &mut T,
-    ) -> Result<QueryResult> {
+        ev_reload_onto: &mut F,
+    ) -> Result<QueryResult>
+    where
+        F: FnMut(&mut Onto),
+    {
         let total_time = Instant::now();
         let mut sr = QueryResult::default();
 
@@ -143,7 +151,7 @@ impl XapianReader {
 
         if let Some(t) = OntoIndex::get_modified() {
             if t > self.onto_modified {
-                load_onto(storage, &mut self.onto);
+                ev_reload_onto(&mut self.onto);
                 self.onto_modified = t;
             }
         }
@@ -181,7 +189,8 @@ impl XapianReader {
                 op_auth,
                 out_list,
                 &mut self.az,
-            );
+            )
+            .await;
         }
 
         debug!("res={:?}", sr);
@@ -191,20 +200,19 @@ impl XapianReader {
         Ok(sr)
     }
 
-    pub fn load_index_schema(&mut self, storage: &mut VStorage) {
+    pub(crate) fn load_index_schema(&mut self, storage: &mut VStorage) {
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
-
         let mut ctx = vec![];
 
-        match self.query_use_collect_fn(
+        match block_on(self.query_use_collect_fn(
             &FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"),
             add_out_element,
             OptAuthorize::NO,
-            storage,
             &mut ctx,
-        ) {
+            &mut |_: &mut Onto| {},
+        )) {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
