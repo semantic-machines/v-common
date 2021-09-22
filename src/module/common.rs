@@ -11,7 +11,9 @@ use crate::onto::individual::Individual;
 use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
 //use crate::storage::storage::VStorage;
+use crate::storage::async_storage::{get_individual_from_db, AStorage};
 use crate::storage::storage::VStorage;
+use crate::v_api::obj::ResultCode;
 use chrono::Utc;
 #[cfg(not(feature = "extended-siginfo"))]
 use signal_hook::iterator::Signals;
@@ -20,6 +22,37 @@ use v_queue::consumer::Consumer;
 use v_queue::record::Mode;
 
 pub const DATA_BASE_PATH: &str = "./data";
+
+pub async fn c_load_onto(storage: &AStorage, onto: &mut Onto) -> bool {
+    let onto_index = OntoIndex::load();
+
+    info!("load {} onto elements", onto_index.len());
+
+    for id in onto_index.data.keys() {
+        if let Ok((mut indv, res)) = get_individual_from_db(&id, "", storage, None).await {
+            if res == ResultCode::Ok {
+                onto.update(&mut indv);
+            }
+        }
+    }
+
+    info!("add to hierarchy {} elements", onto.relations.len());
+
+    let keys: Vec<String> = onto.relations.iter().map(|(key, _)| key.clone()).collect();
+
+    for el in keys.iter() {
+        let mut buf: HashSet<String> = HashSet::new();
+        onto.get_subs(el, &mut buf);
+        if !buf.is_empty() {
+            onto.update_subs(el, &mut buf);
+            //info!("{}, subs={:?}", el, buf);
+        }
+    }
+
+    info!("end update subs");
+
+    true
+}
 
 pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
     let onto_index = OntoIndex::load();

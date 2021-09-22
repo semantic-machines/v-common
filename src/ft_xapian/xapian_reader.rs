@@ -4,13 +4,14 @@ use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::vql::TTA;
 use crate::ft_xapian::xapian_vql::{exec_xapian_query_and_queue_authorize, get_sorter, transform_vql_to_xapian};
-use crate::module::common::load_onto;
+use crate::module::common::{c_load_onto, load_onto};
 use crate::module::info::ModuleInfo;
 use crate::onto::individual::Individual;
 use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
-use crate::storage::storage::VStorage;
+use crate::storage::async_storage::{get_individual_from_db, AStorage};
+use crate::storage::storage::{StorageId, VStorage};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use futures::executor::block_on;
 use std::collections::HashMap;
@@ -77,7 +78,46 @@ impl XapianReader {
             az: LmdbAzContext::new(),
         };
 
-        xr.load_index_schema(storage);
+        let mut get_individual = |id: &str, _storage_id: Option<StorageId>| {
+            let mut ii = Individual::default();
+            if storage.get_individual(id, &mut ii) {
+                Some(ii)
+            } else {
+                None
+            }
+        };
+
+        xr.load_index_schema(&mut get_individual);
+
+        Some(xr)
+    }
+
+    pub async fn new_async<'a>(lang: &str, storage: &mut AStorage) -> Option<Self> {
+        let indexer_module_info = ModuleInfo::new(BASE_PATH, "fulltext_indexer", true);
+        if indexer_module_info.is_err() {
+            error!("{:?}", indexer_module_info.err());
+            return None;
+        }
+
+        let mut onto = Onto::default();
+        c_load_onto(storage, &mut onto).await;
+
+        let mut xr = XapianReader {
+            using_dbqp: Default::default(),
+            opened_db: Default::default(),
+            xapian_stemmer: Stem::new(lang).unwrap(),
+            xapian_lang: lang.to_string(),
+            index_schema: Default::default(),
+            mdif: indexer_module_info.unwrap(),
+            key2slot: Key2Slot::load().unwrap_or_default(),
+            onto,
+            db2path: init_db_path(),
+            committed_op_id: 0,
+            onto_modified: SystemTime::now(),
+            az: LmdbAzContext::new(),
+        };
+
+        xr.c_load_index_schema(storage).await;
 
         Some(xr)
     }
@@ -200,7 +240,10 @@ impl XapianReader {
         Ok(sr)
     }
 
-    pub(crate) fn load_index_schema(&mut self, storage: &mut VStorage) {
+    pub fn load_index_schema<F>(&mut self, get_individual: &mut F)
+    where
+        F: FnMut(&str, Option<StorageId>) -> Option<Individual>,
+    {
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
@@ -216,9 +259,48 @@ impl XapianReader {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
-                        let mut indv = &mut Individual::default();
-                        if storage.get_individual(id, &mut indv) {
-                            self.index_schema.add_schema_data(&self.onto, indv);
+                        if let Some(mut indv) = get_individual(id, None) {
+                            self.index_schema.add_schema_data(&self.onto, &mut indv);
+                        }
+                    }
+                } else {
+                    error!("fail load index schema, err={:?}", res.result_code);
+                }
+            }
+            Err(e) => match e {
+                XError::Xapian(code) => {
+                    error!("fail load index schema, err={} ({})", get_xapian_err_type(code), code);
+                }
+                XError::Io(e) => {
+                    error!("fail load index schema, err={:?}", e);
+                }
+            },
+        }
+    }
+
+    pub async fn c_load_index_schema(&mut self, storage: &AStorage) {
+        fn add_out_element(id: &str, ctx: &mut Vec<String>) {
+            ctx.push(id.to_owned());
+        }
+        let mut ctx = vec![];
+
+        match self
+            .query_use_collect_fn(
+                &FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"),
+                add_out_element,
+                OptAuthorize::NO,
+                &mut ctx,
+                &mut |_: &mut Onto| {},
+            )
+            .await
+        {
+            Ok(res) => {
+                if res.result_code == ResultCode::Ok && res.count > 0 {
+                    for id in ctx.iter() {
+                        if let Ok((mut indv, res)) = get_individual_from_db(id, "", storage, None).await {
+                            if res == ResultCode::Ok {
+                                self.index_schema.add_schema_data(&self.onto, &mut indv);
+                            }
                         }
                     }
                 } else {

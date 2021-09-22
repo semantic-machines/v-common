@@ -120,7 +120,7 @@ async fn select_from_clickhouse(
         if op_auth == OptAuthorize::YES {
             let start = Instant::now();
 
-            match az.authorize(&id, user_uri, Access::CanRead as u8, true) {
+            match az.authorize(&id, user_uri, Access::CanRead as u8, false) {
                 Ok(res) => {
                     if res == Access::CanRead as u8 {
                         out_res.result.push(id);
