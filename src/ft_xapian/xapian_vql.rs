@@ -110,13 +110,16 @@ async fn exec<T>(
         let mut is_passed = true;
 
         if op_auth == OptAuthorize::YES {
-            auth_sw.start();
-            if az.authorize(&subject_id, user_uri, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
-                is_passed = false;
-            } else {
-                debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, user_uri);
+            async {
+                auth_sw.start();
+                if az.authorize(&subject_id, user_uri, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
+                    is_passed = false;
+                } else {
+                    debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, user_uri);
+                }
+                auth_sw.stop();
             }
-            auth_sw.stop();
+            .await;
         }
 
         if is_passed {
