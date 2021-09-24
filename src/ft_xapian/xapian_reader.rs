@@ -4,14 +4,14 @@ use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::vql::TTA;
 use crate::ft_xapian::xapian_vql::{exec_xapian_query_and_queue_authorize, get_sorter, transform_vql_to_xapian};
-use crate::module::common::{c_load_onto, load_onto};
+use crate::module::common::load_onto;
 use crate::module::info::ModuleInfo;
 use crate::onto::individual::Individual;
 use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
-use crate::storage::storage::{StorageId, VStorage};
+use crate::storage::storage::VStorage;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use futures::executor::block_on;
 use std::collections::HashMap;
@@ -38,17 +38,17 @@ impl DatabaseQueryParser {
 }
 
 pub struct XapianReader {
+    pub index_schema: IndexerSchema,
+    pub onto: Onto,
+    pub onto_modified: SystemTime,
     using_dbqp: HashMap<Vec<String>, DatabaseQueryParser>,
     opened_db: HashMap<String, Database>,
     xapian_stemmer: Stem,
     xapian_lang: String,
-    index_schema: IndexerSchema,
     mdif: ModuleInfo,
     key2slot: Key2Slot,
-    onto: Onto,
     db2path: HashMap<String, String>,
     committed_op_id: i64,
-    onto_modified: SystemTime,
     az: LmdbAzContext,
 }
 
@@ -78,31 +78,19 @@ impl XapianReader {
             az: LmdbAzContext::new(),
         };
 
-        let mut get_individual = |id: &str, _storage_id: Option<StorageId>| {
-            let mut ii = Individual::default();
-            if storage.get_individual(id, &mut ii) {
-                Some(ii)
-            } else {
-                None
-            }
-        };
-
-        xr.load_index_schema(&mut get_individual);
+        xr.load_index_schema(storage);
 
         Some(xr)
     }
 
-    pub async fn new_async<'a>(lang: &str, storage: &mut AStorage) -> Option<Self> {
+    pub fn new_without_init<'a>(lang: &str) -> Option<Self> {
         let indexer_module_info = ModuleInfo::new(BASE_PATH, "fulltext_indexer", true);
         if indexer_module_info.is_err() {
             error!("{:?}", indexer_module_info.err());
             return None;
         }
 
-        let mut onto = Onto::default();
-        c_load_onto(storage, &mut onto).await;
-
-        let mut xr = XapianReader {
+        let xr = XapianReader {
             using_dbqp: Default::default(),
             opened_db: Default::default(),
             xapian_stemmer: Stem::new(lang).unwrap(),
@@ -110,14 +98,12 @@ impl XapianReader {
             index_schema: Default::default(),
             mdif: indexer_module_info.unwrap(),
             key2slot: Key2Slot::load().unwrap_or_default(),
-            onto,
+            onto: Onto::default(),
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::now(),
             az: LmdbAzContext::new(),
         };
-
-        xr.c_load_index_schema(storage).await;
 
         Some(xr)
     }
@@ -128,11 +114,17 @@ impl XapianReader {
             ctx.push(id.to_owned());
         }
 
-        let mut fn_reload_onto = |onto: &mut Onto| {
-            load_onto(storage, onto);
-        };
+        if let Some(t) = OntoIndex::get_modified() {
+            if t > self.onto_modified {
+                load_onto(storage, &mut self.onto);
+                self.onto_modified = t;
+            }
+        }
+        if self.index_schema.is_empty() {
+            self.load_index_schema(storage);
+        }
 
-        if let Ok(mut res) = block_on(self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, &mut res_out_list, &mut fn_reload_onto)) {
+        if let Ok(mut res) = block_on(self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, &mut res_out_list)) {
             res.result = res_out_list;
             debug!("res={:?}", res);
             return res;
@@ -140,17 +132,13 @@ impl XapianReader {
         QueryResult::default()
     }
 
-    pub async fn query_use_collect_fn<T, F>(
+    pub async fn query_use_collect_fn<T>(
         &mut self,
         request: &FTQuery,
         add_out_element: fn(uri: &str, ctx: &mut T),
         op_auth: OptAuthorize,
         out_list: &mut T,
-        ev_reload_onto: &mut F,
-    ) -> Result<QueryResult>
-    where
-        F: FnMut(&mut Onto),
-    {
+    ) -> Result<QueryResult> {
         let total_time = Instant::now();
         let mut sr = QueryResult::default();
 
@@ -188,13 +176,6 @@ impl XapianReader {
         }
 
         self.open_dbqp_if_need(&db_names)?;
-
-        if let Some(t) = OntoIndex::get_modified() {
-            if t > self.onto_modified {
-                ev_reload_onto(&mut self.onto);
-                self.onto_modified = t;
-            }
-        }
 
         let mut query = Query::new()?;
         if let Some(dbqp) = self.using_dbqp.get_mut(&db_names) {
@@ -240,10 +221,7 @@ impl XapianReader {
         Ok(sr)
     }
 
-    pub fn load_index_schema<F>(&mut self, get_individual: &mut F)
-    where
-        F: FnMut(&str, Option<StorageId>) -> Option<Individual>,
-    {
+    pub fn load_index_schema(&mut self, storage: &mut VStorage) {
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
@@ -254,13 +232,13 @@ impl XapianReader {
             add_out_element,
             OptAuthorize::NO,
             &mut ctx,
-            &mut |_: &mut Onto| {},
         )) {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
-                        if let Some(mut indv) = get_individual(id, None) {
-                            self.index_schema.add_schema_data(&self.onto, &mut indv);
+                        let mut indv = &mut Individual::default();
+                        if storage.get_individual(id, &mut indv) {
+                            self.index_schema.add_schema_data(&self.onto, indv);
                         }
                     }
                 } else {
@@ -284,16 +262,7 @@ impl XapianReader {
         }
         let mut ctx = vec![];
 
-        match self
-            .query_use_collect_fn(
-                &FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"),
-                add_out_element,
-                OptAuthorize::NO,
-                &mut ctx,
-                &mut |_: &mut Onto| {},
-            )
-            .await
-        {
+        match self.query_use_collect_fn(&FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"), add_out_element, OptAuthorize::NO, &mut ctx).await {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
@@ -316,6 +285,8 @@ impl XapianReader {
                 }
             },
         }
+
+        info!("load index schema, size={}", self.index_schema.len());
     }
 
     fn reopen_dbs(&mut self) -> Result<()> {

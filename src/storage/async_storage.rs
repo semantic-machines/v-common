@@ -26,9 +26,11 @@ pub struct TicketCache {
     pub write: Arc<Mutex<evmap::WriteHandle<String, Ticket>>>,
 }
 
-async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: &Mutex<LmdbAzContext>) -> io::Result<(Individual, ResultCode)> {
-    if az.lock().await.authorize(uri, user_uri, Access::CanRead as u8, false).unwrap_or(0) != Access::CanRead as u8 {
-        return Ok((indv, ResultCode::NotAuthorized));
+async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+    if let Some(a) = az {
+        if a.lock().await.authorize(uri, user_uri, Access::CanRead as u8, false).unwrap_or(0) != Access::CanRead as u8 {
+            return Ok((indv, ResultCode::NotAuthorized));
+        }
     }
 
     if indv.get_id().is_empty() {
@@ -45,18 +47,14 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
         let mut iraw = Individual::default();
         iraw.set_raw(&response.data[5..]);
         if parse_raw(&mut iraw).is_ok() {
-            if let Some(a) = az {
-                return check_indv_access_read(iraw, uri, user_uri, a).await;
-            }
+            return check_indv_access_read(iraw, uri, user_uri, az).await;
         }
         return Ok((iraw, ResultCode::UnprocessableEntity));
     }
     if let Some(lmdb) = &db.lmdb {
         let mut iraw = Individual::default();
         if lmdb.lock().await.get_individual_from_db(StorageId::Individuals, uri, &mut iraw) {
-            if let Some(a) = az {
-                return check_indv_access_read(iraw, uri, user_uri, a).await;
-            }
+            return check_indv_access_read(iraw, uri, user_uri, az).await;
         } else {
             return Ok((Individual::default(), ResultCode::NotFound));
         }

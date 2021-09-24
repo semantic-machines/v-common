@@ -10,7 +10,6 @@ type Signals = signal_hook::iterator::SignalsInfo<signal_hook::iterator::exfiltr
 use crate::onto::individual::Individual;
 use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
-//use crate::storage::storage::VStorage;
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
 use crate::storage::storage::VStorage;
 use crate::v_api::obj::ResultCode;

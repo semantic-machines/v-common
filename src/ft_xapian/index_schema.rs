@@ -28,6 +28,14 @@ impl fmt::Display for IndexerSchema {
 }
 
 impl IndexerSchema {
+    pub fn is_empty(&self) -> bool {
+        self.class_2_database.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.id_2_individual.len()
+    }
+
     pub fn load(&mut self, force: bool, onto: &Onto, backend: &mut Backend, xr: &mut XapianReader) {
         if self.class_property_2_id.is_empty() || force {
             if force {
