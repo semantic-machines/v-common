@@ -11,7 +11,7 @@ use crate::onto::individual::Individual;
 use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
-use crate::storage::storage::VStorage;
+use crate::storage::common::VStorage;
 use crate::v_api::obj::ResultCode;
 use chrono::Utc;
 #[cfg(not(feature = "extended-siginfo"))]
@@ -28,7 +28,7 @@ pub async fn c_load_onto(storage: &AStorage, onto: &mut Onto) -> bool {
     info!("load {} onto elements", onto_index.len());
 
     for id in onto_index.data.keys() {
-        if let Ok((mut indv, res)) = get_individual_from_db(&id, "", storage, None).await {
+        if let Ok((mut indv, res)) = get_individual_from_db(id, "", storage, None).await {
             if res == ResultCode::Ok {
                 onto.update(&mut indv);
             }
@@ -60,7 +60,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
 
     for id in onto_index.data.keys() {
         let mut indv: Individual = Individual::default();
-        if storage.get_individual(&id, &mut indv) {
+        if storage.get_individual(id, &mut indv) {
             onto.update(&mut indv);
         }
     }

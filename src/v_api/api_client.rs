@@ -219,12 +219,10 @@ impl AuthClient {
                     }
                     Ok(v)
                 } else {
-                    return Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"));
+                    Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"))
                 }
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }
@@ -246,12 +244,8 @@ impl MStorageClient {
 
     pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
         match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
-            Ok(r) => {
-                return r;
-            }
-            Err(e) => {
-                return OpResult::res(e.result);
-            }
+            Ok(r) => r,
+            Err(e) => OpResult::res(e.result),
         }
     }
 

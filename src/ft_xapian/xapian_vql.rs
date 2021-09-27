@@ -207,7 +207,7 @@ pub(crate) fn transform_vql_to_xapian(
         }
 
         if !is_strict_equality {
-            if let Some(s) = add_subclasses_to_query(&rs, &onto) {
+            if let Some(s) = add_subclasses_to_query(&rs, onto) {
                 rs = s;
             }
         }
@@ -252,7 +252,7 @@ pub(crate) fn transform_vql_to_xapian(
                             };
                             let flags = FeatureFlag::FlagDefault as i16 | FeatureFlag::FlagPhrase as i16 | FeatureFlag::FlagLovehate as i16;
 
-                            *query = parse_query_with_prefix(qp, &query_str, flags, &xtr)?;
+                            *query = parse_query_with_prefix(qp, query_str, flags, &xtr)?;
                         } else if let Some(r) = &tta.r {
                             if r.token_decor == Decor::QUOTED || (rs.find('*').is_some() && is_good_token(&rs)) {
                                 if rs.find('*').is_some() && rs_first_byte == b'+' && !is_good_token(&rs) {
@@ -302,7 +302,7 @@ pub(crate) fn transform_vql_to_xapian(
                                     let xtr = format!("X{}X", slot);
 
                                     if !is_strict_equality {
-                                        if let Some(s) = add_subclasses_to_query(&rs, &onto) {
+                                        if let Some(s) = add_subclasses_to_query(&rs, onto) {
                                             query_str = s;
                                         }
                                     }

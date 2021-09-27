@@ -2,7 +2,7 @@ use crate::module::module::Module;
 use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
-use crate::storage::storage::{StorageId, StorageMode, VStorage};
+use crate::storage::common::{StorageId, StorageMode, VStorage};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
 use crate::v_api::obj::ResultCode;
 use ini::Ini;
@@ -184,11 +184,9 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
         "".to_owned()
     };
 
-    let storage = if !tarantool_addr.is_empty() {
+    return if !tarantool_addr.is_empty() {
         VStorage::new_tt(tarantool_addr, "veda6", "123456")
     } else {
         VStorage::new_lmdb("./data", mode)
     };
-
-    storage
 }

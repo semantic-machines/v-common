@@ -57,7 +57,7 @@ impl Resource {
 
     pub fn get_str(&self) -> &str {
         if let Value::Str(s, _) = &self.value {
-            &s
+            s
         } else {
             ""
         }
@@ -65,7 +65,7 @@ impl Resource {
 
     pub fn get_uri(&self) -> &str {
         if let Value::Uri(s) = &self.value {
-            &s
+            s
         } else {
             ""
         }

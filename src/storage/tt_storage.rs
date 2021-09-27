@@ -1,6 +1,6 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
-use crate::storage::storage::{Storage, StorageId};
+use crate::storage::common::{Storage, StorageId};
 use rusty_tarantool::tarantool::{Client, ClientConfig, IteratorType};
 use std::str;
 use tokio::runtime::Runtime;

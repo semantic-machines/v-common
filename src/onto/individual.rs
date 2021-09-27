@@ -134,8 +134,8 @@ impl Individual {
 
     pub fn add_datetime_from_str(&mut self, predicate: &str, value: &str) {
         if value.contains('Z') {
-            if let Ok(v) = DateTime::parse_from_rfc3339(&value) {
-                self.add_datetime(&predicate, v.timestamp());
+            if let Ok(v) = DateTime::parse_from_rfc3339(value) {
+                self.add_datetime(predicate, v.timestamp());
             } else {
                 error!("fail parse [{}] to datetime", value);
             }
@@ -148,14 +148,14 @@ impl Individual {
                     ndt = NaiveDateTime::parse_from_str(&(value.to_owned() + "T00:00:00"), "%Y-%m-%dT%H:%M:%S");
                 }
             } else {
-                ndt = NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S")
+                ndt = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S")
             }
 
             if let Ok(v) = ndt {
                 if let Single(offset) = Local.offset_from_local_datetime(&v) {
-                    self.add_datetime(&predicate, v.sub(offset).timestamp());
+                    self.add_datetime(predicate, v.sub(offset).timestamp());
                 } else {
-                    self.add_datetime(&predicate, v.timestamp());
+                    self.add_datetime(predicate, v.timestamp());
                 }
             } else {
                 error!("fail parse [{}] to datetime", value);
@@ -208,7 +208,7 @@ impl Individual {
         if let Ok(v) = Decimal::from_str(value) {
             let exp = -(v.scale() as i32);
             if let Ok(m) = value.replace('.', "").parse::<i64>() {
-                self.add_decimal_d(&predicate, m, exp as i64);
+                self.add_decimal_d(predicate, m, exp as i64);
             }
         } else {
             error!("fail parse [{}] to decimal", value);
@@ -216,7 +216,7 @@ impl Individual {
     }
 
     pub fn add_decimal_from_i64(&mut self, predicate: &str, value: i64) {
-        self.add_decimal_d(&predicate, value, 0);
+        self.add_decimal_d(predicate, value, 0);
     }
 
     pub fn add_decimal_from_f64(&mut self, predicate: &str, value: f64) {
@@ -224,7 +224,7 @@ impl Individual {
             let exp = v.scale() as usize;
             let p: i64 = pow(10, exp);
             let mantissa: f64 = value * p as f64;
-            self.add_decimal_d(&predicate, mantissa as i64, -(exp as i64));
+            self.add_decimal_d(predicate, mantissa as i64, -(exp as i64));
         } else {
             error!("fail parse [{}] to decimal", value);
         }

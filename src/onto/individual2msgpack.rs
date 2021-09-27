@@ -77,7 +77,7 @@ pub fn to_msgpack(indv: &Individual, out: &mut Vec<u8>) -> Result<(), Error> {
     write_str(out, &indv.obj.uri)?;
     write_map_len(out, indv.obj.resources.len() as u32)?;
     for (predicate, resources) in &indv.obj.resources {
-        write_str(out, &predicate)?;
+        write_str(out, predicate)?;
         write_array_len(out, resources.len() as u32)?;
 
         for r in resources {

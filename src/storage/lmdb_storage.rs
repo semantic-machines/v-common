@@ -1,6 +1,6 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
-use crate::storage::storage::{Storage, StorageId, StorageMode};
+use crate::storage::common::{Storage, StorageId, StorageMode};
 use lmdb_rs_m::core::{EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, DbHandle, EnvBuilder, Environment, MdbError};
 
@@ -103,7 +103,7 @@ impl Storage for LMDBStorage {
                 Ok(env) => match db_handle {
                     Ok(handle) => match env.get_reader() {
                         Ok(txn) => {
-                            let db = txn.bind(&handle);
+                            let db = txn.bind(handle);
 
                             match db.get::<&[u8]>(&uri) {
                                 Ok(val) => {
@@ -228,7 +228,7 @@ impl Storage for LMDBStorage {
                 Ok(env) => match db_handle {
                     Ok(handle) => match env.get_reader() {
                         Ok(txn) => {
-                            let db = txn.bind(&handle);
+                            let db = txn.bind(handle);
 
                             match db.get::<String>(&key) {
                                 Ok(val) => {
@@ -310,7 +310,7 @@ impl Storage for LMDBStorage {
                 Ok(env) => match db_handle {
                     Ok(handle) => match env.get_reader() {
                         Ok(txn) => {
-                            let db = txn.bind(&handle);
+                            let db = txn.bind(handle);
 
                             match db.get::<Vec<u8>>(&key) {
                                 Ok(val) => {
@@ -428,7 +428,7 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
                 Ok(handle) => {
-                    let db = txn.bind(&handle);
+                    let db = txn.bind(handle);
                     if let Err(e) = db.del(&key) {
                         error!("LMDB:failed put, err={}", e);
                         return false;
@@ -467,7 +467,7 @@ fn put_kv_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHand
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
                 Ok(handle) => {
-                    let db = txn.bind(&handle);
+                    let db = txn.bind(handle);
                     if let Err(e) = db.set(&key, &val) {
                         error!("LMDB:failed put, err={}", e);
                         return false;

@@ -59,7 +59,7 @@ impl CHClient {
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            if let Err(e) = block_on(select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az)) {
+            if let Err(e) = block_on(select_from_clickhouse(c, user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az)) {
                 error!("fail read from clickhouse: {:?}", e);
                 res.result_code = ResultCode::InternalServerError
             }
@@ -77,7 +77,7 @@ impl CHClient {
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            select_from_clickhouse(c, &user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az).await?;
+            select_from_clickhouse(c, user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az).await?;
         }
         res.total_time = start.elapsed().as_millis() as i64;
         res.query_time = res.total_time - res.authorize_time;

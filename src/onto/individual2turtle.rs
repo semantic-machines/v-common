@@ -155,25 +155,25 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
     for r in resources {
         match r.rtype {
             DataType::Boolean => {
-                formatter.format(&from_boolean(subject, &predicate, &r.get_bool().to_string()))?;
+                formatter.format(&from_boolean(subject, predicate, &r.get_bool().to_string()))?;
             }
             DataType::Integer => {
-                formatter.format(&from_integer(subject, &predicate, &r.get_int().to_string()))?;
+                formatter.format(&from_integer(subject, predicate, &r.get_int().to_string()))?;
             }
             DataType::Uri => {
-                formatter.format(&from_uri(subject, &predicate, &r.get_uri()))?;
+                formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
             }
             DataType::String => {
-                formatter.format(&from_string(subject, &predicate, r.get_str(), r.get_lang()))?;
+                formatter.format(&from_string(subject, predicate, r.get_str(), r.get_lang()))?;
             }
             DataType::Datetime => {
-                formatter.format(&from_datetime(subject, &predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
+                formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
             }
             DataType::Decimal => {
                 let (m, e) = r.get_num();
                 let c = exponent_to_scale(&m, &e);
                 let d = Decimal::new(c.0, c.1);
-                formatter.format(&from_decimal(subject, &predicate, &format!("{:?}", d.to_string())))?;
+                formatter.format(&from_decimal(subject, predicate, &format!("{:?}", d.to_string())))?;
             }
             _ => {}
         }
@@ -201,15 +201,15 @@ fn collect_prefix(v: &str, all_prefixes: &HashMap<String, String>, used_prefixes
 fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
     let mut used_prefixes = HashMap::new();
 
-    collect_prefix("xsd:", &all_prefixes, &mut used_prefixes);
+    collect_prefix("xsd:", all_prefixes, &mut used_prefixes);
 
     for indv in indvs.iter() {
-        collect_prefix(indv.get_id(), &all_prefixes, &mut used_prefixes);
+        collect_prefix(indv.get_id(), all_prefixes, &mut used_prefixes);
         for (predicate, resources) in &indv.obj.resources {
-            collect_prefix(predicate, &all_prefixes, &mut used_prefixes);
+            collect_prefix(predicate, all_prefixes, &mut used_prefixes);
             for r in resources {
                 if let DataType::Uri = r.rtype {
-                    collect_prefix(&r.get_uri(), &all_prefixes, &mut used_prefixes);
+                    collect_prefix(r.get_uri(), all_prefixes, &mut used_prefixes);
                 }
             }
         }
@@ -219,13 +219,13 @@ fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>
 }
 
 pub fn to_turtle(indvs: &[Individual], all_prefixes: &mut HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
-    let used_prefixes = extract_prefixes(&indvs, all_prefixes);
+    let used_prefixes = extract_prefixes(indvs, all_prefixes);
     let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
 
     for indv in indvs.iter() {
         for (predicate, resources) in &indv.obj.resources {
             if predicate == "rdf:type" {
-                format_resources(&indv.get_id(), predicate, resources, &mut formatter)?;
+                format_resources(indv.get_id(), predicate, resources, &mut formatter)?;
                 break;
             }
         }
@@ -233,7 +233,7 @@ pub fn to_turtle(indvs: &[Individual], all_prefixes: &mut HashMap<String, String
             if predicate == "rdf:type" || predicate == "v-s:updateCounter" {
                 continue;
             }
-            format_resources(&indv.get_id(), predicate, resources, &mut formatter)?;
+            format_resources(indv.get_id(), predicate, resources, &mut formatter)?;
         }
     }
 

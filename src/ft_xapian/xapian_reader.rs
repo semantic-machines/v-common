@@ -11,7 +11,7 @@ use crate::onto::onto::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
-use crate::storage::storage::VStorage;
+use crate::storage::common::VStorage;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use futures::executor::block_on;
 use std::collections::HashMap;

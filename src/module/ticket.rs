@@ -91,7 +91,7 @@ impl From<serde_json::Value> for Ticket {
             t.result = ResultCode::from_i64(v);
         }
         if let Some(v) = val["end_time"].as_i64() {
-            t.end_time = v.into();
+            t.end_time = v;
         }
 
         t

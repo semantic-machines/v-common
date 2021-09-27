@@ -1,6 +1,6 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
-use crate::storage::storage::StorageId;
+use crate::storage::common::StorageId;
 use nng::{Message, Protocol, Socket};
 use std::str;
 
@@ -65,7 +65,7 @@ impl StorageROClient {
         match self.soc.recv() {
             Err(e) => {
                 error!("REMOTE STORAGE: fail recv from main module, err={:?}", e);
-                return false;
+                false
             }
 
             Ok(msg) => {
@@ -77,10 +77,10 @@ impl StorageROClient {
                 iraw.set_raw(data);
 
                 if parse_raw(iraw).is_ok() {
-                    return true;
+                    true
                 } else {
                     error!("REMOTE STORAGE: fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), id);
-                    return false;
+                    false
                 }
             }
         }

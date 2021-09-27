@@ -90,7 +90,7 @@ pub fn parse_cbor_to_predicate(expect_predicate: &str, iraw: &mut Individual) ->
     }
 
     iraw.raw.cur = d.into_reader().position();
-    return Err(String::default());
+    Err(String::default())
 }
 
 fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut IndividualObj) -> bool {
@@ -98,13 +98,13 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
         match type_info.0 {
             Type::Bool => {
                 if let Ok(b) = d._bool(&type_info) {
-                    indv.add_bool(&predicate, b);
+                    indv.add_bool(predicate, b);
                 }
             }
             Type::Bytes => {
                 if let Ok(t) = d._text(&type_info) {
                     if tag == TagId::Uri as u64 {
-                        indv.add_uri(&predicate, &t);
+                        indv.add_uri(predicate, &t);
                     } else {
                         let mut lang = Lang::NONE;
 
@@ -123,7 +123,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
             Type::Text => {
                 if let Ok(t) = d._text(&type_info) {
                     if tag == TagId::Uri as u64 {
-                        indv.add_uri(&predicate, &t);
+                        indv.add_uri(predicate, &t);
                     } else {
                         let mut lang = Lang::NONE;
 
@@ -146,9 +146,9 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                     }
 
                     if tag == TagId::EpochDateTime as u64 {
-                        indv.add_datetime(&predicate, i);
+                        indv.add_datetime(predicate, i);
                     } else {
-                        indv.add_integer(&predicate, i);
+                        indv.add_integer(predicate, i);
                     }
                 }
             }
@@ -165,7 +165,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                                         if e < 0 {
                                             e += 1; // ?! this cbor decoder returned not correct negative number
                                         }
-                                        indv.add_decimal_d(&predicate, m as i64, e);
+                                        indv.add_decimal_d(predicate, m as i64, e);
                                     }
                                 }
                             }

@@ -84,7 +84,7 @@ impl FTClient {
         res.result_code = ResultCode::from_i64(v["result_code"].as_i64().unwrap_or_default());
 
         if res.result_code == ResultCode::Ok {
-            let jarray: &Vec<_> = &v["result"].as_array().expect("array");
+            let jarray: &Vec<_> = v["result"].as_array().expect("array");
             res.result = jarray.iter().map(|v| v.as_str().unwrap_or_default().to_owned()).collect();
 
             res.count = v["count"].as_i64().unwrap_or_default();

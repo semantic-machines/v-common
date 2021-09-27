@@ -1,4 +1,4 @@
-pub mod storage;
+pub mod common;
 
 pub mod lmdb_storage;
 mod tt_storage;

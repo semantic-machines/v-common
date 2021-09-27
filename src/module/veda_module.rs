@@ -48,14 +48,9 @@ impl Module {
                 }
             }
 
-            match veda_module.heartbeat() {
-                Err(e) => {
-                    if let PrepareError::Fatal = e {
-                        error!("heartbeat: found fatal error, stop listen queue");
-                        break;
-                    }
-                }
-                _ => {}
+            if let Err(PrepareError::Fatal) = veda_module.heartbeat() {
+                error!("heartbeat: found fatal error, stop listen queue");
+                break;
             }
 
             if let Some(s) = self.connect_to_notify_channel() {

@@ -1,10 +1,10 @@
+use crate::v_authorization::common::AuthorizationContext;
 use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 use std::thread;
 use std::time;
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
-use crate::v_authorization::common::AuthorizationContext;
 
 const DB_PATH: &str = "./data/acl-indexes/";
 
@@ -108,8 +108,8 @@ fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access
         }
         Err(e) => {
             error!("Authorize: Err opening db handle: {:?}", e);
-//            thread::sleep(time::Duration::from_secs(3));
-//            error!("Retry");
+            //            thread::sleep(time::Duration::from_secs(3));
+            //            error!("Retry");
             return Err(-1);
         }
     }
