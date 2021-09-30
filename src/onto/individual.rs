@@ -463,7 +463,7 @@ impl Individual {
         if let Some(v) = self.get_first_literal(predicate) {
             Ok(v)
         } else {
-            Err(Error::new(ErrorKind::NotFound, predicate))
+            Err(Error::new(ErrorKind::NotFound, format!("not found {} in {}", predicate, self.get_id())))
         }
     }
 

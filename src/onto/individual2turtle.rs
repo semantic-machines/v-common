@@ -181,7 +181,7 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
     Ok(())
 }
 
-pub fn get_prefix(v: &str) -> Option<&str> {
+pub fn extract_prefix(v: &str) -> Option<&str> {
     if let Some(el) = v.split(':').next() {
         return Some(el);
     }
@@ -189,7 +189,7 @@ pub fn get_prefix(v: &str) -> Option<&str> {
 }
 
 fn collect_prefix(v: &str, all_prefixes: &HashMap<String, String>, used_prefixes: &mut HashMap<String, String>) {
-    if let Some(p) = get_prefix(v) {
+    if let Some(p) = extract_prefix(v) {
         if !used_prefixes.contains_key(p) {
             if let Some(up) = all_prefixes.get(&(p.to_owned() + ":")) {
                 used_prefixes.insert(p.to_owned(), up.to_owned());
@@ -198,7 +198,7 @@ fn collect_prefix(v: &str, all_prefixes: &HashMap<String, String>, used_prefixes
     }
 }
 
-fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
+pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
     let mut used_prefixes = HashMap::new();
 
     collect_prefix("xsd:", all_prefixes, &mut used_prefixes);

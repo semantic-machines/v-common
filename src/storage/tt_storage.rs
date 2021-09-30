@@ -40,7 +40,7 @@ impl Storage for TTStorage {
                 iraw.set_raw(&v.data[5..]);
 
                 if parse_raw(iraw).is_ok() {
-                    return true;
+                    return !iraw.get_id().is_empty();
                 }
             }
             Err(e) => {
