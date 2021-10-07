@@ -202,14 +202,7 @@ impl AuthClient {
         self.client.connect()
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &str, secret: &Option<String>) -> Result<Value, ApiError> {
-        let query = json!({
-            "function": "authenticate",
-            "login": login,
-            "password": password,
-            "secret" : secret
-        });
-
+    fn req_recv(&mut self, query: Value) -> Result<Value, ApiError> {
         match self.client.req_recv(query) {
             Ok(v) => {
                 if let Some(r) = v["result"].as_i64() {
@@ -224,6 +217,25 @@ impl AuthClient {
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub fn authenticate(&mut self, login: &str, password: &str, secret: &Option<String>) -> Result<Value, ApiError> {
+        let query = json!({
+            "function": "authenticate",
+            "login": login,
+            "password": password,
+            "secret" : secret
+        });
+        self.req_recv(query)
+    }
+
+    pub fn get_ticket_trusted(&mut self, ticket: &str, login: &str) -> Result<Value, ApiError> {
+        let query = json!({
+            "function": "get_ticket_trusted",
+            "login": login,
+            "ticket": ticket,
+        });
+        self.req_recv(query)
     }
 }
 

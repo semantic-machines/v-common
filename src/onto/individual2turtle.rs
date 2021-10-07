@@ -191,7 +191,7 @@ pub fn extract_prefix(v: &str) -> Option<&str> {
 fn collect_prefix(v: &str, all_prefixes: &HashMap<String, String>, used_prefixes: &mut HashMap<String, String>) {
     if let Some(p) = extract_prefix(v) {
         if !used_prefixes.contains_key(p) {
-            if let Some(up) = all_prefixes.get(&(p.to_owned() + ":")) {
+            if let Some(up) = all_prefixes.get(&(p.to_owned())) {
                 used_prefixes.insert(p.to_owned(), up.to_owned());
             }
         }
@@ -218,7 +218,7 @@ pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, Str
     used_prefixes
 }
 
-pub fn to_turtle(indvs: &[Individual], all_prefixes: &mut HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
+pub fn to_turtle(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
     let used_prefixes = extract_prefixes(indvs, all_prefixes);
     let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
 
