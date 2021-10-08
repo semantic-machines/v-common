@@ -106,7 +106,11 @@ async fn select_from_clickhouse(
         return Ok(());
     }
 
-    let fq = format!("{} LIMIT {} OFFSET {}", query, limit, from);
+    let fq = if limit > 0 {
+        format!("{} LIMIT {} OFFSET {}", query, limit, from)
+    } else {
+        format!("{} OFFSET {}", query, from)
+    };
 
     //info!("query={}", fq);
 
@@ -138,7 +142,7 @@ async fn select_from_clickhouse(
             out_res.result.push(id);
         }
 
-        if total_count >= limit {
+        if limit > 0 && total_count >= limit {
             break;
         }
     }
