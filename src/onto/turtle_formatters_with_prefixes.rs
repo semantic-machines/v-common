@@ -1,3 +1,4 @@
+use iri_string::{spec::UriSpec, validate::iri};
 use rio_api::formatter::TriplesFormatter;
 use rio_api::model::*;
 use std::collections::HashMap;
@@ -70,7 +71,7 @@ impl<W: Write> TriplesFormatter for TurtleFormatterWithPrefixes<W> {
     type Error = io::Error;
 
     fn format(&mut self, triple: &Triple<'_>) -> Result<(), io::Error> {
-        let s = match triple.subject {
+        let sbj = match triple.subject {
             NamedOrBlankNode::NamedNode(n) => n.iri,
             NamedOrBlankNode::BlankNode(n) => n.id,
         };
@@ -84,10 +85,18 @@ impl<W: Write> TriplesFormatter for TurtleFormatterWithPrefixes<W> {
                     write!(self.write, " ;\n  {} ", triple.predicate.iri)?;
                 }
             } else {
-                write!(self.write, " .\n\n{} \n  {} ", &s, triple.predicate.iri)?;
+                if sbj.starts_with("http://") {
+                    write!(self.write, " .\n\n<{}> \n  {} ", &sbj, triple.predicate.iri)?;
+                } else {
+                    write!(self.write, " .\n\n{} \n  {} ", &sbj, triple.predicate.iri)?;
+                }
             }
         } else {
-            write!(self.write, "{} \n  {} ", &s, triple.predicate.iri)?;
+            if sbj.starts_with("http://") {
+                write!(self.write, "<{}> \n  {} ", &sbj, triple.predicate.iri)?;
+            } else {
+                write!(self.write, "{} \n  {} ", &sbj, triple.predicate.iri)?;
+            }
         }
         fmt_object(&triple.object, &mut self.write)?;
 
@@ -178,7 +187,19 @@ impl ExactSizeIterator for EscapeRDF {
 fn fmt_object(o: &Term, f: &mut dyn Write) -> Result<(), io::Error> {
     match o {
         Term::NamedNode(n) => {
-            f.write_all(n.iri.as_bytes())?;
+            if iri::<UriSpec>(n.iri).is_ok() {
+                if n.iri.starts_with("http://") {
+                    f.write_all(b"<")?;
+                    f.write_all(n.iri.as_bytes())?;
+                    f.write_all(b">")?;
+                } else {
+                    f.write_all(n.iri.as_bytes())?;
+                }
+            } else {
+                f.write_all(b"\"")?;
+                escape(n.iri).try_for_each(|c| write!(f, "{}", c))?;
+                f.write_all(b"\"")?;
+            }
         }
         Term::BlankNode(n) => {
             f.write_all(n.id.as_bytes())?;

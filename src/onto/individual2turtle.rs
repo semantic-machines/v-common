@@ -161,7 +161,11 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
                 formatter.format(&from_integer(subject, predicate, &r.get_int().to_string()))?;
             }
             DataType::Uri => {
-                formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
+                if !r.get_uri().contains(":") || r.get_uri().contains("/") {
+                    formatter.format(&from_string(subject, predicate, r.get_str(), Lang::NONE))?;
+                } else {
+                    formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
+                }
             }
             DataType::String => {
                 formatter.format(&from_string(subject, predicate, r.get_str(), r.get_lang()))?;
@@ -198,9 +202,8 @@ fn collect_prefix(v: &str, all_prefixes: &HashMap<String, String>, used_prefixes
     }
 }
 
-pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
+pub fn extract_prefixes_ref(indvs: &[&Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
     let mut used_prefixes = HashMap::new();
-
     collect_prefix("xsd:", all_prefixes, &mut used_prefixes);
 
     for indv in indvs.iter() {
@@ -218,23 +221,66 @@ pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, Str
     used_prefixes
 }
 
+pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut used_prefixes = HashMap::new();
+    collect_prefix("xsd:", all_prefixes, &mut used_prefixes);
+
+    for indv in indvs.iter() {
+        collect_prefix(indv.get_id(), all_prefixes, &mut used_prefixes);
+        for (predicate, resources) in &indv.obj.resources {
+            collect_prefix(predicate, all_prefixes, &mut used_prefixes);
+            for r in resources {
+                if let DataType::Uri = r.rtype {
+                    collect_prefix(r.get_uri(), all_prefixes, &mut used_prefixes);
+                }
+            }
+        }
+    }
+
+    used_prefixes
+}
+
+fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
+    for (predicate, resources) in &indv.obj.resources {
+        if predicate == "rdf:type" {
+            format_resources(id, predicate, resources, formatter)?;
+            break;
+        }
+    }
+    for (predicate, resources) in &indv.obj.resources {
+        if predicate == "rdf:type" || predicate == "v-s:updateCounter" {
+            continue;
+        }
+        if predicate == "?" {
+            format_resources(id, "d:unknown", resources, formatter)?;
+        } else {
+            if !predicate.contains(':') {
+                format_resources(id, &format!("d:{}", predicate), resources, formatter)?;
+            } else {
+                format_resources(id, predicate, resources, formatter)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub fn to_turtle_refs(indvs: &[&Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
+    let used_prefixes = extract_prefixes_ref(indvs, all_prefixes);
+    let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
+    for indv in indvs.iter() {
+        indv_format_to_tt(indv.get_id(), indv, &mut formatter)?;
+    }
+
+    formatter.finish()
+}
+
 pub fn to_turtle(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
     let used_prefixes = extract_prefixes(indvs, all_prefixes);
     let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
 
     for indv in indvs.iter() {
-        for (predicate, resources) in &indv.obj.resources {
-            if predicate == "rdf:type" {
-                format_resources(indv.get_id(), predicate, resources, &mut formatter)?;
-                break;
-            }
-        }
-        for (predicate, resources) in &indv.obj.resources {
-            if predicate == "rdf:type" || predicate == "v-s:updateCounter" {
-                continue;
-            }
-            format_resources(indv.get_id(), predicate, resources, &mut formatter)?;
-        }
+        indv_format_to_tt(indv.get_id(), indv, &mut formatter)?;
     }
 
     formatter.finish()
