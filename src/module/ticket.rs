@@ -134,12 +134,10 @@ impl Ticket {
     }
 
     pub fn is_ticket_valid(&self, addr: Option<std::net::SocketAddr>) -> ResultCode {
-        if addr.is_none() {
-            return ResultCode::TicketExpired;
-        }
-
-        if self.user_addr != addr.unwrap().ip().to_string() {
-            return ResultCode::TicketExpired;
+        if let Some(a) = addr {
+            if self.user_addr != a.ip().to_string() {
+                return ResultCode::TicketExpired;
+            }
         }
 
         if self.result != ResultCode::Ok {
