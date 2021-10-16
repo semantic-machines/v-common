@@ -219,20 +219,22 @@ impl AuthClient {
         }
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &str, secret: &Option<String>) -> Result<Value, ApiError> {
+    pub fn authenticate(&mut self, login: &str, password: &str, addr: Option<std::net::SocketAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "authenticate",
             "login": login,
             "password": password,
+            "addr" : addr.unwrap().ip().to_string(),
             "secret" : secret
         });
         self.req_recv(query)
     }
 
-    pub fn get_ticket_trusted(&mut self, ticket: &str, login: &str) -> Result<Value, ApiError> {
+    pub fn get_ticket_trusted(&mut self, ticket: &str, login: &str, addr: Option<std::net::SocketAddr>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "get_ticket_trusted",
             "login": login,
+            "addr" : addr.unwrap().ip().to_string(),
             "ticket": ticket,
         });
         self.req_recv(query)

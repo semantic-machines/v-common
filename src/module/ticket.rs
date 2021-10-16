@@ -19,6 +19,7 @@ pub struct Ticket {
     pub start_time: i64,
     /// Дата окончания действия тикета
     pub end_time: i64,
+    pub user_addr: String,
 }
 
 impl Hash for Ticket {
@@ -58,6 +59,7 @@ impl ShallowCopy for Ticket {
             result: self.result,
             start_time: self.start_time,
             end_time: self.end_time,
+            user_addr: self.user_addr.clone(),
         })
     }
 }
@@ -71,6 +73,7 @@ impl Default for Ticket {
             result: ResultCode::AuthenticationFailed,
             start_time: 0,
             end_time: 0,
+            user_addr: "".to_string(),
         }
     }
 }
@@ -106,6 +109,7 @@ impl Ticket {
         self.id = src.get_id().to_owned();
         self.user_uri = src.get_first_literal("ticket:accessor").unwrap_or_default();
         self.user_login = src.get_first_literal("ticket:login").unwrap_or_default();
+        self.user_addr = src.get_first_literal("ticket:addr").unwrap_or_default();
 
         if self.user_uri.is_empty() {
             error!("found a session ticket is not complete, the user can not be found.");
@@ -129,7 +133,15 @@ impl Ticket {
         }
     }
 
-    pub fn is_ticket_valid(&self) -> ResultCode {
+    pub fn is_ticket_valid(&self, addr: Option<std::net::SocketAddr>) -> ResultCode {
+        if addr.is_none() {
+            return ResultCode::TicketExpired;
+        }
+
+        if self.user_addr != addr.unwrap().ip().to_string() {
+            return ResultCode::TicketExpired;
+        }
+
         if self.result != ResultCode::Ok {
             return self.result;
         }
