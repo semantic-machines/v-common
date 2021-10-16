@@ -508,7 +508,7 @@ pub fn init_log_with_params(module_name: &str, filter: Option<&str>, with_thread
 }
 
 pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, ticket: &mut Ticket, storage: &mut VStorage) {
-    if ip.parse::<IpAddr>().is_err() {
+    if addr.parse::<IpAddr>().is_err() {
         error!("fail create_new_ticket: invalid ip {}", addr);
         return;
     }
@@ -526,7 +526,7 @@ pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, 
 
     ticket_indv.add_string("ticket:login", login, Lang::NONE);
     ticket_indv.add_string("ticket:accessor", user_id, Lang::NONE);
-    ticket_indv.add_string("ticket:addr", ip, Lang::NONE);
+    ticket_indv.add_string("ticket:addr", addr, Lang::NONE);
 
     let now = Utc::now();
     let start_time_str = format!("{:?}", now.naive_utc());
@@ -547,7 +547,7 @@ pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, 
         ticket.end_time = ticket.start_time + duration as i64 * 10_000_000;
 
         let end_time_str = format!("{:?}", NaiveDateTime::from_timestamp((ticket.end_time / 10_000 - TICKS_TO_UNIX_EPOCH) / 1_000, 0));
-        info!("create new ticket {}, login={}, user={}, addr={}, start={}, end={}", ticket.id, ticket.user_login, ticket.user_uri, ip, start_time_str, end_time_str);
+        info!("create new ticket {}, login={}, user={}, addr={}, start={}, end={}", ticket.id, ticket.user_login, ticket.user_uri, addr, start_time_str, end_time_str);
     } else {
         error!("fail store ticket {:?}", ticket)
     }
