@@ -59,6 +59,7 @@ impl FTClient {
         if let Err(e) = self.client.send(req) {
             error!("fail send to search module, err={:?}", e);
             res.result_code = ResultCode::NotReady;
+            self.is_ready = false;
             return res;
         }
 
@@ -68,6 +69,7 @@ impl FTClient {
         if let Err(e) = wmsg {
             error!("fail recv from search module, err={:?}", e);
             res.result_code = ResultCode::NotReady;
+            self.is_ready = false;
             return res;
         }
 
