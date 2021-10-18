@@ -1,8 +1,8 @@
 use nanoid::nanoid;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use serde::Serializer;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Deserialize)]
 #[repr(u16)]
 pub enum ResultCode {
     /// 0

@@ -230,7 +230,7 @@ impl AuthClient {
         self.req_recv(query)
     }
 
-    pub fn get_ticket_trusted(&mut self, ticket: &str, login: &str, addr: Option<std::net::SocketAddr>) -> Result<Value, ApiError> {
+    pub fn get_ticket_trusted(&mut self, ticket: &str, login: Option<&String>, addr: Option<std::net::SocketAddr>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "get_ticket_trusted",
             "login": login,

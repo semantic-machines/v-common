@@ -1,7 +1,7 @@
 use crate::v_api::obj::ResultCode;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct QueryResult {
     pub result: Vec<String>,
     pub count: i64,
