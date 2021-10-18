@@ -1,5 +1,5 @@
 use crate::v_api::obj::ResultCode;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryResult {
@@ -30,7 +30,7 @@ impl Default for QueryResult {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FTQuery {
     pub ticket: String,
     pub user: String,

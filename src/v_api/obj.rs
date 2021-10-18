@@ -1,8 +1,12 @@
 use nanoid::nanoid;
-use serde::{Serialize, Deserialize};
+use serde::de::Error;
+use serde::de::Visitor;
+use serde::Deserializer;
 use serde::Serializer;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
-#[derive(PartialEq, Debug, Clone, Copy, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 #[repr(u16)]
 pub enum ResultCode {
     /// 0
@@ -122,6 +126,32 @@ impl Serialize for ResultCode {
         S: Serializer,
     {
         serializer.serialize_u16(*self as u16)
+    }
+}
+
+impl<'de> Deserialize<'de> for ResultCode {
+    fn deserialize<D>(deserializer: D) -> Result<ResultCode, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct FieldVisitor;
+
+        impl<'de> Visitor<'de> for FieldVisitor {
+            type Value = ResultCode;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("!!!")
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<ResultCode, E>
+            where
+                E: Error,
+            {
+                Ok(ResultCode::from_i64(v as i64))
+            }
+        }
+
+        deserializer.deserialize_any(FieldVisitor)
     }
 }
 
