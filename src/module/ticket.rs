@@ -136,6 +136,7 @@ impl Ticket {
     pub fn is_ticket_valid(&self, addr: Option<std::net::SocketAddr>) -> ResultCode {
         if let Some(a) = addr {
             if self.user_addr != a.ip().to_string() {
+                error!("decline: ticket {}/{} request from {}", self.id, self.user_addr, a.ip().to_string());
                 return ResultCode::TicketExpired;
             }
         }
