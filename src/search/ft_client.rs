@@ -24,6 +24,7 @@ impl FTClient {
     pub fn connect(&mut self) -> bool {
         if let Err(e) = self.client.dial(self.addr.as_str()) {
             error!("ft-client:fail dial to ft-service, [{}], err={}", self.addr, e);
+            self.client = Socket::new(Protocol::Req0).unwrap();
         } else {
             info!("success connect to ft-service, [{}]", self.addr);
 

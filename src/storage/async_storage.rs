@@ -9,8 +9,8 @@ use crate::v_authorization::common::{Access, AuthorizationContext};
 use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
-use std::sync::Arc;
 use std::net::IpAddr;
+use std::sync::Arc;
 
 pub(crate) const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub(crate) const TICKETS_SPACE_ID: i32 = 513;
@@ -25,6 +25,7 @@ pub struct AStorage {
 pub struct TicketCache {
     pub read: evmap::ReadHandle<String, Ticket>,
     pub write: Arc<Mutex<evmap::WriteHandle<String, Ticket>>>,
+    pub check_ticket_ip: bool,
 }
 
 async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
@@ -64,12 +65,7 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
     Ok((Individual::default(), ResultCode::UnprocessableEntity))
 }
 
-pub async fn check_ticket(
-    w_ticket_id: &Option<String>,
-    ticket_cache: &TicketCache,
-    addr: Option<IpAddr>,
-    db: &AStorage,
-) -> io::Result<(ResultCode, Option<String>)> {
+pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: Option<IpAddr>, db: &AStorage) -> io::Result<(ResultCode, Option<String>)> {
     if w_ticket_id.is_none() {
         return Ok((ResultCode::Ok, Some("cfg:Guest".to_owned())));
     }
@@ -81,7 +77,7 @@ pub async fn check_ticket(
 
     if let Some(cached_ticket) = ticket_cache.read.get(&ticket_id.to_owned()) {
         if let Some(t) = cached_ticket.get_one() {
-            if t.is_ticket_valid(addr) != ResultCode::Ok {
+            if t.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
                 return Ok((ResultCode::TicketNotFound, None));
             }
             Ok((ResultCode::Ok, Some(t.user_uri.clone())))
@@ -112,7 +108,7 @@ pub async fn check_ticket(
         if ticket_obj.result != ResultCode::Ok {
             return Ok((ResultCode::TicketNotFound, None));
         }
-        if ticket_obj.is_ticket_valid(addr) != ResultCode::Ok {
+        if ticket_obj.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
             return Ok((ResultCode::TicketNotFound, None));
         }
 

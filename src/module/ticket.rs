@@ -134,10 +134,14 @@ impl Ticket {
         }
     }
 
-    pub fn is_ticket_valid(&self, addr: Option<IpAddr>) -> ResultCode {
-        if let Some(a) = addr {
-            if self.user_addr != a.to_string() {
-                error!("decline: ticket {}/{} request from {}", self.id, self.user_addr, a.to_string());
+    pub fn is_ticket_valid(&self, addr: Option<IpAddr>, is_check_addr: bool) -> ResultCode {
+        if is_check_addr {
+            if let Some(a) = addr {
+                if self.user_addr != a.to_string() {
+                    error!("decline: ticket {}/{} request from {}", self.id, self.user_addr, a.to_string());
+                    return ResultCode::TicketExpired;
+                }
+            } else {
                 return ResultCode::TicketExpired;
             }
         }
