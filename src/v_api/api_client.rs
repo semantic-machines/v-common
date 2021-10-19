@@ -259,27 +259,18 @@ impl MStorageClient {
         self.client.connect()
     }
 
-    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual, addr: Option<IpAddr>) -> OpResult {
-        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv, addr) {
+    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
+        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
             Ok(r) => r,
             Err(e) => OpResult::res(e.result),
         }
     }
 
-    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual, addr: Option<IpAddr>) -> Result<OpResult, ApiError> {
-        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv, addr)
+    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
+        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv)
     }
 
-    pub fn update_use_param(
-        &mut self,
-        ticket: &str,
-        event_id: &str,
-        src: &str,
-        assigned_subsystems: i64,
-        cmd: IndvOp,
-        indv: &Individual,
-        addr: Option<IpAddr>,
-    ) -> Result<OpResult, ApiError> {
+    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
         let query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,
@@ -287,13 +278,24 @@ impl MStorageClient {
             "assigned_subsystems": assigned_subsystems,
             "event_id" : event_id,
             "src" : src,
-            "addr" : addr
         });
 
         self.update_form_json(query)
     }
 
     pub fn updates_use_param(
+        &mut self,
+        ticket: &str,
+        event_id: &str,
+        src: &str,
+        assigned_subsystems: i64,
+        cmd: IndvOp,
+        indvs: &[Individual],
+    ) -> Result<OpResult, ApiError> {
+        self.updates_use_param_with_addr(ticket, event_id, src, assigned_subsystems, cmd, indvs, None)
+    }
+
+    pub fn updates_use_param_with_addr(
         &mut self,
         ticket: &str,
         event_id: &str,
