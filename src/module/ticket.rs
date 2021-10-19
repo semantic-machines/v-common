@@ -5,6 +5,7 @@ use evmap::ShallowCopy;
 use serde_json::Value;
 use std::hash::{Hash, Hasher};
 use std::mem::ManuallyDrop;
+use std::net::IpAddr;
 
 #[derive(Debug, Clone)]
 pub struct Ticket {
@@ -133,10 +134,10 @@ impl Ticket {
         }
     }
 
-    pub fn is_ticket_valid(&self, addr: Option<std::net::SocketAddr>) -> ResultCode {
+    pub fn is_ticket_valid(&self, addr: Option<IpAddr>) -> ResultCode {
         if let Some(a) = addr {
-            if self.user_addr != a.ip().to_string() {
-                error!("decline: ticket {}/{} request from {}", self.id, self.user_addr, a.ip().to_string());
+            if self.user_addr != a.to_string() {
+                error!("decline: ticket {}/{} request from {}", self.id, self.user_addr, a.to_string());
                 return ResultCode::TicketExpired;
             }
         }

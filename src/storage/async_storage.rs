@@ -10,6 +10,7 @@ use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
 use std::sync::Arc;
+use std::net::IpAddr;
 
 pub(crate) const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub(crate) const TICKETS_SPACE_ID: i32 = 513;
@@ -66,7 +67,7 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
 pub async fn check_ticket(
     w_ticket_id: &Option<String>,
     ticket_cache: &TicketCache,
-    addr: Option<std::net::SocketAddr>,
+    addr: Option<IpAddr>,
     db: &AStorage,
 ) -> io::Result<(ResultCode, Option<String>)> {
     if w_ticket_id.is_none() {

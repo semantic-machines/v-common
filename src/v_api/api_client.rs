@@ -6,6 +6,7 @@ use serde_json::json;
 use serde_json::Value;
 use std::fmt;
 use std::time::Duration;
+use std::net::IpAddr;
 
 pub const ALL_MODULES: i64 = 0;
 
@@ -230,11 +231,11 @@ impl AuthClient {
         self.req_recv(query)
     }
 
-    pub fn get_ticket_trusted(&mut self, ticket: &str, login: Option<&String>, addr: Option<std::net::SocketAddr>) -> Result<Value, ApiError> {
+    pub fn get_ticket_trusted(&mut self, ticket: &str, login: Option<&String>, addr: Option<IpAddr>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "get_ticket_trusted",
             "login": login,
-            "addr" : addr.unwrap().ip().to_string(),
+            "addr" : addr.unwrap().to_string(),
             "ticket": ticket,
         });
         self.req_recv(query)
