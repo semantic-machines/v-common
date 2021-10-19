@@ -5,8 +5,8 @@ use nng::{Message, Protocol, Socket};
 use serde_json::json;
 use serde_json::Value;
 use std::fmt;
-use std::time::Duration;
 use std::net::IpAddr;
+use std::time::Duration;
 
 pub const ALL_MODULES: i64 = 0;
 
@@ -244,12 +244,14 @@ impl AuthClient {
 
 pub struct MStorageClient {
     client: NngClient,
+    pub check_ticket_ip: bool,
 }
 
 impl MStorageClient {
     pub fn new(addr: String) -> MStorageClient {
         MStorageClient {
             client: NngClient::new(addr),
+            check_ticket_ip: true,
         }
     }
 
@@ -257,25 +259,35 @@ impl MStorageClient {
         self.client.connect()
     }
 
-    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
-        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
+    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual, addr: Option<IpAddr>) -> OpResult {
+        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv, addr) {
             Ok(r) => r,
             Err(e) => OpResult::res(e.result),
         }
     }
 
-    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
-        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv)
+    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual, addr: Option<IpAddr>) -> Result<OpResult, ApiError> {
+        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv, addr)
     }
 
-    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
+    pub fn update_use_param(
+        &mut self,
+        ticket: &str,
+        event_id: &str,
+        src: &str,
+        assigned_subsystems: i64,
+        cmd: IndvOp,
+        indv: &Individual,
+        addr: Option<IpAddr>,
+    ) -> Result<OpResult, ApiError> {
         let query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,
             "individuals": [indv.get_obj().as_json()],
             "assigned_subsystems": assigned_subsystems,
             "event_id" : event_id,
-            "src" : src
+            "src" : src,
+            "addr" : addr
         });
 
         self.update_form_json(query)
@@ -289,6 +301,7 @@ impl MStorageClient {
         assigned_subsystems: i64,
         cmd: IndvOp,
         indvs: &[Individual],
+        addr: Option<IpAddr>,
     ) -> Result<OpResult, ApiError> {
         let mut jindvs = vec![];
         for indv in indvs {
@@ -300,7 +313,8 @@ impl MStorageClient {
             "individuals": jindvs,
             "assigned_subsystems": assigned_subsystems,
             "event_id" : event_id,
-            "src" : src
+            "src" : src,
+            "addr": addr
         });
         self.update_form_json(query)
     }
