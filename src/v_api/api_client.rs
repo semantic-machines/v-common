@@ -220,12 +220,12 @@ impl AuthClient {
         }
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &str, addr: Option<std::net::SocketAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
+    pub fn authenticate(&mut self, login: &str, password: &str, addr: Option<IpAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "authenticate",
             "login": login,
             "password": password,
-            "addr" : addr.unwrap().ip().to_string(),
+            "addr" : addr.unwrap().to_string(),
             "secret" : secret
         });
         self.req_recv(query)
