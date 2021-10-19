@@ -65,7 +65,7 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
     Ok((Individual::default(), ResultCode::UnprocessableEntity))
 }
 
-pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: Option<IpAddr>, db: &AStorage) -> io::Result<(ResultCode, Option<String>)> {
+pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: &Option<IpAddr>, db: &AStorage) -> io::Result<(ResultCode, Option<String>)> {
     if w_ticket_id.is_none() {
         return Ok((ResultCode::Ok, Some("cfg:Guest".to_owned())));
     }
