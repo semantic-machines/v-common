@@ -15,8 +15,6 @@ use std::sync::Arc;
 pub(crate) const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub(crate) const TICKETS_SPACE_ID: i32 = 513;
 
-//pub(crate) const BASE_PATH: &str = "./data";
-
 pub struct AStorage {
     pub tt: Option<Client>,
     pub lmdb: Option<Mutex<LMDBStorage>>,

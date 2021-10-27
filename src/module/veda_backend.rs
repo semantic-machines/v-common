@@ -5,7 +5,6 @@ use crate::search::ft_client::FTClient;
 use crate::storage::common::{StorageId, StorageMode, VStorage};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
 use crate::v_api::obj::ResultCode;
-use ini::Ini;
 use std::env;
 
 pub struct Backend {
@@ -25,9 +24,6 @@ impl Backend {
     pub fn create(storage_mode: StorageMode, use_remote_storage: bool) -> Self {
         let args: Vec<String> = env::args().collect();
 
-        let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
-        let section = conf.section(None::<String>).expect("fail parse veda.properties");
-
         let mut ft_query_service_url = String::default();
 
         for el in args.iter() {
@@ -38,7 +34,7 @@ impl Backend {
         }
 
         if ft_query_service_url.is_empty() {
-            ft_query_service_url = section.get("ft_query_service_url").expect("param [ft_query_service_url] not found in veda.properties").to_string();
+            ft_query_service_url = Module::get_property("ft_query_service_url").expect("param [ft_query_service_url] not found in veda.properties").to_string();
         }
 
         info!("use ft_query_service_url={}", ft_query_service_url);
@@ -48,8 +44,8 @@ impl Backend {
         if !use_remote_storage {
             storage = get_storage_use_prop(storage_mode);
         } else {
-            let ro_storage_url = section.get("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
-            storage = VStorage::new_remote(ro_storage_url);
+            let ro_storage_url = Module::get_property("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
+            storage = VStorage::new_remote(&ro_storage_url);
         }
 
         let ft_client = FTClient::new(ft_query_service_url);
@@ -175,9 +171,7 @@ pub fn indv_apply_cmd(cmd: &IndvOp, prev_indv: &mut Individual, indv: &mut Indiv
 }
 
 pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
-    let conf = Ini::load_from_file("veda.properties").expect("fail load [veda.properties] file");
-    let section = conf.section(None::<String>).expect("fail parse veda.properties");
-    let tarantool_addr = if let Some(p) = section.get("tarantool_url") {
+    let tarantool_addr = if let Some(p) = Module::get_property("tarantool_url") {
         p.to_owned()
     } else {
         warn!("param [tarantool_url] not found in veda.properties");

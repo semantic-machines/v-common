@@ -62,9 +62,6 @@ impl Module {
     pub fn create(module_id: Option<i64>, module_name: &str) -> Self {
         let args: Vec<String> = env::args().collect();
 
-        let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
-        let section = conf.section(None::<String>).expect("fail parse veda.properties");
-
         let mut notify_channel_url = String::default();
         let mut max_timeout_between_batches = None;
         let mut min_batch_size_to_cancel_timeout = None;
@@ -103,7 +100,7 @@ impl Module {
         }
 
         if notify_channel_url.is_empty() {
-            if let Some(s) = section.get("notify_channel_url") {
+            if let Some(s) = Module::get_property("notify_channel_url") {
                 notify_channel_url = s.to_owned()
             }
         }
@@ -161,9 +158,19 @@ impl Module {
 
         let section = conf.section(None::<String>).expect("fail parse veda.properties");
         if let Some(v) = section.get(param) {
-            let v = v.trim();
-            info!("use param {}={}", param, v);
-            return Some(v.to_string());
+            let mut val = v.trim().to_owned();
+            if val.starts_with('$') {
+                if let Ok(val4var) = env::var(val.strip_prefix('$').unwrap_or_default()) {
+                    info!("get env variable [{}]", val);
+                    val = val4var;
+                } else {
+                    info!("not found env variable {}", val);
+                    return None;
+                }
+            }
+
+            info!("use param [{}]={}", param, val);
+            return Some(val.to_string());
         }
 
         error!("param [{}] not found", param);
