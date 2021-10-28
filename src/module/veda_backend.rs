@@ -6,6 +6,7 @@ use crate::storage::common::{StorageId, StorageMode, VStorage};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
 use crate::v_api::obj::ResultCode;
 use std::env;
+use url::Url;
 
 pub struct Backend {
     pub storage: VStorage,
@@ -171,16 +172,21 @@ pub fn indv_apply_cmd(cmd: &IndvOp, prev_indv: &mut Individual, indv: &mut Indiv
 }
 
 pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
-    let tarantool_addr = if let Some(p) = Module::get_property("tarantool_url") {
-        p.to_owned()
-    } else {
-        warn!("param [tarantool_url] not found in veda.properties");
-        "".to_owned()
-    };
+    if let Some(p) = Module::get_property("db_connection") {
+        match Url::parse(&p) {
+            Ok(url) => {
+                let host = url.host_str().unwrap_or("127.0.0.1");
+                let port = url.port().unwrap_or(3309);
+                let user = url.username();
+                let pass = url.password().unwrap_or("123");
+                info!("Trying to connect to Tarantool, host: {}, port: {}, user: {}, password: {}", host, port, user, pass);
+                return VStorage::new_tt(format!("{}:{}", host, port), user, pass);
+            }
+            Err(e) => {
+                error!("fail parse {}, err={}", p, e);
+            }
+        }
+    }
 
-    return if !tarantool_addr.is_empty() {
-        VStorage::new_tt(tarantool_addr, "veda6", "123456")
-    } else {
-        VStorage::new_lmdb("./data", mode)
-    };
+    VStorage::new_lmdb("./data", mode)
 }
