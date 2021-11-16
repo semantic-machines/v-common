@@ -117,14 +117,16 @@ impl OpResult {
 }
 
 pub struct NngClient {
+    name: String,
     soc: Socket,
     addr: String,
     is_ready: bool,
 }
 
 impl NngClient {
-    pub fn new(addr: String) -> NngClient {
+    pub fn new(name: &str, addr: String) -> NngClient {
         NngClient {
+            name: name.to_owned(),
             soc: Socket::new(Protocol::Req0).unwrap(),
             addr,
             is_ready: false,
@@ -133,21 +135,21 @@ impl NngClient {
 
     pub fn connect(&mut self) -> bool {
         if self.addr.is_empty() {
-            error!("mstorage-client:invalid addr: [{}]", self.addr);
+            error!("nng {} : invalid addr: [{}]", self.name, self.addr);
             return self.is_ready;
         }
 
         if let Err(e) = self.soc.dial(self.addr.as_str()) {
-            error!("mstorage-client:fail dial to main module, [{}], err={}", self.addr, e);
+            error!("nng {}: fail dial to [{}], err={}", self.name, self.addr, e);
         } else {
-            info!("success connect to main module, [{}]", self.addr);
+            info!("nng {}: success connect to [{}]", self.name, self.addr);
             self.is_ready = true;
 
             if let Err(e) = self.soc.set_opt::<RecvTimeout>(Some(Duration::from_secs(30))) {
-                error!("fail set recv timeout, err={}", e);
+                error!("nng {}: fail set recv timeout, err={}", self.name, e);
             }
             if let Err(e) = self.soc.set_opt::<SendTimeout>(Some(Duration::from_secs(30))) {
-                error!("fail set send timeout, err={}", e);
+                error!("nng {}: fail set send timeout, err={}", self.name, e);
             }
         }
         self.is_ready
@@ -158,31 +160,30 @@ impl NngClient {
             self.connect();
         }
         if !self.is_ready {
-            return Err(ApiError::new(ResultCode::NotReady, "fail connect"));
+            return Err(ApiError::new(ResultCode::NotReady, &format!("nng {}: fail connect", self.name)));
         }
 
-        debug!("SEND {}", query.to_string());
         let req = Message::from(query.to_string().as_bytes());
 
         if let Err(e) = self.soc.send(req) {
-            return Err(ApiError::new(ResultCode::NotReady, &format!("fail send to main module, err={:?}", e)));
+            return Err(ApiError::new(ResultCode::NotReady, &format!("nng {}: fail send, err={:?}", self.name, e)));
         }
 
         // Wait for the response from the server.
         let wmsg = self.soc.recv();
 
         if let Err(e) = wmsg {
-            return Err(ApiError::new(ResultCode::NotReady, &format!("fail recv from main module, err={:?}", e)));
+            return Err(ApiError::new(ResultCode::NotReady, &format!("nng {}: fail recv, err={:?}", self.name, e)));
         }
 
         let msg = wmsg.unwrap();
 
-        debug!("recv msg = {}", &String::from_utf8_lossy(&msg));
+        debug!("nng-client: recv msg = {}", &String::from_utf8_lossy(&msg));
 
         let reply = serde_json::from_str(&String::from_utf8_lossy(&msg));
 
         if let Err(e) = reply {
-            return Err(ApiError::new(ResultCode::BadRequest, &format!("fail parse result operation [put], err={:?}", e)));
+            return Err(ApiError::new(ResultCode::BadRequest, &format!("nng {}: fail parse result operation [put], err={:?}", self.name, e)));
         }
         Ok(reply.unwrap())
     }
@@ -195,7 +196,7 @@ pub struct AuthClient {
 impl AuthClient {
     pub fn new(addr: String) -> AuthClient {
         AuthClient {
-            client: NngClient::new(addr),
+            client: NngClient::new("auth client", addr),
         }
     }
 
@@ -250,7 +251,7 @@ pub struct MStorageClient {
 impl MStorageClient {
     pub fn new(addr: String) -> MStorageClient {
         MStorageClient {
-            client: NngClient::new(addr),
+            client: NngClient::new("mstorage client", addr),
             check_ticket_ip: true,
         }
     }
