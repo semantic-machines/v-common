@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.1.95"
+version = "0.1.96"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -38,7 +38,7 @@ lazy_static = "1.4"
 scan_fmt = "0.1.3"
 crc32fast = "1.2.0"
 maplit = "1.0.2"
-xapian-rusty = "=0.0.48"
+xapian-rusty = "=0.0.49"
 regex = "1.5.4"
 regex-syntax = "=0.6.25"
 stopwatch = "0.0.7"
