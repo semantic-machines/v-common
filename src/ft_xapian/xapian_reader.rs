@@ -262,6 +262,7 @@ impl XapianReader {
         }
         let mut ctx = vec![];
 
+        info!("start load index schema");
         match self.query_use_collect_fn(&FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"), add_out_element, OptAuthorize::NO, &mut ctx).await {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
