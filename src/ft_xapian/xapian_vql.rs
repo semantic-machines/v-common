@@ -44,10 +44,10 @@ pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
                     error!("{}, err_code={}", get_xapian_err_type(err_code), err_code);
                     sr.result_code = ResultCode::InternalServerError;
                 }
-            }
+            },
             _ => {
                 sr.result_code = ResultCode::InternalServerError;
-            }
+            },
         },
     }
     sr
@@ -317,10 +317,10 @@ pub(crate) fn transform_vql_to_xapian(
                                     match rs.parse::<f64>() {
                                         Ok(d) => {
                                             *query = Query::new_double_with_prefix(&format!("X{}X", slot), d)?;
-                                        }
+                                        },
                                         Err(_) => {
                                             return Err(XError::from(Error::new(ErrorKind::Other, format!("transform_vql_to_xapian, invalid tta=[{}]", tta))));
-                                        }
+                                        },
                                     }
                                 }
                             }

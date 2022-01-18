@@ -21,7 +21,7 @@ pub struct TTA {
     pub(crate) token_decor: Decor,
     pub(crate) l: Option<Box<TTA>>,
     pub(crate) r: Option<Box<TTA>>,
-    count: i32,
+    //count: i32,
 }
 
 impl fmt::Display for TTA {
@@ -56,7 +56,7 @@ impl TTA {
             token_decor,
             l: l1,
             r: r1,
-            count: 0,
+            //count: 0,
         }
     }
 
@@ -139,7 +139,7 @@ impl TTA {
                                         st.push(TTA::new(op, None, None, Decor::QUOTED));
                                     }
                                 }
-                            }
+                            },
                             _ => {
                                 // no quote
                                 let bp = i;
@@ -152,7 +152,6 @@ impl TTA {
                                     && s[i] != b'>'
                                     && s[i] != b'!'
                                     && s[i] != b'-'
-                                    && s[i] != b' '
                                 {
                                     i += 1;
                                 }
@@ -162,13 +161,13 @@ impl TTA {
                                 if s[ep - 1] == b'(' || s[ep - 1] == b')' {
                                     //ep = i - 1;
 
-                                    if s[i - 2] != b'\'' {
+                                    if s[i - 2] != b'\'' && s[i - 2] != b')' {
                                         operand = from_utf8(&s[bp..i - 1]);
+                                        i -= 2;
                                     } else {
                                         operand = from_utf8(&s[bp..i - 2]);
+                                        i -= 3;
                                     }
-
-                                    i -= 2;
                                 } else {
                                     operand = from_utf8(&s[bp..i]);
                                 }
@@ -176,7 +175,7 @@ impl TTA {
                                 if let Ok(op) = operand {
                                     st.push(TTA::new(op, None, None, Decor::NONE));
                                 }
-                            }
+                            },
                         }
                     }
                 }
@@ -204,8 +203,8 @@ fn process_op(st: &mut Vec<TTA>, op: &str) {
     match op {
         "<" | ">" | "==" | "===" | "!=" | "=*" | "=+" | ">=" | "<=" | "||" | "&&" => {
             st.push(TTA::new(op, l, r, Decor::NONE));
-        }
-        _ => {}
+        },
+        _ => {},
     }
 }
 
@@ -219,7 +218,7 @@ fn is_op(c: &[u8]) -> &str {
             if c[0] == b'<' {
                 return "<";
             }
-        }
+        },
         2 => match (c[0], c[1]) {
             (b'>', b'=') => return ">=",
             (b'<', b'=') => return "<=",
@@ -237,16 +236,16 @@ fn is_op(c: &[u8]) -> &str {
                 if c[0] == b'<' && c[1] != b'=' {
                     return "<";
                 }
-            }
+            },
         },
         3 => {
             if c[0] == b'=' && c[1] == b'=' && c[2] == b'=' {
                 return "===";
             }
-        }
+        },
         _ => {
             return "";
-        }
+        },
     }
     ""
 }

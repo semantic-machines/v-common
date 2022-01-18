@@ -244,14 +244,14 @@ impl XapianReader {
                 } else {
                     error!("fail load index schema, err={:?}", res.result_code);
                 }
-            }
+            },
             Err(e) => match e {
                 XError::Xapian(code) => {
                     error!("fail load index schema, err={} ({})", get_xapian_err_type(code), code);
-                }
+                },
                 XError::Io(e) => {
                     error!("fail load index schema, err={:?}", e);
-                }
+                },
             },
         }
     }
@@ -276,14 +276,14 @@ impl XapianReader {
                 } else {
                     error!("fail load index schema, err={:?}", res.result_code);
                 }
-            }
+            },
             Err(e) => match e {
                 XError::Xapian(code) => {
                     error!("fail load index schema, err={} ({})", get_xapian_err_type(code), code);
-                }
+                },
                 XError::Io(e) => {
                     error!("fail load index schema, err={:?}", e);
-                }
+                },
             },
         }
 
