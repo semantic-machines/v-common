@@ -152,21 +152,23 @@ impl TTA {
                                     && s[i] != b'>'
                                     && s[i] != b'!'
                                     && s[i] != b'-'
+                                    && s[i] != b')'
+                                    && s[i] != b'('
                                 {
                                     i += 1;
                                 }
 
                                 let ep = i;
 
-                                if s[ep - 1] == b'(' || s[ep - 1] == b')' {
+                                if s[ep] == b'(' || s[ep] == b')' {
                                     //ep = i - 1;
 
-                                    if s[i - 2] != b'\'' && s[i - 2] != b')' {
+                                    if s[i - 1] != b'\'' && s[i - 1] != b')' {
+                                        operand = from_utf8(&s[bp..i]);
+                                        i -= 1;
+                                    } else {
                                         operand = from_utf8(&s[bp..i - 1]);
                                         i -= 2;
-                                    } else {
-                                        operand = from_utf8(&s[bp..i - 2]);
-                                        i -= 3;
                                     }
                                 } else {
                                     operand = from_utf8(&s[bp..i]);
