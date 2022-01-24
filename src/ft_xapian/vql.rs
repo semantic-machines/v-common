@@ -158,7 +158,11 @@ impl TTA {
                                     i += 1;
                                 }
 
-                                let ep = i;
+                                let ep = if i >= s.len() {
+                                    s.len() - 1
+                                } else {
+                                    i
+                                };
 
                                 if s[ep] == b'(' || s[ep] == b')' {
                                     //ep = i - 1;
