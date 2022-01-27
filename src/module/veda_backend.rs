@@ -181,10 +181,10 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
                 let pass = url.password().unwrap_or("123");
                 info!("Trying to connect to Tarantool, host: {}, port: {}, user: {}, password: {}", host, port, user, pass);
                 return VStorage::new_tt(format!("{}:{}", host, port), user, pass);
-            }
+            },
             Err(e) => {
                 error!("fail parse {}, err={}", p, e);
-            }
+            },
         }
     }
 

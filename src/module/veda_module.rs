@@ -91,16 +91,16 @@ impl Module {
                     match e {
                         ErrorQueue::FailReadTailMessage => {
                             break;
-                        }
+                        },
                         ErrorQueue::InvalidChecksum => {
                             error!("[module] consumer:pop_body: invalid CRC, attempt seek next record");
                             queue_consumer.seek_next_pos();
                             break;
-                        }
+                        },
                         _ => {
                             error!("{} get msg from queue: {}", self.queue_prepared_count, e.as_str());
                             break;
-                        }
+                        },
                     }
                 }
 
@@ -143,16 +143,18 @@ impl Module {
                                         warn!("prepare: found fatal error, stop listen queue");
                                         return;
                                     }
-                                }
+                                },
                                 Ok(b) => {
                                     need_commit = b;
-                                }
+                                },
                             }
                         }
                     }
                 }
 
-                queue_consumer.next(need_commit);
+                if need_commit {
+                    queue_consumer.commit();
+                }
 
                 self.queue_prepared_count += 1;
 
@@ -168,13 +170,13 @@ impl Module {
                         if b {
                             queue_consumer.commit();
                         }
-                    }
+                    },
                     Err(e) => {
                         if let PrepareError::Fatal = e {
                             warn!("after_batch: found fatal error, stop listen queue");
                             return;
                         }
-                    }
+                    },
                 }
             }
 

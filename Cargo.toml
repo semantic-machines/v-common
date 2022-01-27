@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.1.101"
+version = "0.1.102"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -57,7 +57,7 @@ evmap = "10.0.2"
 v_authorization = "=0.1.5"
 #v_authorization = { package = "v_authorization", path = "../v-authorization" }
 
-v_queue = "=0.1.11"
+v_queue = "=0.2.0"
 #v_queue = { package = "v_queue", path = "../v-queue" }
 
 # sudo apt install libglib2.0-dev
