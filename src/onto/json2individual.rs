@@ -119,7 +119,8 @@ fn json_to_predicate(predicate: &str, values: &[JSONValue], dest: &mut Individua
                 DataType::Decimal => {
                     if vdata.is_f64() {
                         if let Some(v) = vdata.as_f64() {
-                            dest.add_decimal_from_f64(predicate, v);
+                            let s = v.to_string();
+                            dest.add_decimal_from_str(predicate, &s);
                         }
                     } else if vdata.is_number() {
                         if let Some(v) = vdata.as_i64() {
