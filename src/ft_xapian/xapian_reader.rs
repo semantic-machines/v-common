@@ -108,7 +108,13 @@ impl XapianReader {
         Some(xr)
     }
 
-    pub fn query_use_authorize(&mut self, request: FTQuery, storage: &mut VStorage, op_auth: OptAuthorize) -> QueryResult {
+    pub fn query_use_authorize(&mut self, request: FTQuery, storage: &mut VStorage, op_auth: OptAuthorize, reopen: bool) -> QueryResult {
+        if reopen {
+            if let Err(e) = self.reopen_dbs() {
+                error!("fail reopen xapian databases: {:?}", e);
+            }
+        }
+
         let mut res_out_list = vec![];
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
@@ -133,7 +139,7 @@ impl XapianReader {
     }
 
     pub fn query(&mut self, request: FTQuery, storage: &mut VStorage) -> QueryResult {
-        self.query_use_authorize(request, storage, OptAuthorize::YES)
+        self.query_use_authorize(request, storage, OptAuthorize::YES, false)
     }
 
     pub async fn query_use_collect_fn<T>(
