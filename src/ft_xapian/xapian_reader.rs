@@ -108,7 +108,7 @@ impl XapianReader {
         Some(xr)
     }
 
-    pub fn query(&mut self, request: FTQuery, storage: &mut VStorage) -> QueryResult {
+    pub fn query_use_authorize(&mut self, request: FTQuery, storage: &mut VStorage, op_auth: OptAuthorize) -> QueryResult {
         let mut res_out_list = vec![];
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
@@ -124,12 +124,16 @@ impl XapianReader {
             self.load_index_schema(storage);
         }
 
-        if let Ok(mut res) = block_on(self.query_use_collect_fn(&request, add_out_element, OptAuthorize::YES, &mut res_out_list)) {
+        if let Ok(mut res) = block_on(self.query_use_collect_fn(&request, add_out_element, op_auth, &mut res_out_list)) {
             res.result = res_out_list;
             debug!("res={:?}", res);
             return res;
         }
         QueryResult::default()
+    }
+
+    pub fn query(&mut self, request: FTQuery, storage: &mut VStorage) -> QueryResult {
+        self.query_use_authorize(request, storage, OptAuthorize::YES)
     }
 
     pub async fn query_use_collect_fn<T>(
