@@ -56,7 +56,7 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                 } else {
                     return Err(String::default());
                 }
-            }
+            },
         };
 
         iraw.raw.cur_predicates = i;
@@ -123,7 +123,7 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                                 Ok(exponent) => iraw.obj.add_decimal_d(&predicate, mantissa, exponent),
                                                 Err(e) => {
                                                     return Err(format!("value: fail read exponent, err={:?}", e));
-                                                }
+                                                },
                                             },
                                             Err(e) => return Err(format!("value: fail read mantissa, err={:?}", e)),
                                         }
@@ -135,22 +135,22 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                                     Ok(res) => lang = Lang::new_from_i64(res),
                                                     Err(e) => {
                                                         return Err(format!("value: fail read lang, err={:?}", e));
-                                                    }
+                                                    },
                                                 }
 
                                                 iraw.obj.add_string(&predicate, &res, lang);
-                                            }
+                                            },
                                             Err(e) => return Err(format!("value: expected {}, err={:?}", v_type, e)),
                                         }
                                     }
                                 }
-                            }
+                            },
                             marker => return Err(format!("parsing values: unexpected marker={:?}", marker)),
                         },
                         Err(e) => return Err(format!("parsing values: err={:?}", e)),
                     }
                 }
-            }
+            },
             Err(e) => return Err(format!("parsing {:?}", e)),
         }
 
@@ -173,7 +173,7 @@ fn read_raw_into_resources(cur: &mut Cursor<&[u8]>, values: &mut Vec<Resource>) 
             Marker::FixStr(s) => {
                 size = u32::from(s);
                 cur.set_position(m_pos);
-            }
+            },
             Marker::Str8 | Marker::Str16 | Marker::Str32 => {
                 cur.set_position(m_pos);
 
@@ -182,10 +182,10 @@ fn read_raw_into_resources(cur: &mut Cursor<&[u8]>, values: &mut Vec<Resource>) 
                     Err(e) => {
                         error!("fail read str len , err={:?}", e);
                         return false;
-                    }
+                    },
                 }
                 cur.set_position(m_pos);
-            }
+            },
             _marker => return false,
         }
     } else {
@@ -202,7 +202,7 @@ fn read_raw_into_resources(cur: &mut Cursor<&[u8]>, values: &mut Vec<Resource>) 
                 value: Value::Binary(v.as_bytes().to_vec()),
             });
             true
-        }
+        },
         Err(e) => {
             if let DecodeStringError::InvalidUtf8(buf, _err) = e {
                 values.push(Resource {
@@ -213,7 +213,7 @@ fn read_raw_into_resources(cur: &mut Cursor<&[u8]>, values: &mut Vec<Resource>) 
                 return true;
             }
             false
-        }
+        },
     }
 }
 
@@ -226,7 +226,7 @@ fn read_string_from_msgpack(cur: &mut Cursor<&[u8]>) -> Result<String, i64> {
             Marker::FixStr(s) => {
                 size = u32::from(s);
                 cur.set_position(m_pos);
-            }
+            },
             Marker::Str8 | Marker::Str16 | Marker::Str32 => {
                 cur.set_position(m_pos);
                 match read_str_len(cur) {
@@ -234,18 +234,18 @@ fn read_string_from_msgpack(cur: &mut Cursor<&[u8]>) -> Result<String, i64> {
                     Err(e) => {
                         error!("fail read str len , err={:?}", e);
                         return Err(-1);
-                    }
+                    },
                 }
                 cur.set_position(m_pos);
-            }
+            },
             Marker::Null => {
                 //cur.set_position(m_pos);
                 return Ok("".to_string());
-            }
+            },
             marker => {
                 error!("marker={:?}", marker);
                 return Err(-1);
-            }
+            },
         }
     } else {
         return Err(-2);
@@ -261,6 +261,6 @@ fn read_string_from_msgpack(cur: &mut Cursor<&[u8]>) -> Result<String, i64> {
             }
             error!("fail read str, err={:?}", e);
             Err(-1)
-        }
+        },
     }
 }

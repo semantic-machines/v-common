@@ -1,4 +1,4 @@
-use crate::module::module::Module;
+use crate::module::module_impl::Module;
 use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
@@ -35,7 +35,7 @@ impl Backend {
         }
 
         if ft_query_service_url.is_empty() {
-            ft_query_service_url = Module::get_property("ft_query_service_url").expect("param [ft_query_service_url] not found in veda.properties").to_string();
+            ft_query_service_url = Module::get_property("ft_query_service_url").expect("param [ft_query_service_url] not found in veda.properties");
         }
 
         info!("use ft_query_service_url={}", ft_query_service_url);

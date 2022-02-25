@@ -216,7 +216,7 @@ impl AuthClient {
                 } else {
                     Err(ApiError::new(ResultCode::BadRequest, "api:update - invalid \"data\" section"))
                 }
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -293,19 +293,20 @@ impl MStorageClient {
         cmd: IndvOp,
         indvs: &[Individual],
     ) -> Result<OpResult, ApiError> {
-        self.updates_use_param_with_addr(ticket, event_id, src, assigned_subsystems, cmd, indvs, None)
+        self.updates_use_param_with_addr((ticket, None), event_id, src, assigned_subsystems, cmd, indvs)
     }
 
     pub fn updates_use_param_with_addr(
         &mut self,
-        ticket: &str,
+        ticket_addr: (&str, Option<IpAddr>),
         event_id: &str,
         src: &str,
         assigned_subsystems: i64,
         cmd: IndvOp,
         indvs: &[Individual],
-        addr: Option<IpAddr>,
     ) -> Result<OpResult, ApiError> {
+        let (ticket, addr) = ticket_addr;
+
         let mut jindvs = vec![];
         for indv in indvs {
             jindvs.push(indv.get_obj().as_json());

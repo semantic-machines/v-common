@@ -100,7 +100,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                 if let Ok(b) = d._bool(&type_info) {
                     indv.add_bool(predicate, b);
                 }
-            }
+            },
             Type::Bytes => {
                 if let Ok(t) = d._text(&type_info) {
                     if tag == TagId::Uri as u64 {
@@ -119,7 +119,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                         indv.add_string(predicate, &t, lang);
                     }
                 }
-            }
+            },
             Type::Text => {
                 if let Ok(t) = d._text(&type_info) {
                     if tag == TagId::Uri as u64 {
@@ -138,7 +138,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                         indv.add_string(predicate, &t, lang);
                     }
                 }
-            }
+            },
             Type::UInt8 | Type::Int8 | Type::UInt16 | Type::Int16 | Type::UInt32 | Type::Int32 | Type::Int64 | Type::UInt64 => {
                 if let Ok(mut i) = d._i64(&type_info) {
                     if i < 0 {
@@ -151,7 +151,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                         indv.add_integer(predicate, i);
                     }
                 }
-            }
+            },
             Type::Array => {
                 if let Ok(len) = d._array(&type_info) {
                     if tag == TagId::DecimalFraction as u64 {
@@ -178,11 +178,11 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                 } else {
                     return false;
                 }
-            }
+            },
             _ => {
                 error!("parse cbor:unknown type {:?}, predicate={}, id={}", type_info.0, predicate, indv.uri);
                 return false;
-            }
+            },
         }
     }
     true

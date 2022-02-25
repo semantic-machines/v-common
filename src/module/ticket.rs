@@ -40,15 +40,6 @@ impl PartialEq for Ticket {
             && self.start_time == other.start_time
             && self.user_login == other.user_uri
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.result != other.result
-            || self.user_uri != other.user_uri
-            || self.id != other.id
-            || self.end_time != other.end_time
-            || self.start_time != other.start_time
-            || self.user_login != other.user_uri
-    }
 }
 
 impl ShallowCopy for Ticket {

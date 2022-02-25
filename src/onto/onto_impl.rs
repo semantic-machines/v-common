@@ -10,7 +10,7 @@ pub enum RelType {
     Super,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Onto {
     pub relations: HashMap<String, HashMap<String, RelType>>,
     pub prefixes: HashMap<String, String>,
@@ -19,15 +19,6 @@ pub struct Onto {
 impl fmt::Display for Onto {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:#?}", self.relations)
-    }
-}
-
-impl Default for Onto {
-    fn default() -> Self {
-        Onto {
-            relations: HashMap::new(),
-            prefixes: HashMap::new(),
-        }
     }
 }
 

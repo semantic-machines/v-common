@@ -189,9 +189,9 @@ impl Individual {
                 DataType::Decimal => {
                     let d = el.get_num();
                     self.set_decimal_d(predicate, d.0, d.1);
-                }
+                },
                 DataType::Boolean => self.set_bool(predicate, el.get_bool()),
-                DataType::Binary => {}
+                DataType::Binary => {},
             }
         }
     }
@@ -279,7 +279,7 @@ impl Individual {
             match self.obj.resources.get(predicate) {
                 Some(v) => {
                     return !v.is_empty();
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -289,7 +289,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         false
@@ -314,7 +314,7 @@ impl Individual {
                             }
                         }
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -324,7 +324,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         false
@@ -349,7 +349,7 @@ impl Individual {
                             }
                         }
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -359,7 +359,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         false
@@ -376,7 +376,7 @@ impl Individual {
                             }
                         }
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -386,7 +386,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         false
@@ -397,7 +397,7 @@ impl Individual {
             match self.obj.resources.get(predicate) {
                 Some(v) => {
                     return Some(v.iter().map(|el| el.get_copy()).collect::<Vec<Resource>>());
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -407,7 +407,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -430,7 +430,7 @@ impl Individual {
                             })
                             .collect::<Vec<String>>(),
                     );
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -440,7 +440,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -476,13 +476,13 @@ impl Individual {
                 Some(v) => match &v[0].value {
                     Value::Str(s, _l) => {
                         return Some(s.to_string());
-                    }
+                    },
                     Value::Uri(s) => {
                         return Some(s.to_string());
-                    }
+                    },
                     _ => {
                         return None;
-                    }
+                    },
                 },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
@@ -493,7 +493,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -509,16 +509,16 @@ impl Individual {
                                 if lang.contains(l) {
                                     return Some(s.to_string());
                                 }
-                            }
+                            },
                             Value::Uri(s) => {
                                 return Some(s.to_string());
-                            }
+                            },
                             _ => {
                                 return None;
-                            }
+                            },
                         }
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -528,7 +528,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -540,10 +540,10 @@ impl Individual {
                 Some(v) => match &v[0].value {
                     Value::Bool(s) => {
                         return Some(*s);
-                    }
+                    },
                     _ => {
                         return None;
-                    }
+                    },
                 },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
@@ -554,7 +554,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -566,10 +566,10 @@ impl Individual {
                 Some(v) => match &v[0].value {
                     Value::Binary(s) => {
                         return Some(s.clone());
-                    }
+                    },
                     _ => {
                         return None;
-                    }
+                    },
                 },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
@@ -580,7 +580,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -593,7 +593,7 @@ impl Individual {
                     if let Value::Int(i) = &v[0].value {
                         return Some(*i);
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -603,7 +603,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -616,7 +616,7 @@ impl Individual {
                     if let Value::Num(m, e) = &v[0].value {
                         return Some((*m, *e));
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -626,7 +626,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -639,7 +639,7 @@ impl Individual {
                     if let Value::Datetime(i) = &v[0].value {
                         return Some(*i);
                     }
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -649,7 +649,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None
@@ -660,7 +660,7 @@ impl Individual {
             match self.obj.resources.get(predicate) {
                 Some(v) => {
                     return Some(v[0].get_float());
-                }
+                },
                 None => {
                     if self.raw.cur < self.raw.data.len() as u64 {
                         // next parse
@@ -670,7 +670,7 @@ impl Individual {
                     } else {
                         break;
                     }
-                }
+                },
             }
         }
         None

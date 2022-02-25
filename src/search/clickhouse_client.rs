@@ -1,11 +1,10 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
-use crate::search::common::QueryResult;
+use crate::search::common::{FTQuery, QueryResult};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
 use clickhouse_rs::errors::Error;
 use clickhouse_rs::Pool;
 use futures::executor::block_on;
-use std::str;
 use std::time::*;
 use url::Url;
 use v_authorization::common::Access;
@@ -41,16 +40,16 @@ impl CHClient {
                 let pool = Pool::new(url);
                 self.client = Some(pool);
                 self.is_ready = true;
-            }
+            },
             Err(e) => {
                 error!("Invalid connection url, err={:?}", e);
                 self.is_ready = false;
-            }
+            },
         }
         self.is_ready
     }
 
-    pub fn select(&mut self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> QueryResult {
+    pub fn select(&mut self, req: FTQuery, op_auth: OptAuthorize) -> QueryResult {
         if !self.is_ready {
             self.connect();
         }
@@ -59,7 +58,7 @@ impl CHClient {
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            if let Err(e) = block_on(select_from_clickhouse(c, user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az)) {
+            if let Err(e) = block_on(select_from_clickhouse(req, c, op_auth, &mut res, &mut self.az)) {
                 error!("fail read from clickhouse: {:?}", e);
                 res.result_code = ResultCode::InternalServerError
             }
@@ -72,12 +71,12 @@ impl CHClient {
         res
     }
 
-    pub async fn select_async(&mut self, user_uri: &str, query: &str, top: i64, limit: i64, from: i64, op_auth: OptAuthorize) -> Result<QueryResult, Error> {
+    pub async fn select_async(&mut self, req: FTQuery, op_auth: OptAuthorize) -> Result<QueryResult, Error> {
         let start = Instant::now();
         let mut res = QueryResult::default();
 
         if let Some(c) = &self.client {
-            select_from_clickhouse(c, user_uri, query, top, limit, from, op_auth, &mut res, &mut self.az).await?;
+            select_from_clickhouse(req, c, op_auth, &mut res, &mut self.az).await?;
         }
         res.total_time = start.elapsed().as_millis() as i64;
         res.query_time = res.total_time - res.authorize_time;
@@ -87,29 +86,19 @@ impl CHClient {
     }
 }
 
-async fn select_from_clickhouse(
-    pool: &Pool,
-    user_uri: &str,
-    query: &str,
-    top: i64,
-    limit: i64,
-    from: i64,
-    op_auth: OptAuthorize,
-    out_res: &mut QueryResult,
-    az: &mut LmdbAzContext,
-) -> Result<(), Error> {
+async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize, out_res: &mut QueryResult, az: &mut LmdbAzContext) -> Result<(), Error> {
     let mut authorized_count = 0;
     let mut total_count = 0;
 
-    if query.to_uppercase().split_whitespace().any(|x| x == "INSERT" || x == "UPDATE" || x == "DROP" || x == "DELETE") {
+    if req.query.to_uppercase().split_whitespace().any(|x| x == "INSERT" || x == "UPDATE" || x == "DROP" || x == "DELETE") {
         out_res.result_code = ResultCode::BadRequest;
         return Ok(());
     }
 
-    let fq = if limit > 0 {
-        format!("{} LIMIT {} OFFSET {}", query, limit, from)
+    let fq = if req.limit > 0 {
+        format!("{} LIMIT {} OFFSET {}", req.query, req.limit, req.from)
     } else {
-        format!("{} OFFSET {}", query, from)
+        format!("{} OFFSET {}", req.query, req.from)
     };
 
     //info!("query={}", fq);
@@ -124,34 +113,34 @@ async fn select_from_clickhouse(
         if op_auth == OptAuthorize::YES {
             let start = Instant::now();
 
-            match az.authorize(&id, user_uri, Access::CanRead as u8, false) {
+            match az.authorize(&id, &req.user, Access::CanRead as u8, false) {
                 Ok(res) => {
                     if res == Access::CanRead as u8 {
                         out_res.result.push(id);
                         authorized_count += 1;
 
-                        if authorized_count >= top {
+                        if authorized_count >= req.top {
                             break;
                         }
                     }
-                }
-                Err(e) => error!("fail authorization {}, err={}", user_uri, e),
+                },
+                Err(e) => error!("fail authorization {}, err={}", req.user, e),
             }
             out_res.authorize_time += start.elapsed().as_micros() as i64;
         } else {
             out_res.result.push(id);
         }
 
-        if limit > 0 && total_count >= limit {
+        if req.limit > 0 && total_count >= req.limit {
             break;
         }
     }
 
     out_res.result_code = ResultCode::Ok;
-    out_res.estimated = from + (block.row_count() as i64);
-    out_res.count = authorized_count;
-    out_res.processed = total_count;
-    out_res.cursor = from + total_count;
+    out_res.estimated = (req.from + block.row_count() as i32) as i64;
+    out_res.count = authorized_count as i64;
+    out_res.processed = total_count as i64;
+    out_res.cursor = (req.from + total_count) as i64;
     out_res.authorize_time /= 1000;
 
     Ok(())

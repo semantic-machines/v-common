@@ -101,7 +101,7 @@ impl Module {
 
         if notify_channel_url.is_empty() {
             if let Some(s) = Module::get_property("notify_channel_url") {
-                notify_channel_url = s.to_owned()
+                notify_channel_url = s
             }
         }
 
@@ -170,7 +170,7 @@ impl Module {
             }
 
             info!("use param [{}]={}", param, val);
-            return Some(val.to_string());
+            return Some(val);
         }
 
         error!("param [{}] not found", param);
@@ -292,14 +292,9 @@ impl Module {
                 }
             }
 
-            match heartbeat(backend, module_context) {
-                Err(e) => {
-                    if let PrepareError::Fatal = e {
-                        error!("heartbeat: found fatal error, stop listen queue");
-                        break;
-                    }
-                },
-                _ => {},
+            if let Err(PrepareError::Fatal) = heartbeat(backend, module_context) {
+                error!("heartbeat: found fatal error, stop listen queue");
+                break;
             }
 
             if let Some(s) = self.connect_to_notify_channel() {

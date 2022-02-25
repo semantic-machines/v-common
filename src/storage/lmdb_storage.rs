@@ -57,11 +57,11 @@ impl LMDBStorage {
         match &db_env {
             Ok(env) => {
                 db_handle = env.get_default_db(DbFlags::empty());
-            }
+            },
             Err(e) => {
                 error!("LMDB:fail opening read only environment, err={:?}", e);
                 db_handle = Err(MdbError::Corrupted);
-            }
+            },
         }
 
         if storage == StorageId::Individuals {
@@ -115,18 +115,18 @@ impl Storage for LMDBStorage {
                                         error!("LMDB:fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), uri);
                                         return false;
                                     }
-                                }
+                                },
                                 Err(e) => match e {
                                     MdbError::NotFound => {
                                         return false;
-                                    }
+                                    },
                                     _ => {
                                         error!("LMDB:db.get {:?}, uri=[{}]", e, uri);
                                         return false;
-                                    }
+                                    },
                                 },
                             }
-                        }
+                        },
                         Err(e) => match e {
                             MdbError::Other(c, _) => {
                                 if c == -30785 {
@@ -135,25 +135,25 @@ impl Storage for LMDBStorage {
                                     error!("LMDB:fail crate transaction, err={}, uri=[{}]", e, uri);
                                     return false;
                                 }
-                            }
+                            },
                             _ => {
                                 error!("LMDB:fail crate transaction, err={}, uri=[{}]", e, uri);
-                            }
+                            },
                         },
                     },
                     Err(e) => {
                         error!("LMDB:db handle, err={}, uri=[{}]", e, uri);
                         return false;
-                    }
+                    },
                 },
                 Err(e) => match e {
                     MdbError::Panic => {
                         is_need_reopen = true;
-                    }
+                    },
                     _ => {
                         error!("LMDB:db environment, err={}, uri=[{}]", e, uri);
                         return false;
-                    }
+                    },
                 },
             }
 
@@ -233,18 +233,18 @@ impl Storage for LMDBStorage {
                             match db.get::<String>(&key) {
                                 Ok(val) => {
                                     return Some(val);
-                                }
+                                },
                                 Err(e) => match e {
                                     MdbError::NotFound => {
                                         return None;
-                                    }
+                                    },
                                     _ => {
                                         error!("LMDB:db.get {:?}, key=[{}]", e, key);
                                         return None;
-                                    }
+                                    },
                                 },
                             }
-                        }
+                        },
                         Err(e) => match e {
                             MdbError::Other(c, _) => {
                                 if c == -30785 {
@@ -253,25 +253,25 @@ impl Storage for LMDBStorage {
                                     error!("LMDB:fail crate transaction, err={}", e);
                                     return None;
                                 }
-                            }
+                            },
                             _ => {
                                 error!("LMDB:fail crate transaction, err={}", e);
-                            }
+                            },
                         },
                     },
                     Err(e) => {
                         error!("LMDB:db handle, err={}", e);
                         return None;
-                    }
+                    },
                 },
                 Err(e) => match e {
                     MdbError::Panic => {
                         is_need_reopen = true;
-                    }
+                    },
                     _ => {
                         error!("LMDB:db environment, err={}", e);
                         return None;
-                    }
+                    },
                 },
             }
 
@@ -315,18 +315,18 @@ impl Storage for LMDBStorage {
                             match db.get::<Vec<u8>>(&key) {
                                 Ok(val) => {
                                     return val;
-                                }
+                                },
                                 Err(e) => match e {
                                     MdbError::NotFound => {
                                         return Vec::default();
-                                    }
+                                    },
                                     _ => {
                                         error!("LMDB:db.get {:?}, {}", e, key);
                                         return Vec::default();
-                                    }
+                                    },
                                 },
                             }
-                        }
+                        },
                         Err(e) => match e {
                             MdbError::Other(c, _) => {
                                 if c == -30785 {
@@ -335,25 +335,25 @@ impl Storage for LMDBStorage {
                                     error!("LMDB:fail crate transaction, err={}", e);
                                     return Vec::default();
                                 }
-                            }
+                            },
                             _ => {
                                 error!("LMDB:fail crate transaction, err={}", e);
-                            }
+                            },
                         },
                     },
                     Err(e) => {
                         error!("LMDB:db handle, err={}", e);
                         return Vec::default();
-                    }
+                    },
                 },
                 Err(e) => match e {
                     MdbError::Panic => {
                         is_need_reopen = true;
-                    }
+                    },
                     _ => {
                         error!("LMDB:db environment, err={}", e);
                         return Vec::default();
-                    }
+                    },
                 },
             }
 
@@ -387,7 +387,7 @@ impl Storage for LMDBStorage {
                 Ok(env) => match env.stat() {
                     Ok(stat) => {
                         return stat.ms_entries;
-                    }
+                    },
                     Err(e) => match e {
                         MdbError::Other(c, _) => {
                             if c == -30785 {
@@ -396,20 +396,20 @@ impl Storage for LMDBStorage {
                                 error!("LMDB:fail read stat, err={}", e);
                                 return 0;
                             }
-                        }
+                        },
                         _ => {
                             error!("LMDB:fail crate transaction, err={}", e);
-                        }
+                        },
                     },
                 },
                 Err(e) => match e {
                     MdbError::Panic => {
                         is_need_reopen = true;
-                    }
+                    },
                     _ => {
                         error!("LMDB:db environment, err={}", e);
                         return 0;
-                    }
+                    },
                 },
             }
 
@@ -444,21 +444,21 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
                         return false;
                     }
                     true
-                }
+                },
                 Err(e) => {
                     error!("LMDB:db handle, err={}", e);
                     false
-                }
+                },
             },
             Err(e) => {
                 error!("LMDB:db create transaction, err={}", e);
                 false
-            }
+            },
         },
         Err(e) => {
             error!("LMDB:db environment, err={}", e);
             false
-        }
+        },
     }
 }
 
@@ -483,21 +483,21 @@ fn put_kv_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHand
                         return false;
                     }
                     true
-                }
+                },
                 Err(e) => {
                     error!("LMDB:db handle, err={}", e);
                     false
-                }
+                },
             },
             Err(e) => {
                 error!("LMDB:db create transaction, err={}", e);
                 false
-            }
+            },
         },
         Err(e) => {
             error!("LMDB:db environment, err={}", e);
             false
-        }
+        },
     }
 }
 
@@ -511,10 +511,10 @@ fn grow_db(db_env: &Result<Environment, MdbError>) -> bool {
                     return true;
                 }
             }
-        }
+        },
         Err(e) => {
             error!("LMDB:db environment, err={}", e);
-        }
+        },
     }
     false
 }

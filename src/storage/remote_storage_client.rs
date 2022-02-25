@@ -66,7 +66,7 @@ impl StorageROClient {
             Err(e) => {
                 error!("REMOTE STORAGE: fail recv from main module, err={:?}", e);
                 false
-            }
+            },
 
             Ok(msg) => {
                 let data = msg.as_slice();
@@ -82,7 +82,7 @@ impl StorageROClient {
                     error!("REMOTE STORAGE: fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), id);
                     false
                 }
-            }
+            },
         }
     }
 

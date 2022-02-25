@@ -8,7 +8,7 @@ use std::thread;
 #[cfg(feature = "extended-siginfo")]
 type Signals = signal_hook::iterator::SignalsInfo<signal_hook::iterator::exfiltrator::origin::WithOrigin>;
 use crate::onto::individual::Individual;
-use crate::onto::onto::Onto;
+use crate::onto::onto_impl::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
 use crate::storage::common::VStorage;

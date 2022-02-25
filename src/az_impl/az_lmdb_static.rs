@@ -72,7 +72,7 @@ impl<'a> Storage for LMDBStorage<'a> {
                 _ => {
                     eprintln!("ERR! Authorize: db.get {:?}, {}", e, key);
                     Err(-1)
-                }
+                },
             },
         }
     }
@@ -90,10 +90,10 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
             match env_builder.open(DB_PATH, 0o644) {
                 Ok(env_res) => {
                     ENV.lock().unwrap().replace(env_res);
-                }
+                },
                 Err(e) => {
                     eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
-                }
+                },
             }
         }
     }
@@ -106,12 +106,12 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
             Ok(db_handle_res) => {
                 db_handle = db_handle_res;
                 break;
-            }
+            },
             Err(e) => {
                 eprintln!("ERR! Authorize: Err opening db handle: {:?}", e);
                 thread::sleep(time::Duration::from_secs(3));
                 eprintln!("Retry");
-            }
+            },
         }
     }
 
@@ -119,7 +119,7 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
     match env.get_reader() {
         Ok(txn1) => {
             txn = txn1;
-        }
+        },
         Err(e) => {
             eprintln!("ERR! Authorize:CREATING TRANSACTION {:?}", e);
             eprintln!("reopen db");
@@ -129,14 +129,14 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
             match env_builder.open(DB_PATH, 0o644) {
                 Ok(env_res) => {
                     ENV.lock().unwrap().replace(env_res);
-                }
+                },
                 Err(e) => {
                     eprintln!("ERR! Authorize: Err opening environment: {:?}", e);
-                }
+                },
             }
 
             return _f_authorize(uri, user_uri, request_access, _is_check_for_reload, trace);
-        }
+        },
     }
 
     let db = txn.bind(&db_handle);

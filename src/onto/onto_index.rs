@@ -33,7 +33,7 @@ impl OntoIndex {
                 Ok(d) => {
                     info!("load {} onto elements", d.data.keys().len());
                     return d;
-                }
+                },
                 Err(e) => error!("fail load local storage, err={}", e),
             }
         }

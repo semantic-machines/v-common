@@ -42,10 +42,10 @@ impl Storage for TTStorage {
                 if parse_raw(iraw).is_ok() {
                     return !iraw.get_id().is_empty();
                 }
-            }
+            },
             Err(e) => {
                 error!("TTStorage: fail get [{}] from tarantool, err={:?}", uri, e);
-            }
+            },
         }
 
         false

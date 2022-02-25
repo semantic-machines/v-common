@@ -1,7 +1,7 @@
 use crate::ft_xapian::xapian_reader::XapianReader;
 use crate::module::veda_backend::Backend;
 use crate::onto::individual::Individual;
-use crate::onto::onto::Onto;
+use crate::onto::onto_impl::Onto;
 use crate::search::common::FTQuery;
 use crate::v_api::obj::ResultCode;
 use std::collections::{HashMap, HashSet};
@@ -100,7 +100,7 @@ impl IndexerSchema {
 
         for for_class in for_classes.iter() {
             let mut sub_classes = HashSet::new();
-            onto.get_subs(&for_class, &mut sub_classes);
+            onto.get_subs(for_class, &mut sub_classes);
 
             if let Some(i) = indexed_to.get(0) {
                 self.class_2_database.insert(for_class.to_owned(), i.to_owned());

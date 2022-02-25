@@ -49,28 +49,28 @@ impl Serialize for Resource {
         match &self.value {
             Value::Num(_m, _e) => {
                 tup.serialize_field("data", &self.value)?;
-            }
+            },
             Value::Int(i) => {
                 tup.serialize_field("data", &*i)?;
-            }
+            },
             Value::Datetime(i) => {
                 let dt = *i;
                 tup.serialize_field("data", &format!("{:?}", &Utc.timestamp(dt, 0)))?;
-            }
+            },
             Value::Bool(b) => {
                 tup.serialize_field("data", &*b)?;
-            }
+            },
             Value::Str(s, l) => {
                 tup.serialize_field("data", &*s)?;
 
                 if self.rtype == DataType::String && *l != Lang::NONE {
                     tup.serialize_field("lang", &*l)?;
                 }
-            }
+            },
             Value::Uri(s) => {
                 tup.serialize_field("data", &*s)?;
-            }
-            _ => {}
+            },
+            _ => {},
         }
         tup.serialize_field("type", &self.rtype)?;
 
@@ -88,7 +88,7 @@ impl Serialize for Value {
                 let (num, scale) = exponent_to_scale(m, e);
                 let d = Decimal::new(num, scale);
                 serializer.serialize_str(&d.to_string())
-            }
+            },
             Value::Int(i) => serializer.serialize_i64(*i),
             Value::Datetime(i) => serializer.serialize_i64(*i),
             Value::Bool(b) => serializer.serialize_bool(*b),
@@ -103,7 +103,7 @@ impl Serialize for Value {
                     tup.serialize_field("lang", &*l)?;
                 }
                 tup.end()
-            }
+            },
             Value::Uri(s) => {
                 //serializer.serialize_newtype_variant("type", 0, "data", s)
 
@@ -112,7 +112,7 @@ impl Serialize for Value {
                 tup.serialize_field("data", &*s)?;
 
                 tup.end()
-            }
+            },
             _ => serializer.serialize_none(),
         }
     }

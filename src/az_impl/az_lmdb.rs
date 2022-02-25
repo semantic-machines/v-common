@@ -21,12 +21,12 @@ fn open() -> LmdbAzContext {
                 return LmdbAzContext {
                     env,
                 };
-            }
+            },
             Err(e) => {
                 error!("Authorize: Err opening environment: {:?}", e);
                 thread::sleep(time::Duration::from_secs(3));
                 error!("Retry");
-            }
+            },
         }
     }
 }
@@ -56,7 +56,7 @@ impl AuthorizationContext for LmdbAzContext {
         match _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace) {
             Ok(r) => {
                 return Ok(r);
-            }
+            },
             Err(e) => {
                 if e < 0 {
                     info!("reopen");
@@ -65,14 +65,14 @@ impl AuthorizationContext for LmdbAzContext {
                     match env_builder.open(DB_PATH, 0o644) {
                         Ok(env1) => {
                             self.env = env1;
-                        }
+                        },
                         Err(e1) => {
                             error!("Authorize: Err opening environment: {:?}", e1);
                             return Err(e);
-                        }
+                        },
                     }
                 }
-            }
+            },
         }
         return _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace);
     }
@@ -91,7 +91,7 @@ impl<'a> Storage for AzLmdbStorage<'a> {
                 _ => {
                     error!("Authorize: db.get {:?}, {}", e, key);
                     Err(-1)
-                }
+                },
             },
         }
     }
@@ -105,25 +105,25 @@ fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access
     match env.get_default_db(DbFlags::empty()) {
         Ok(db_handle_res) => {
             db_handle = db_handle_res;
-        }
+        },
         Err(e) => {
             error!("Authorize: Err opening db handle: {:?}", e);
             //            thread::sleep(time::Duration::from_secs(3));
             //            error!("Retry");
             return Err(-1);
-        }
+        },
     }
 
     let txn;
     match env.get_reader() {
         Ok(txn1) => {
             txn = txn1;
-        }
+        },
         Err(e) => {
             error!("Authorize:CREATING TRANSACTION {:?}", e);
             error!("reopen db");
             return Err(-1);
-        }
+        },
     }
 
     let db = txn.bind(&db_handle);

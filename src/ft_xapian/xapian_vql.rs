@@ -2,7 +2,7 @@ use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};
-use crate::onto::onto::Onto;
+use crate::onto::onto_impl::Onto;
 use crate::search::common::QueryResult;
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
@@ -16,10 +16,10 @@ use xapian_rusty::*;
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
-    TEXT,
-    NUMBER,
-    DATE,
-    BOOLEAN,
+    Text,
+    Number,
+    Date,
+    Boolean,
 }
 
 pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
@@ -174,7 +174,7 @@ pub(crate) fn transform_vql_to_xapian(
         }
 
         let (rs_type, value) = get_token_type(&rs);
-        if rs_type == TokenType::DATE || rs_type == TokenType::NUMBER {
+        if rs_type == TokenType::Date || rs_type == TokenType::Number {
             if let Some(l_out) = l_token {
                 *l_out = ls;
             }
@@ -243,7 +243,7 @@ pub(crate) fn transform_vql_to_xapian(
                     if let Some(slot) = wslot {
                         let (rs_type, value) = get_token_type(&rs);
 
-                        if rs_type == TokenType::BOOLEAN {
+                        if rs_type == TokenType::Boolean {
                             let xtr = format!("X{}D", slot);
                             let query_str = if value == 0.0 {
                                 "F"
@@ -284,9 +284,9 @@ pub(crate) fn transform_vql_to_xapian(
                                 let vals: Vec<&str> = rs.split(',').collect();
                                 if vals.len() == 2 {
                                     let (tt, c_from) = get_token_type(vals.get(0).unwrap());
-                                    if tt == TokenType::DATE || tt == TokenType::NUMBER {
+                                    if tt == TokenType::Date || tt == TokenType::Number {
                                         let (tt, c_to) = get_token_type(vals.get(1).unwrap());
-                                        if tt == TokenType::DATE || tt == TokenType::NUMBER {
+                                        if tt == TokenType::Date || tt == TokenType::Number {
                                             *query = Query::new_range(XapianOp::OpValueRange, slot, c_from, c_to)?;
                                         }
                                     }
@@ -526,29 +526,29 @@ fn get_token_type(token_in: &str) -> (TokenType, f64) {
     let token = token_in.trim().as_bytes();
 
     if token == b"true" {
-        return (TokenType::BOOLEAN, 1.0);
+        return (TokenType::Boolean, 1.0);
     } else if token == b"false" {
-        return (TokenType::BOOLEAN, 0.0);
+        return (TokenType::Boolean, 0.0);
     } else if token.len() == 19 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' {
         if let Ok(nv) = NaiveDateTime::parse_from_str(token_in, "%Y-%m-%dT%H:%M:%S") {
-            return (TokenType::DATE, nv.timestamp() as f64);
+            return (TokenType::Date, nv.timestamp() as f64);
         }
     } else if token.len() == 24 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' && token[19] == b'.' {
         let (token, _) = token_in.split_at(token_in.len() - 1);
         if let Ok(nv) = NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S%.f") {
-            return (TokenType::DATE, nv.timestamp() as f64);
+            return (TokenType::Date, nv.timestamp() as f64);
         }
     }
 
     if let Ok(v) = token_in.parse::<i64>() {
-        return (TokenType::NUMBER, v as f64);
+        return (TokenType::Number, v as f64);
     }
 
     if let Ok(v) = token_in.parse::<f64>() {
-        return (TokenType::NUMBER, v);
+        return (TokenType::Number, v);
     }
 
-    (TokenType::TEXT, 0.0)
+    (TokenType::Text, 0.0)
 }
 
 fn is_good_token(str: &str) -> bool {

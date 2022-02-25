@@ -97,14 +97,14 @@ fn json_to_predicate(predicate: &str, values: &[JSONValue], dest: &mut Individua
                     if let Some(v) = vdata.as_str() {
                         dest.add_uri(predicate, v);
                     }
-                }
+                },
                 DataType::String => add_string(v, vdata, predicate, dest),
 
                 DataType::Integer => {
                     if let Some(v) = vdata.as_i64() {
                         dest.add_integer(predicate, v);
                     }
-                }
+                },
                 DataType::Datetime => {
                     if vdata.is_number() {
                         if let Some(v) = vdata.as_i64() {
@@ -115,7 +115,7 @@ fn json_to_predicate(predicate: &str, values: &[JSONValue], dest: &mut Individua
                             dest.add_datetime_from_str(predicate, v);
                         }
                     }
-                }
+                },
                 DataType::Decimal => {
                     if vdata.is_f64() {
                         if let Some(v) = vdata.as_f64() {
@@ -131,17 +131,17 @@ fn json_to_predicate(predicate: &str, values: &[JSONValue], dest: &mut Individua
                             dest.add_decimal_from_str(predicate, v);
                         }
                     }
-                }
+                },
                 DataType::Boolean => {
                     if let Some(v) = vdata.as_bool() {
                         dest.add_bool(predicate, v);
                     }
-                }
+                },
                 DataType::Binary => {
                     if let Some(v) = vdata.as_str() {
                         dest.add_binary(predicate, v.as_bytes().to_vec());
                     }
-                }
+                },
             }
         } else {
             error!("json->individual: value for predicate [{}] must contain map", predicate);

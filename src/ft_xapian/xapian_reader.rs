@@ -7,7 +7,7 @@ use crate::ft_xapian::xapian_vql::{exec_xapian_query_and_queue_authorize, get_so
 use crate::module::common::load_onto;
 use crate::module::info::ModuleInfo;
 use crate::onto::individual::Individual;
-use crate::onto::onto::Onto;
+use crate::onto::onto_impl::Onto;
 use crate::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
@@ -246,8 +246,8 @@ impl XapianReader {
             Ok(res) => {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
-                        let mut indv = &mut Individual::default();
-                        if storage.get_individual(id, &mut indv) {
+                        let indv = &mut Individual::default();
+                        if storage.get_individual(id, indv) {
                             self.index_schema.add_schema_data(&self.onto, indv);
                         }
                     }
@@ -374,7 +374,7 @@ impl XapianReader {
 
         if db_names_str.is_empty() {
             let mut databases = HashMap::new();
-            self.db_names_from_tta(&tta, &mut databases);
+            self.db_names_from_tta(tta, &mut databases);
 
             for (key, value) in databases.iter() {
                 if !(*value) {

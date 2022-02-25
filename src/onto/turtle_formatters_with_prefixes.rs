@@ -105,11 +105,11 @@ impl<W: Write> TriplesFormatter for TurtleFormatterWithPrefixes<W> {
             NamedOrBlankNode::NamedNode(n) => {
                 self.current_subject = n.iri.to_owned();
                 self.current_subject_type = Some(NamedOrBlankNodeType::NamedNode);
-            }
+            },
             NamedOrBlankNode::BlankNode(n) => {
                 self.current_subject.push_str(n.id);
                 self.current_subject_type = Some(NamedOrBlankNodeType::BlankNode);
-            }
+            },
         }
         self.current_predicate.clear();
         self.current_predicate.push_str(triple.predicate.iri);
@@ -155,11 +155,11 @@ impl Iterator for EscapeRDF {
             EscapeRdfState::Backslash(c) => {
                 self.state = EscapeRdfState::Char(c);
                 Some('\\')
-            }
+            },
             EscapeRdfState::Char(c) => {
                 self.state = EscapeRdfState::Done;
                 Some(c)
-            }
+            },
             EscapeRdfState::Done => None,
         }
     }
@@ -200,10 +200,10 @@ fn fmt_object(o: &Term, f: &mut dyn Write) -> Result<(), io::Error> {
                 escape(n.iri).try_for_each(|c| write!(f, "{}", c))?;
                 f.write_all(b"\"")?;
             }
-        }
+        },
         Term::BlankNode(n) => {
             f.write_all(n.id.as_bytes())?;
-        }
+        },
         Term::Literal(v) => match v {
             Literal::Simple {
                 value,
@@ -211,7 +211,7 @@ fn fmt_object(o: &Term, f: &mut dyn Write) -> Result<(), io::Error> {
                 f.write_all(b"\"")?;
                 escape(value).try_for_each(|c| write!(f, "{}", c))?;
                 f.write_all(b"\"")?;
-            }
+            },
             Literal::LanguageTaggedString {
                 value,
                 language,
@@ -219,7 +219,7 @@ fn fmt_object(o: &Term, f: &mut dyn Write) -> Result<(), io::Error> {
                 f.write_all(b"\"")?;
                 escape(value).try_for_each(|c| write!(f, "{}", c))?;
                 write!(f, "\"@{}", language)?;
-            }
+            },
             Literal::Typed {
                 value,
                 datatype,
@@ -227,7 +227,7 @@ fn fmt_object(o: &Term, f: &mut dyn Write) -> Result<(), io::Error> {
                 f.write_all(b"\"")?;
                 escape(value).try_for_each(|c| write!(f, "{}", c))?;
                 write!(f, "\"^^{}", datatype.iri)?;
-            }
+            },
         },
     }
     Ok(())

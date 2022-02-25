@@ -156,30 +156,30 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
         match r.rtype {
             DataType::Boolean => {
                 formatter.format(&from_boolean(subject, predicate, &r.get_bool().to_string()))?;
-            }
+            },
             DataType::Integer => {
                 formatter.format(&from_integer(subject, predicate, &r.get_int().to_string()))?;
-            }
+            },
             DataType::Uri => {
-                if !r.get_uri().contains(":") || r.get_uri().contains("/") {
+                if !r.get_uri().contains(':') || r.get_uri().contains('/') {
                     formatter.format(&from_string(subject, predicate, r.get_str(), Lang::NONE))?;
                 } else {
                     formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
                 }
-            }
+            },
             DataType::String => {
                 formatter.format(&from_string(subject, predicate, r.get_str(), r.get_lang()))?;
-            }
+            },
             DataType::Datetime => {
                 formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
-            }
+            },
             DataType::Decimal => {
                 let (m, e) = r.get_num();
                 let c = exponent_to_scale(&m, &e);
                 let d = Decimal::new(c.0, c.1);
                 formatter.format(&from_decimal(subject, predicate, &format!("{:?}", d.to_string())))?;
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     Ok(())
