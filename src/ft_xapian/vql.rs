@@ -28,10 +28,10 @@ impl fmt::Display for TTA {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "op={}", self.op)?;
         if let Some(l) = &self.l {
-            write!(f, "\nL={}", format!("{}", l))?;
+            write!(f, "\nL={}", l)?;
         }
         if let Some(r) = &self.r {
-            write!(f, "\nR={}", format!("{}", r))?;
+            write!(f, "\nR={}", r)?;
         }
         Ok(())
     }

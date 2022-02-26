@@ -253,12 +253,10 @@ fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatte
         }
         if predicate == "?" {
             format_resources(id, "d:unknown", resources, formatter)?;
+        } else if !predicate.contains(':') {
+            format_resources(id, &format!("d:{}", predicate), resources, formatter)?;
         } else {
-            if !predicate.contains(':') {
-                format_resources(id, &format!("d:{}", predicate), resources, formatter)?;
-            } else {
-                format_resources(id, predicate, resources, formatter)?;
-            }
+            format_resources(id, predicate, resources, formatter)?;
         }
     }
 

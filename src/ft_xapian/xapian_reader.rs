@@ -3,7 +3,7 @@ use crate::ft_xapian::index_schema::IndexerSchema;
 use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::vql::TTA;
-use crate::ft_xapian::xapian_vql::{exec_xapian_query_and_queue_authorize, get_sorter, transform_vql_to_xapian};
+use crate::ft_xapian::xapian_vql::{exec_xapian_query_and_queue_authorize, get_sorter, transform_vql_to_xapian, AuxContext};
 use crate::module::common::load_onto;
 use crate::module::info::ModuleInfo;
 use crate::onto::individual::Individual;
@@ -83,7 +83,7 @@ impl XapianReader {
         Some(xr)
     }
 
-    pub fn new_without_init<'a>(lang: &str) -> Option<Self> {
+    pub fn new_without_init(lang: &str) -> Option<Self> {
         let indexer_module_info = ModuleInfo::new(BASE_PATH, "fulltext_indexer", true);
         if indexer_module_info.is_err() {
             error!("{:?}", indexer_module_info.err());
@@ -190,7 +190,12 @@ impl XapianReader {
         let mut query = Query::new()?;
         if let Some(dbqp) = self.using_dbqp.get_mut(&db_names) {
             let mut _rd: f64 = 0.0;
-            transform_vql_to_xapian(&mut tta, "", None, None, &mut query, &self.key2slot, &mut _rd, 0, &mut dbqp.qp, &self.onto)?;
+            let mut ctx = AuxContext {
+                key2slot: &self.key2slot,
+                qp: &mut dbqp.qp,
+                onto: &self.onto,
+            };
+            transform_vql_to_xapian(&mut ctx, &mut tta, "", None, None, &mut query, &mut _rd, 0)?;
         }
 
         debug!("query={:?}", query.get_description());
