@@ -39,17 +39,8 @@ impl fmt::Display for TTA {
 
 impl TTA {
     pub fn new(op: &str, l: Option<TTA>, r: Option<TTA>, token_decor: Decor) -> Self {
-        let l1 = if let Some(ll) = l {
-            Some(Box::new(ll))
-        } else {
-            None
-        };
-
-        let r1 = if let Some(rr) = r {
-            Some(Box::new(rr))
-        } else {
-            None
-        };
+        let l1 = l.map(Box::new);
+        let r1 = r.map(Box::new);
 
         Self {
             op: op.to_owned(),

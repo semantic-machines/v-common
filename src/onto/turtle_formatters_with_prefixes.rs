@@ -84,20 +84,17 @@ impl<W: Write> TriplesFormatter for TurtleFormatterWithPrefixes<W> {
                 } else {
                     write!(self.write, " ;\n  {} ", triple.predicate.iri)?;
                 }
+            } else if sbj.starts_with("http://") {
+                write!(self.write, " .\n\n<{}> \n  {} ", &sbj, triple.predicate.iri)?;
             } else {
-                if sbj.starts_with("http://") {
-                    write!(self.write, " .\n\n<{}> \n  {} ", &sbj, triple.predicate.iri)?;
-                } else {
-                    write!(self.write, " .\n\n{} \n  {} ", &sbj, triple.predicate.iri)?;
-                }
+                write!(self.write, " .\n\n{} \n  {} ", &sbj, triple.predicate.iri)?;
             }
+        } else if sbj.starts_with("http://") {
+            write!(self.write, "<{}> \n  {} ", &sbj, triple.predicate.iri)?;
         } else {
-            if sbj.starts_with("http://") {
-                write!(self.write, "<{}> \n  {} ", &sbj, triple.predicate.iri)?;
-            } else {
-                write!(self.write, "{} \n  {} ", &sbj, triple.predicate.iri)?;
-            }
+            write!(self.write, "{} \n  {} ", &sbj, triple.predicate.iri)?;
         }
+
         fmt_object(&triple.object, &mut self.write)?;
 
         self.current_subject.clear();

@@ -7,7 +7,7 @@ use crate::v_api::obj::ResultCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct IndexerSchema {
     class_property_2_id: HashMap<String, String>,
     class_2_database: HashMap<String, String>,
@@ -65,11 +65,7 @@ impl IndexerSchema {
     }
 
     pub fn get_copy_of_index(&self, id: &str) -> Option<Individual> {
-        if let Some(indv) = self.id_2_individual.get(id) {
-            Some(Individual::new_from_obj(indv.get_obj()))
-        } else {
-            None
-        }
+        self.id_2_individual.get(id).map(|indv| Individual::new_from_obj(indv.get_obj()))
     }
 
     pub fn get_index(&self, id: &str) -> Option<&Individual> {
@@ -125,17 +121,6 @@ impl IndexerSchema {
             for for_property in for_properties.iter() {
                 self.class_property_2_id.insert(format!("{}+{}", for_class, for_property), indv.get_id().to_owned());
             }
-        }
-    }
-}
-
-impl Default for IndexerSchema {
-    fn default() -> Self {
-        Self {
-            class_property_2_id: Default::default(),
-            class_2_database: Default::default(),
-            id_2_individual: Default::default(),
-            database_2_true: Default::default(),
         }
     }
 }

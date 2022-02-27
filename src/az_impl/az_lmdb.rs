@@ -37,6 +37,12 @@ impl LmdbAzContext {
     }
 }
 
+impl Default for LmdbAzContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuthorizationContext for LmdbAzContext {
     fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool) -> Result<u8, i64> {
         let mut t = Trace {
@@ -74,7 +80,7 @@ impl AuthorizationContext for LmdbAzContext {
                 }
             },
         }
-        return _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace);
+        _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace)
     }
 }
 

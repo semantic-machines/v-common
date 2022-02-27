@@ -90,15 +90,13 @@ impl Key2Slot {
 
         let mut key2slot = Key2Slot::new(ff.metadata()?.modified()?);
 
-        for line in BufReader::new(ff).lines() {
-            if let Ok(ll) = line {
-                let (field, slot) = scan_fmt!(&ll, "\"{}\",{}", String, u32);
+        for line in BufReader::new(ff).lines().flatten() {
+            let (field, slot) = scan_fmt!(&line, "\"{}\",{}", String, u32);
 
-                if let (Some(f), Some(s)) = (field, slot) {
-                    key2slot.data.insert(f, s);
-                } else {
-                    error!("fail parse key2slot, line={}", ll);
-                }
+            if let (Some(f), Some(s)) = (field, slot) {
+                key2slot.data.insert(f, s);
+            } else {
+                error!("fail parse key2slot, line={}", line);
             }
         }
 
