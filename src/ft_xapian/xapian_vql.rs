@@ -3,7 +3,7 @@ use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};
 use crate::onto::onto_impl::Onto;
-use crate::search::common::QueryResult;
+use crate::search::common::{FTQuery, QueryResult};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::NaiveDateTime;
@@ -23,18 +23,15 @@ enum TokenType {
 }
 
 pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
-    user_uri: &str,
+    query: &FTQuery,
     xapian_enquire: &mut Enquire,
-    from: i32,
-    top: i32,
-    limit: i32,
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
     out_list: &mut T,
     az: &mut LmdbAzContext,
 ) -> QueryResult {
     let mut sr = QueryResult::default();
-    match exec(user_uri, xapian_enquire, from, top, limit, add_out_element, op_auth, out_list, az).await {
+    match exec(query, xapian_enquire, add_out_element, op_auth, out_list, az).await {
         Ok(res) => return res,
         Err(e) => match e {
             XError::Xapian(err_code) => {
@@ -54,11 +51,8 @@ pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
 }
 
 async fn exec<T>(
-    user_uri: &str,
+    query: &FTQuery,
     xapian_enquire: &mut Enquire,
-    from: i32,
-    in_top: i32,
-    in_limit: i32,
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
     out_list: &mut T,
@@ -66,26 +60,26 @@ async fn exec<T>(
 ) -> Result<QueryResult> {
     let mut sr = QueryResult::default();
 
-    if user_uri.is_empty() {
+    if query.user.is_empty() {
         sr.result_code = ResultCode::TicketNotFound;
         return Ok(sr);
     }
 
-    let top = if in_top == 0 {
+    let top = if query.top == 0 {
         10000
     } else {
-        in_top
+        query.top
     };
 
-    let limit = if in_limit == 0 {
+    let limit = if query.limit == 0 {
         10000
     } else {
-        in_limit
+        query.limit
     };
 
     let mut read_count = 0;
 
-    let mut matches = xapian_enquire.get_mset(from, limit)?;
+    let mut matches = xapian_enquire.get_mset(query.from, limit)?;
     let mut processed: i32 = 0;
 
     sr.estimated = matches.get_matches_estimated()? as i64;
@@ -112,10 +106,10 @@ async fn exec<T>(
         if op_auth == OptAuthorize::YES {
             async {
                 auth_sw.start();
-                if az.authorize(&subject_id, user_uri, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
+                if az.authorize(&subject_id, &query.user, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
                     is_passed = false;
                 } else {
-                    debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, user_uri);
+                    debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, query.user);
                 }
                 auth_sw.stop();
             }
@@ -135,7 +129,7 @@ async fn exec<T>(
     sr.result_code = ResultCode::Ok;
     sr.processed = processed as i64;
     sr.count = read_count as i64;
-    sr.cursor = (from + processed) as i64;
+    sr.cursor = (query.from + processed) as i64;
     sr.authorize_time = auth_sw.elapsed_ms();
 
     Ok(sr)
@@ -150,7 +144,6 @@ pub(crate) struct AuxContext<'a> {
 pub(crate) fn transform_vql_to_xapian(
     ctx: &mut AuxContext,
     tta: &mut TTA,
-    _prev_op: &str,
     l_token: Option<&mut String>,
     op: Option<&mut String>,
     query: &mut Query,
@@ -169,12 +162,12 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut ls = String::new();
         if let Some(l) = &mut tta.l {
-            ls = transform_vql_to_xapian(ctx, l, &tta.op, None, None, &mut query_l, &mut ld, level + 1)?;
+            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, level + 1)?;
         }
 
         let mut rs = String::new();
         if let Some(r) = &mut tta.r {
-            rs = transform_vql_to_xapian(ctx, r, &tta.op, None, None, &mut query_r, &mut rd, level + 1)?;
+            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, level + 1)?;
         }
 
         let (rs_type, value) = get_token_type(&rs);
@@ -202,12 +195,12 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut ls = String::new();
         if let Some(l) = &mut tta.l {
-            ls = transform_vql_to_xapian(ctx, l, &tta.op, None, None, &mut query_l, &mut ld, level + 1)?;
+            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, level + 1)?;
         }
 
         let mut rs = String::new();
         if let Some(r) = &mut tta.r {
-            rs = transform_vql_to_xapian(ctx, r, &tta.op, None, None, &mut query_r, &mut rd, level + 1)?;
+            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, level + 1)?;
         }
 
         if !is_strict_equality {
@@ -361,7 +354,7 @@ pub(crate) fn transform_vql_to_xapian(
         //let mut tta_r = String::new();
         if let Some(t) = &mut tta.r {
             //tta_r =
-            transform_vql_to_xapian(ctx, t, &tta.op, Some(&mut token_l), Some(&mut t_op_r), &mut query_r, &mut rd, level + 1)?;
+            transform_vql_to_xapian(ctx, t, Some(&mut token_l), Some(&mut t_op_r), &mut query_r, &mut rd, level + 1)?;
         }
 
         if !t_op_r.is_empty() {
@@ -372,7 +365,7 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut tta_l = String::new();
         if let Some(t) = &mut tta.l {
-            tta_l = transform_vql_to_xapian(ctx, t, &tta.op, None, Some(&mut t_op_l), &mut query_l, &mut ld, level + 1)?;
+            tta_l = transform_vql_to_xapian(ctx, t, None, Some(&mut t_op_l), &mut query_l, &mut ld, level + 1)?;
         }
 
         //        if !t_op_l.is_empty() {
@@ -440,13 +433,13 @@ pub(crate) fn transform_vql_to_xapian(
         //let mut tta_r = String::new();
         if let Some(t) = &mut tta.r {
             //tta_r =
-            transform_vql_to_xapian(ctx, t, &tta.op, None, None, &mut query_r, &mut rd, level + 1)?;
+            transform_vql_to_xapian(ctx, t, None, None, &mut query_r, &mut rd, level + 1)?;
         }
 
         //let mut tta_l = String::new();
         if let Some(t) = &mut tta.l {
             //tta_l =
-            transform_vql_to_xapian(ctx, t, &tta.op, None, None, &mut query_l, &mut ld, level + 1)?;
+            transform_vql_to_xapian(ctx, t, None, None, &mut query_l, &mut ld, level + 1)?;
         }
 
         if !query_l.is_empty() && !query_r.is_empty() {

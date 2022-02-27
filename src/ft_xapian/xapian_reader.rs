@@ -195,7 +195,7 @@ impl XapianReader {
                 qp: &mut dbqp.qp,
                 onto: &self.onto,
             };
-            transform_vql_to_xapian(&mut ctx, &mut tta, "", None, None, &mut query, &mut _rd, 0)?;
+            transform_vql_to_xapian(&mut ctx, &mut tta, None, None, &mut query, &mut _rd, 0)?;
         }
 
         debug!("query={:?}", query.get_description());
@@ -215,18 +215,7 @@ impl XapianReader {
                 xapian_enquire.set_sort_by_key(s, true)?;
             }
 
-            sr = exec_xapian_query_and_queue_authorize(
-                &request.user,
-                &mut xapian_enquire,
-                request.from,
-                request.top,
-                request.limit,
-                add_out_element,
-                op_auth,
-                out_list,
-                &mut self.az,
-            )
-            .await;
+            sr = exec_xapian_query_and_queue_authorize(request, &mut xapian_enquire, add_out_element, op_auth, out_list, &mut self.az).await;
         }
 
         debug!("res={:?}", sr);
