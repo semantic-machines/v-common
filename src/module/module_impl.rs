@@ -485,9 +485,9 @@ pub fn init_log_with_filter(module_name: &str, filter: Option<&str>) {
 
 pub fn init_log_with_params(module_name: &str, filter: Option<&str>, with_thread_id: bool) {
     let var_log_name = module_name.to_owned() + "_LOG";
-    match std::env::var_os(var_log_name.to_owned()) {
+    match std::env::var_os(&var_log_name) {
         Some(val) => println!("use env var: {}: {:?}", var_log_name, val.to_str()),
-        None => std::env::set_var(var_log_name.to_owned(), "info"),
+        None => std::env::set_var(&var_log_name, "info"),
     }
 
     let filters_str = if let Some(f) = filter {

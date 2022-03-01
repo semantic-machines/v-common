@@ -118,17 +118,16 @@ fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access
         },
     };
 
-    let txn;
-    match env.get_reader() {
+    let txn= match env.get_reader() {
         Ok(txn1) => {
-            txn = txn1;
+            txn1
         },
         Err(e) => {
             error!("Authorize:CREATING TRANSACTION {:?}", e);
             error!("reopen db");
             return Err(-1);
         },
-    }
+    };
 
     let db = txn.bind(&db_handle);
     let storage = AzLmdbStorage {

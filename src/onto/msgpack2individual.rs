@@ -75,12 +75,11 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                     return Err(format!("parsing values, unexpected array size, len={:?}", size));
                                 }
 
-                                let v_type: u8;
-                                if let Ok(t) = read_int(&mut cur) {
-                                    v_type = t;
+                                let v_type: u8 = if let Ok(t) = read_int(&mut cur) {
+                                    t
                                 } else {
                                     return Err("parsing type".to_owned());
-                                }
+                                };
 
                                 if size == 2 {
                                     if v_type == DataType::Boolean as u8 {
@@ -130,13 +129,12 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                     } else if v_type == DataType::String as u8 {
                                         match read_string_from_msgpack(&mut cur) {
                                             Ok(res) => {
-                                                let lang;
-                                                match read_int(&mut cur) {
-                                                    Ok(res) => lang = Lang::new_from_i64(res),
+                                                let lang= match read_int(&mut cur) {
+                                                    Ok(res) => Lang::new_from_i64(res),
                                                     Err(e) => {
                                                         return Err(format!("value: fail read lang, err={:?}", e));
                                                     },
-                                                }
+                                                };
 
                                                 iraw.obj.add_string(&predicate, &res, lang);
                                             },

@@ -40,14 +40,12 @@ impl Backend {
 
         info!("use ft_query_service_url={}", ft_query_service_url);
 
-        let storage: VStorage;
-
-        if !use_remote_storage {
-            storage = get_storage_use_prop(storage_mode);
+        let storage: VStorage = if !use_remote_storage {
+            get_storage_use_prop(storage_mode)
         } else {
             let ro_storage_url = Module::get_property("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
-            storage = VStorage::new_remote(&ro_storage_url);
-        }
+            VStorage::new_remote(&ro_storage_url)
+        };
 
         let ft_client = FTClient::new(ft_query_service_url);
 

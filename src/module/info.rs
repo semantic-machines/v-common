@@ -15,7 +15,7 @@ pub struct ModuleInfo {
 impl ModuleInfo {
     pub fn new(base_path: &str, info_name: &str, is_writer: bool) -> std::io::Result<ModuleInfo> {
         if !Path::new(&base_path).exists() {
-            if let Err(e) = create_dir_all(base_path.to_owned()) {
+            if let Err(e) = create_dir_all(base_path) {
                 error!("queue:{} create dir [{}], err={}", info_name, base_path, e);
                 return Err(e);
             }
@@ -23,7 +23,7 @@ impl ModuleInfo {
 
         let info_path = base_path.to_owned() + "/module-info/";
         if !Path::new(&info_path).exists() {
-            if let Err(e) = create_dir_all(info_path.to_owned()) {
+            if let Err(e) = create_dir_all(&info_path) {
                 error!("queue:{} create dir [{}], err={}", info_name, info_path, e);
                 return Err(e);
             }

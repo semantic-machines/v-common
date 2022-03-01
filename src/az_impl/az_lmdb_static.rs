@@ -115,10 +115,9 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
         }
     }
 
-    let txn;
-    match env.get_reader() {
+    let txn= match env.get_reader() {
         Ok(txn1) => {
-            txn = txn1;
+            txn1
         },
         Err(e) => {
             eprintln!("ERR! Authorize:CREATING TRANSACTION {:?}", e);
@@ -137,7 +136,7 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
 
             return _f_authorize(uri, user_uri, request_access, _is_check_for_reload, trace);
         },
-    }
+    };
 
     let db = txn.bind(&db_handle);
     let storage = LMDBStorage {

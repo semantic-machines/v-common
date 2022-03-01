@@ -34,7 +34,6 @@ impl LMDBStorage {
     }
 
     fn open(&mut self, storage: StorageId, mode: StorageMode) {
-        let db_handle;
 
         let db_path = if storage == StorageId::Individuals {
             self.db_path.to_string() + "/lmdb-individuals/"
@@ -54,15 +53,15 @@ impl LMDBStorage {
 
         let db_env = env_builder.open(db_path, 0o644);
 
-        match &db_env {
+        let db_handle = match &db_env {
             Ok(env) => {
-                db_handle = env.get_default_db(DbFlags::empty());
+                env.get_default_db(DbFlags::empty())
             },
             Err(e) => {
                 error!("LMDB:fail opening read only environment, err={:?}", e);
-                db_handle = Err(MdbError::Corrupted);
+                Err(MdbError::Corrupted)
             },
-        }
+        };
 
         if storage == StorageId::Individuals {
             self.individuals_db_handle = db_handle;

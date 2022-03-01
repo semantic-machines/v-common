@@ -73,7 +73,7 @@ pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCac
         return Ok((ResultCode::Ok, Some("cfg:Guest".to_owned())));
     }
 
-    if let Some(cached_ticket) = ticket_cache.read.get(&ticket_id.to_owned()) {
+    if let Some(cached_ticket) = ticket_cache.read.get(ticket_id) {
         if let Some(t) = cached_ticket.get_one() {
             if t.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
                 return Ok((ResultCode::TicketNotFound, None));
