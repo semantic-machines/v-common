@@ -115,10 +115,8 @@ pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_ch
         }
     }
 
-    let txn= match env.get_reader() {
-        Ok(txn1) => {
-            txn1
-        },
+    let txn = match env.get_reader() {
+        Ok(txn1) => txn1,
         Err(e) => {
             eprintln!("ERR! Authorize:CREATING TRANSACTION {:?}", e);
             eprintln!("reopen db");

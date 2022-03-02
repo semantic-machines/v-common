@@ -107,9 +107,7 @@ impl<'a> Storage for AzLmdbStorage<'a> {
 
 fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
     let db_handle = match env.get_default_db(DbFlags::empty()) {
-        Ok(db_handle_res) => {
-            db_handle_res
-        },
+        Ok(db_handle_res) => db_handle_res,
         Err(e) => {
             error!("Authorize: Err opening db handle: {:?}", e);
             //            thread::sleep(time::Duration::from_secs(3));
@@ -118,10 +116,8 @@ fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access
         },
     };
 
-    let txn= match env.get_reader() {
-        Ok(txn1) => {
-            txn1
-        },
+    let txn = match env.get_reader() {
+        Ok(txn1) => txn1,
         Err(e) => {
             error!("Authorize:CREATING TRANSACTION {:?}", e);
             error!("reopen db");
