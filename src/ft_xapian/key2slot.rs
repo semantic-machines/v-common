@@ -90,14 +90,31 @@ impl Key2Slot {
 
         let mut key2slot = Key2Slot::new(ff.metadata()?.modified()?);
 
+        let mut hash_buff = String::new();
+        let mut hash_in_file = String::default();
+
         for line in BufReader::new(ff).lines().flatten() {
             let (field, slot) = scan_fmt!(&line, "\"{}\",{}", String, u32);
 
             if let (Some(f), Some(s)) = (field, slot) {
+                if !key2slot.is_empty() {
+                    hash_buff.push_str(&line);
+                } else {
+                    hash_in_file = f.to_owned();
+                }
                 key2slot.data.insert(f, s);
             } else {
                 return Err(XError::from(Error::new(ErrorKind::InvalidData, format!("fail parse key2slot, line={}", line))));
             }
+        }
+
+        let mut hash = Hasher::new();
+        hash.update(hash_buff.as_bytes());
+
+        let new_hash = format!("{:X}", hash.finalize());
+        if new_hash != hash_in_file {
+            error!("key2slot: {} != {}", hash_in_file, new_hash);
+            return Err(XError::from(Error::new(ErrorKind::InvalidData, format!("invalid hash of key2slot"))));
         }
 
         Ok(key2slot)
