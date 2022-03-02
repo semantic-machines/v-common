@@ -2,7 +2,7 @@ use crc32fast::Hasher;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, Error, ErrorKind, Seek, SeekFrom, Write};
 use std::time::SystemTime;
 use xapian_rusty::XError;
 
@@ -96,7 +96,7 @@ impl Key2Slot {
             if let (Some(f), Some(s)) = (field, slot) {
                 key2slot.data.insert(f, s);
             } else {
-                error!("fail parse key2slot, line={}", line);
+                return Err(XError::from(Error::new(ErrorKind::InvalidData, format!("fail parse key2slot, line={}", line))));
             }
         }
 
