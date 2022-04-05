@@ -90,7 +90,8 @@ async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize
     let mut authorized_count = 0;
     let mut total_count = 0;
 
-    if req.query.to_uppercase().split_whitespace().any(|x| x == "INSERT" || x == "UPDATE" || x == "DROP" || x == "DELETE") {
+    let uq = req.query.to_uppercase();
+    if uq.contains("INSERT") || uq.contains("UPDATE") || uq.contains("DROP") || uq.contains("DELETE") || uq.contains("ALTER") || uq.contains("EXEC") {
         out_res.result_code = ResultCode::BadRequest;
         return Ok(());
     }
