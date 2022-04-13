@@ -90,8 +90,12 @@ async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize
     let mut authorized_count = 0;
     let mut total_count = 0;
 
-    let uq = req.query.to_uppercase();
-    if uq.contains("INSERT") || uq.contains("UPDATE") || uq.contains("DROP") || uq.contains("DELETE") || uq.contains("ALTER") || uq.contains("EXEC") {
+    if req
+        .query
+        .to_uppercase()
+        .split([':', '-', ' ', '(', ')', '<', '<', '=', ','].as_ref())
+        .any(|x| x == "INSERT" || x == "UPDATE" || x == "DROP" || x == "DELETE" || x == "ALTER" || x == "EXEC")
+    {
         out_res.result_code = ResultCode::BadRequest;
         return Ok(());
     }
@@ -102,7 +106,7 @@ async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize
         format!("{} OFFSET {}", req.query, req.from)
     };
 
-    //info!("query={}", fq);
+    debug!("query={}", fq);
 
     let mut client = pool.get_handle().await?;
     let block = client.query(fq).fetch_all().await?;

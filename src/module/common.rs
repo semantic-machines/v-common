@@ -123,6 +123,8 @@ pub fn get_queue_status(id: &str) -> Individual {
                 out_indv.add_integer("srv:total_count", c.queue.count_pushed as i64);
                 out_indv.add_integer("srv:current_count", c.count_popped as i64);
             }
+        } else {
+            error!("fail open consumer {}", consumer_name);
         }
     }
     out_indv
