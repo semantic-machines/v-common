@@ -6,30 +6,37 @@ use lmdb_rs_m::{DbFlags, DbHandle, EnvBuilder, Environment, MdbError};
 
 pub struct LMDBStorage {
     db_path: String,
+    mode: StorageMode,
+    max_read_counter: u64,
 
     individuals_db_handle: Result<DbHandle, MdbError>,
     individuals_db_env: Result<Environment, MdbError>,
+    individuals_db_read_counter: u64,
 
     tickets_db_handle: Result<DbHandle, MdbError>,
     tickets_db_env: Result<Environment, MdbError>,
+    tickets_db_read_counter: u64,
 
     az_db_handle: Result<DbHandle, MdbError>,
     az_db_env: Result<Environment, MdbError>,
-
-    mode: StorageMode,
+    az_db_read_counter: u64,
 }
 
 impl LMDBStorage {
-    pub fn new(db_path: &str, mode: StorageMode) -> LMDBStorage {
+    pub fn new(db_path: &str, mode: StorageMode, max_read_counter_reopen: Option<u64>) -> LMDBStorage {
         LMDBStorage {
             db_path: db_path.to_owned(),
             individuals_db_handle: Err(MdbError::Panic),
             individuals_db_env: Err(MdbError::Panic),
+            individuals_db_read_counter: 0,
             tickets_db_handle: Err(MdbError::Panic),
             tickets_db_env: Err(MdbError::Panic),
+            tickets_db_read_counter: 0,
             az_db_handle: Err(MdbError::Panic),
             az_db_env: Err(MdbError::Panic),
+            az_db_read_counter: 0,
             mode,
+            max_read_counter: max_read_counter_reopen.unwrap_or(u32::MAX as u64),
         }
     }
 
@@ -79,21 +86,33 @@ impl Storage for LMDBStorage {
             let db_handle;
             let db_env;
 
+            let mut is_need_reopen = false;
+
             if storage == StorageId::Individuals {
                 db_env = &self.individuals_db_env;
                 db_handle = &self.individuals_db_handle;
+                self.individuals_db_read_counter += 1;
+                if self.individuals_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Tickets {
                 db_env = &self.tickets_db_env;
                 db_handle = &self.tickets_db_handle;
+                self.tickets_db_read_counter += 1;
+                if self.tickets_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Az {
                 db_env = &self.az_db_env;
                 db_handle = &self.az_db_handle;
+                self.az_db_read_counter += 1;
+                if self.az_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else {
                 db_env = &Err(MdbError::Panic);
                 db_handle = &Err(MdbError::Panic);
             }
-
-            let mut is_need_reopen = false;
 
             match db_env {
                 Ok(env) => match db_handle {
@@ -204,21 +223,33 @@ impl Storage for LMDBStorage {
             let db_handle;
             let db_env;
 
+            let mut is_need_reopen = false;
+
             if storage == StorageId::Individuals {
                 db_env = &self.individuals_db_env;
                 db_handle = &self.individuals_db_handle;
+                self.individuals_db_read_counter += 1;
+                if self.individuals_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Tickets {
                 db_env = &self.tickets_db_env;
                 db_handle = &self.tickets_db_handle;
+                self.tickets_db_read_counter += 1;
+                if self.tickets_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Az {
                 db_env = &self.az_db_env;
                 db_handle = &self.az_db_handle;
+                self.az_db_read_counter += 1;
+                if self.az_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else {
                 db_env = &Err(MdbError::Panic);
                 db_handle = &Err(MdbError::Panic);
             }
-
-            let mut is_need_reopen = false;
 
             match db_env {
                 Ok(env) => match db_handle {
@@ -286,21 +317,33 @@ impl Storage for LMDBStorage {
             let db_handle;
             let db_env;
 
+            let mut is_need_reopen = false;
+
             if storage == StorageId::Individuals {
                 db_env = &self.individuals_db_env;
                 db_handle = &self.individuals_db_handle;
+                self.individuals_db_read_counter += 1;
+                if self.individuals_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Tickets {
                 db_env = &self.tickets_db_env;
                 db_handle = &self.tickets_db_handle;
+                self.tickets_db_read_counter += 1;
+                if self.tickets_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else if storage == StorageId::Az {
                 db_env = &self.az_db_env;
                 db_handle = &self.az_db_handle;
+                self.az_db_read_counter += 1;
+                if self.az_db_read_counter > self.max_read_counter {
+                    is_need_reopen = true;
+                }
             } else {
                 db_env = &Err(MdbError::Panic);
                 db_handle = &Err(MdbError::Panic);
             }
-
-            let mut is_need_reopen = false;
 
             match db_env {
                 Ok(env) => match db_handle {

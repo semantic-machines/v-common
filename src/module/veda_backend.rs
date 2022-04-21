@@ -186,5 +186,5 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
         }
     }
 
-    VStorage::new_lmdb("./data", mode)
+    VStorage::new_lmdb("./data", mode, None)
 }

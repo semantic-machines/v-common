@@ -61,9 +61,9 @@ impl VStorage {
         }
     }
 
-    pub fn new_lmdb(db_path: &str, mode: StorageMode) -> VStorage {
+    pub fn new_lmdb(db_path: &str, mode: StorageMode, max_read_counter_reopen: Option<u64>) -> VStorage {
         VStorage {
-            storage: EStorage::Lmdb(LMDBStorage::new(db_path, mode)),
+            storage: EStorage::Lmdb(LMDBStorage::new(db_path, mode, max_read_counter_reopen)),
         }
     }
 

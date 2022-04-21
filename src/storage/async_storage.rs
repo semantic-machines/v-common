@@ -63,30 +63,35 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
     Ok((Individual::default(), ResultCode::UnprocessableEntity))
 }
 
-pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: &Option<IpAddr>, db: &AStorage) -> io::Result<(ResultCode, Option<String>)> {
+pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: &Option<IpAddr>, db: &AStorage) -> Result<String, ResultCode> {
     if w_ticket_id.is_none() {
-        return Ok((ResultCode::Ok, Some("cfg:Guest".to_owned())));
+        return Ok("cfg:Guest".to_owned());
     }
 
     let ticket_id = w_ticket_id.as_ref().unwrap();
     if ticket_id.is_empty() || ticket_id == "systicket" {
-        return Ok((ResultCode::Ok, Some("cfg:Guest".to_owned())));
+        return Ok("cfg:Guest".to_owned());
     }
 
     if let Some(cached_ticket) = ticket_cache.read.get(ticket_id) {
         if let Some(t) = cached_ticket.get_one() {
             if t.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
-                return Ok((ResultCode::TicketNotFound, None));
+                return Err(ResultCode::TicketNotFound);
             }
-            Ok((ResultCode::Ok, Some(t.user_uri.clone())))
+            Ok(t.user_uri.clone())
         } else {
-            Ok((ResultCode::TicketNotFound, None))
+            Err(ResultCode::TicketNotFound)
         }
     } else {
         let mut ticket_obj = Ticket::default();
 
         if let Some(tt) = &db.tt {
-            let response = tt.select(TICKETS_SPACE_ID, 0, &(&ticket_id,), 0, 100, IteratorType::EQ).await?;
+            let response = match tt.select(TICKETS_SPACE_ID, 0, &(&ticket_id,), 0, 100, IteratorType::EQ).await {
+                Ok(r) => r,
+                Err(e) => {
+                    return Err(ResultCode::TicketNotFound);
+                },
+            };
 
             let mut to = Individual::default();
             to.set_raw(&response.data[5..]);
@@ -104,10 +109,10 @@ pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCac
         }
 
         if ticket_obj.result != ResultCode::Ok {
-            return Ok((ResultCode::TicketNotFound, None));
+            return Err(ResultCode::TicketNotFound);
         }
         if ticket_obj.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
-            return Ok((ResultCode::TicketNotFound, None));
+            return Err(ResultCode::TicketNotFound);
         }
 
         let user_uri = ticket_obj.user_uri.clone();
@@ -115,6 +120,6 @@ pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCac
         t.insert(ticket_id.to_owned(), ticket_obj);
         t.refresh();
 
-        Ok((ResultCode::Ok, Some(user_uri)))
+        return Ok(user_uri);
     }
 }
