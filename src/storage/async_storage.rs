@@ -88,7 +88,7 @@ pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCac
         if let Some(tt) = &db.tt {
             let response = match tt.select(TICKETS_SPACE_ID, 0, &(&ticket_id,), 0, 100, IteratorType::EQ).await {
                 Ok(r) => r,
-                Err(e) => {
+                Err(_) => {
                     return Err(ResultCode::TicketNotFound);
                 },
             };
