@@ -118,6 +118,7 @@ pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCac
         let user_uri = ticket_obj.user_uri.clone();
         let mut t = ticket_cache.write.lock().await;
         t.insert(ticket_id.to_owned(), ticket_obj);
+        //info!("ticket cache size = {}", t.len());
         t.refresh();
 
         return Ok(user_uri);

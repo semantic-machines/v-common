@@ -75,7 +75,7 @@ impl XapianReader {
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::now(),
-            az: LmdbAzContext::new(),
+            az: LmdbAzContext::default(),
         };
 
         xr.load_index_schema(storage);
@@ -102,7 +102,7 @@ impl XapianReader {
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::now(),
-            az: LmdbAzContext::new(),
+            az: LmdbAzContext::default(),
         };
 
         Some(xr)

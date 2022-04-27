@@ -70,13 +70,17 @@ impl LMDBStorage {
         if storage == StorageId::Individuals {
             self.individuals_db_handle = db_handle;
             self.individuals_db_env = db_env;
+            self.individuals_db_read_counter = 0;
         } else if storage == StorageId::Tickets {
             self.tickets_db_handle = db_handle;
             self.tickets_db_env = db_env;
+            self.tickets_db_read_counter = 0;
         } else if storage == StorageId::Az {
             self.az_db_handle = db_handle;
             self.az_db_env = db_env;
+            self.az_db_read_counter = 0;
         }
+        info!("LMDBStorage: db {} open {:?}", self.db_path, storage);
     }
 }
 
@@ -89,26 +93,26 @@ impl Storage for LMDBStorage {
             let mut is_need_reopen = false;
 
             if storage == StorageId::Individuals {
-                db_env = &self.individuals_db_env;
-                db_handle = &self.individuals_db_handle;
                 self.individuals_db_read_counter += 1;
                 if self.individuals_db_read_counter > self.max_read_counter {
-                    is_need_reopen = true;
+                    self.open(storage.clone(), self.mode.clone());
                 }
+                db_env = &self.individuals_db_env;
+                db_handle = &self.individuals_db_handle;
             } else if storage == StorageId::Tickets {
-                db_env = &self.tickets_db_env;
-                db_handle = &self.tickets_db_handle;
                 self.tickets_db_read_counter += 1;
                 if self.tickets_db_read_counter > self.max_read_counter {
-                    is_need_reopen = true;
+                    self.open(storage.clone(), self.mode.clone());
                 }
+                db_env = &self.tickets_db_env;
+                db_handle = &self.tickets_db_handle;
             } else if storage == StorageId::Az {
-                db_env = &self.az_db_env;
-                db_handle = &self.az_db_handle;
                 self.az_db_read_counter += 1;
                 if self.az_db_read_counter > self.max_read_counter {
-                    is_need_reopen = true;
+                    self.open(storage.clone(), self.mode.clone());
                 }
+                db_env = &self.az_db_env;
+                db_handle = &self.az_db_handle;
             } else {
                 db_env = &Err(MdbError::Panic);
                 db_handle = &Err(MdbError::Panic);
@@ -173,8 +177,6 @@ impl Storage for LMDBStorage {
             }
 
             if is_need_reopen {
-                warn!("LMDBStorage: db {} reopen {:?}", self.db_path, storage);
-
                 self.open(storage.clone(), self.mode.clone());
             }
         }

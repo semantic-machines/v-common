@@ -10,9 +10,11 @@ const DB_PATH: &str = "./data/acl-indexes/";
 
 pub struct LmdbAzContext {
     env: Environment,
+    authorize_counter: u64,
+    max_authorize_counter: u64,
 }
 
-fn open() -> LmdbAzContext {
+fn open(max_read_counter: u64) -> LmdbAzContext {
     let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
     loop {
         match env_builder.open(DB_PATH, 0o644) {
@@ -20,6 +22,8 @@ fn open() -> LmdbAzContext {
                 info!("LIB_AZ: Opened environment {}", DB_PATH);
                 return LmdbAzContext {
                     env,
+                    authorize_counter: 0,
+                    max_authorize_counter: max_read_counter,
                 };
             },
             Err(e) => {
@@ -32,14 +36,14 @@ fn open() -> LmdbAzContext {
 }
 
 impl LmdbAzContext {
-    pub fn new() -> LmdbAzContext {
-        open()
+    pub fn new(max_read_counter: u64) -> LmdbAzContext {
+        open(max_read_counter)
     }
 }
 
 impl Default for LmdbAzContext {
     fn default() -> Self {
-        Self::new()
+        Self::new(u64::MAX)
     }
 }
 
@@ -59,6 +63,24 @@ impl AuthorizationContext for LmdbAzContext {
     }
 
     fn authorize_and_trace(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
+        self.authorize_counter += 1;
+        //info!("az counter={}", self.authorize_counter);
+        if self.authorize_counter >= self.max_authorize_counter {
+            info!("az reopen, counter > {}", self.max_authorize_counter);
+            self.authorize_counter = 0;
+            let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+
+            match env_builder.open(DB_PATH, 0o644) {
+                Ok(env1) => {
+                    self.env = env1;
+                },
+                Err(e1) => {
+                    error!("Authorize: Err opening environment: {:?}", e1);
+                    return Err(-1);
+                },
+            }
+        }
+
         match _f_authorize(&mut self.env, uri, user_uri, request_access, _is_check_for_reload, trace) {
             Ok(r) => {
                 return Ok(r);
