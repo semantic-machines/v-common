@@ -56,7 +56,7 @@ impl Lang {
 
     pub fn new_from_str(l: &str) -> Lang {
         Lang {
-            data: Some(l.to_owned()),
+            data: Some(l.to_lowercase()),
         }
     }
 
