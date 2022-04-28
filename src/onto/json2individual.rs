@@ -64,10 +64,10 @@ fn add_string(v: &Map<String, JSONValue>, vdata: &JSONValue, predicate: &str, de
             } else if v.is_number() {
                 Lang::new_from_i64(v.as_i64().unwrap_or_default())
             } else {
-                Lang::NONE
+                Lang::none()
             }
         } else {
-            Lang::NONE
+            Lang::none()
         };
 
         dest.add_string(predicate, s, lang);

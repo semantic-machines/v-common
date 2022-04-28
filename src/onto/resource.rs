@@ -75,7 +75,7 @@ impl Resource {
         if let Value::Str(_, l) = &self.value {
             l.clone()
         } else {
-            Lang::NONE
+            Lang::none()
         }
     }
 

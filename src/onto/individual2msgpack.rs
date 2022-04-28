@@ -40,10 +40,10 @@ fn write_resource(out: &mut Vec<u8>, r: &Resource) -> Result<(), Error> {
             let s = r.get_str();
             let l = r.get_lang();
 
-            if l == Lang::NONE {
-                write_array_len(out, 2)?;
-            } else {
+            if l.is_some() {
                 write_array_len(out, 3)?;
+            } else {
+                write_array_len(out, 2)?;
             }
             write_u8(out, r.rtype.clone() as u8)?;
 
@@ -53,8 +53,8 @@ fn write_resource(out: &mut Vec<u8>, r: &Resource) -> Result<(), Error> {
                 write_str(out, s)?;
             }
 
-            if l != Lang::NONE {
-                write_u8(out, l as u8)?;
+            if l.is_some() {
+                write_str(out, l.to_string())?;
             }
         },
         DataType::Uri => {

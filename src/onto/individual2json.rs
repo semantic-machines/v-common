@@ -63,7 +63,7 @@ impl Serialize for Resource {
             Value::Str(s, l) => {
                 tup.serialize_field("data", &*s)?;
 
-                if self.rtype == DataType::String && *l != Lang::NONE {
+                if self.rtype == DataType::String && l.is_some() {
                     tup.serialize_field("lang", &*l)?;
                 }
             },
@@ -99,7 +99,7 @@ impl Serialize for Value {
                 //tup.serialize_element(&*s)?;
                 tup.serialize_field("data", &*s)?;
 
-                if *l != Lang::NONE {
+                if l.is_some() {
                     tup.serialize_field("lang", &*l)?;
                 }
                 tup.end()
@@ -123,11 +123,7 @@ impl Serialize for Lang {
     where
         S: Serializer,
     {
-        match &self {
-            Lang::NONE => serializer.serialize_str("None"),
-            Lang::RU => serializer.serialize_str("RU"),
-            Lang::EN => serializer.serialize_str("EN"),
-        }
+        serializer.serialize_str(self.to_string())
     }
 }
 

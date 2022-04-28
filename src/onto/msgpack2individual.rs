@@ -109,7 +109,7 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                         }
                                     } else if v_type == DataType::String as u8 {
                                         match read_string_from_msgpack(&mut cur) {
-                                            Ok(res) => iraw.obj.add_string(&predicate, &res, Lang::NONE),
+                                            Ok(res) => iraw.obj.add_string(&predicate, &res, Lang::none()),
                                             Err(e) => return Err(format!("value: expected {}, err={:?}", v_type, e)),
                                         };
                                     } else {

@@ -121,7 +121,7 @@ fn from_uri<'a>(id: &'a str, in_predicate: &'a str, v: &'a str) -> Triple<'a> {
     }
 }
 
-fn from_string<'a>(id: &'a str, in_predicate: &'a str, s: &'a str, l: Lang) -> Triple<'a> {
+fn from_string<'a>(id: &'a str, in_predicate: &'a str, s: &'a str, l: &'a Lang) -> Triple<'a> {
     let subject = NamedNode {
         iri: id,
     };
@@ -130,18 +130,15 @@ fn from_string<'a>(id: &'a str, in_predicate: &'a str, s: &'a str, l: Lang) -> T
         iri: in_predicate,
     };
 
-    let obj = match l {
-        Lang::NONE => Literal::Simple {
+    let obj = if l.is_some() {
+        Literal::LanguageTaggedString {
             value: s,
-        },
-        Lang::RU => Literal::LanguageTaggedString {
+            language: l.to_string(),
+        }
+    } else {
+        Literal::Simple {
             value: s,
-            language: "ru",
-        },
-        Lang::EN => Literal::LanguageTaggedString {
-            value: s,
-            language: "en",
-        },
+        }
     };
 
     Triple {
@@ -162,13 +159,13 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
             },
             DataType::Uri => {
                 if !r.get_uri().contains(':') || r.get_uri().contains('/') {
-                    formatter.format(&from_string(subject, predicate, r.get_str(), Lang::NONE))?;
+                    formatter.format(&from_string(subject, predicate, r.get_str(), &Lang::none()))?;
                 } else {
                     formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
                 }
             },
             DataType::String => {
-                formatter.format(&from_string(subject, predicate, r.get_str(), r.get_lang()))?;
+                formatter.format(&from_string(subject, predicate, r.get_str(), &r.get_lang()))?;
             },
             DataType::Datetime => {
                 formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;

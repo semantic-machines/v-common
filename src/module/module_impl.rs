@@ -520,7 +520,7 @@ pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, 
     let mut ticket_indv = Individual::default();
 
     ticket.result = ResultCode::FailStore;
-    ticket_indv.add_string("rdf:type", "ticket:ticket", Lang::NONE);
+    ticket_indv.add_string("rdf:type", "ticket:ticket", Lang::none());
 
     if !ticket.id.is_empty() && !ticket.id.is_empty() {
         ticket_indv.set_id(&ticket.id);
@@ -528,20 +528,20 @@ pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, 
         ticket_indv.set_id(&Uuid::new_v4().to_hyphenated().to_string());
     }
 
-    ticket_indv.add_string("ticket:login", login, Lang::NONE);
-    ticket_indv.add_string("ticket:accessor", user_id, Lang::NONE);
-    ticket_indv.add_string("ticket:addr", addr, Lang::NONE);
+    ticket_indv.add_string("ticket:login", login, Lang::none());
+    ticket_indv.add_string("ticket:accessor", user_id, Lang::none());
+    ticket_indv.add_string("ticket:addr", addr, Lang::none());
 
     let now = Utc::now();
     let start_time_str = format!("{:?}", now.naive_utc());
 
     if start_time_str.len() > 28 {
-        ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::NONE);
+        ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::none());
     } else {
-        ticket_indv.add_string("ticket:when", &start_time_str, Lang::NONE);
+        ticket_indv.add_string("ticket:when", &start_time_str, Lang::none());
     }
 
-    ticket_indv.add_string("ticket:duration", &duration.to_string(), Lang::NONE);
+    ticket_indv.add_string("ticket:duration", &duration.to_string(), Lang::none());
 
     let mut raw1: Vec<u8> = Vec::new();
     if to_msgpack(&ticket_indv, &mut raw1).is_ok() && storage.put_kv_raw(StorageId::Tickets, ticket_indv.get_id(), raw1) {

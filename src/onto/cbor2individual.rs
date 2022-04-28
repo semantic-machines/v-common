@@ -106,13 +106,13 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                     if tag == TagId::Uri as u64 {
                         indv.add_uri(predicate, &t);
                     } else {
-                        let mut lang = Lang::NONE;
+                        let mut lang = Lang::none();
 
                         if tag == TagId::TextRu as u64 || tag == TagId::TextEn as u64 {
                             if tag == TagId::TextRu as u64 {
-                                lang = Lang::RU;
+                                lang = Lang::new_from_str("ru");
                             } else if tag == TagId::TextEn as u64 {
-                                lang = Lang::EN;
+                                lang = Lang::new_from_str("en");
                             }
                         }
 
@@ -125,13 +125,13 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                     if tag == TagId::Uri as u64 {
                         indv.add_uri(predicate, &t);
                     } else {
-                        let mut lang = Lang::NONE;
+                        let mut lang = Lang::none();
 
                         if tag == TagId::TextRu as u64 || tag == TagId::TextEn as u64 {
                             if tag == TagId::TextRu as u64 {
-                                lang = Lang::RU;
+                                lang = Lang::new_from_str("ru");
                             } else if tag == TagId::TextEn as u64 {
-                                lang = Lang::EN;
+                                lang = Lang::new_from_str("en");
                             }
                         }
 

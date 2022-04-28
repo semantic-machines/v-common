@@ -39,38 +39,45 @@ impl DataType {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-#[repr(u8)]
-pub enum Lang {
-    NONE = 0,
-    /// Русский
-    RU = 1,
-    /// Английский
-    EN = 2,
+pub struct Lang {
+    data: Option<String>,
 }
 
 impl Lang {
+    pub fn none() -> Lang {
+        Lang {
+            data: None,
+        }
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.data.is_some()
+    }
+
     pub fn new_from_str(l: &str) -> Lang {
-        match l {
-            "ru" => Lang::RU,
-            "en" => Lang::EN,
-            _ => Lang::NONE,
+        Lang {
+            data: Some(l.to_owned()),
         }
     }
 
     pub fn new_from_i64(l: i64) -> Lang {
         match l {
-            1 => Lang::RU,
-            2 => Lang::EN,
-            _ => Lang::NONE,
+            1 => Lang {
+                data: Some("ru".to_owned()),
+            },
+            2 => Lang {
+                data: Some("en".to_owned()),
+            },
+            _ => Lang::none(),
         }
     }
 
     pub fn to_string(&self) -> &str {
-        match self {
-            Lang::RU => "ru",
-            Lang::EN => "en",
-            Lang::NONE => "none",
-        }
+        return if let Some(v) = &self.data {
+            &v
+        } else {
+            "NONE"
+        };
     }
 }
 
