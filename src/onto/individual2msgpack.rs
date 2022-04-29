@@ -54,7 +54,17 @@ fn write_resource(out: &mut Vec<u8>, r: &Resource) -> Result<(), Error> {
             }
 
             if l.is_some() {
-                write_str(out, l.to_string())?;
+                match l.to_string() {
+                    "ru" => {
+                        write_u8(out, 1 as u8)?;
+                    },
+                    "en" => {
+                        write_u8(out, 2 as u8)?;
+                    },
+                    v => {
+                        write_str(out, v)?;
+                    },
+                }
             }
         },
         DataType::Uri => {
