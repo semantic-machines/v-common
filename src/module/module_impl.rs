@@ -85,7 +85,7 @@ impl Module {
                 let p: Vec<&str> = el.split('=').collect();
                 if let Ok(v) = p[1].parse::<u32>() {
                     max_batch_size = Some(v);
-                    info!("use {} = {}", p[0], v);
+                    println!("use {} = {}", p[0], v);
                 }
             } else if el.starts_with("--notify_channel_read_timeout") {
                 let p: Vec<&str> = el.split('=').collect();
