@@ -56,17 +56,17 @@ impl Lang {
 
     pub fn new_from_str(l: &str) -> Lang {
         Lang {
-            data: Some(l.to_lowercase()),
+            data: Some(l.to_uppercase()),
         }
     }
 
     pub fn new_from_i64(l: i64) -> Lang {
         match l {
             1 => Lang {
-                data: Some("ru".to_owned()),
+                data: Some("RU".to_owned()),
             },
             2 => Lang {
-                data: Some("en".to_owned()),
+                data: Some("EN".to_owned()),
             },
             _ => Lang::none(),
         }
