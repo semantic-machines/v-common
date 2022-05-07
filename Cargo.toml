@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.4.6"
+version = "0.4.7"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -19,7 +19,7 @@ num-traits = "0.2.14"
 chrono = "0.4"
 v-cbr-codec = "0.7.1"
 rmp = "^0.8"
-rmp-serialize = "0.8.0"
+rmp-serialize = "^0.8"
 bincode = "1.2.1"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0"

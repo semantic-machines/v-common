@@ -131,7 +131,7 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                             Ok(str) => {
                                                 let lang = match read_marker(&mut cur.clone()) {
                                                     Ok(v) => match v {
-                                                        Marker::I8 | Marker::U8  => match read_int(&mut cur) {
+                                                        Marker::I8 | Marker::U8 | Marker::FixPos(_) => match read_int(&mut cur) {
                                                             Ok(res) => Lang::new_from_i64(res),
                                                             Err(e) => {
                                                                 return Err(format!("value: fail read lang from int, err={:?}", e));
