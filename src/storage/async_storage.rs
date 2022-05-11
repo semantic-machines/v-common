@@ -24,6 +24,7 @@ pub struct TicketCache {
     pub read: evmap::ReadHandle<String, Ticket>,
     pub write: Arc<Mutex<evmap::WriteHandle<String, Ticket>>>,
     pub check_ticket_ip: bool,
+    pub are_external_users: bool
 }
 
 async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
