@@ -9,11 +9,10 @@ use crate::v_authorization::common::{Access, AuthorizationContext};
 use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
-use std::net::IpAddr;
 use std::sync::Arc;
 
-pub(crate) const INDIVIDUALS_SPACE_ID: i32 = 512;
-pub(crate) const TICKETS_SPACE_ID: i32 = 513;
+pub const INDIVIDUALS_SPACE_ID: i32 = 512;
+pub const TICKETS_SPACE_ID: i32 = 513;
 
 pub struct AStorage {
     pub tt: Option<Client>,
@@ -24,7 +23,7 @@ pub struct TicketCache {
     pub read: evmap::ReadHandle<String, Ticket>,
     pub write: Arc<Mutex<evmap::WriteHandle<String, Ticket>>>,
     pub check_ticket_ip: bool,
-    pub are_external_users: bool
+    pub are_external_users: bool,
 }
 
 async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
@@ -62,66 +61,4 @@ pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az
     }
 
     Ok((Individual::default(), ResultCode::UnprocessableEntity))
-}
-
-pub async fn check_ticket(w_ticket_id: &Option<String>, ticket_cache: &TicketCache, addr: &Option<IpAddr>, db: &AStorage) -> Result<String, ResultCode> {
-    if w_ticket_id.is_none() {
-        return Ok("cfg:Guest".to_owned());
-    }
-
-    let ticket_id = w_ticket_id.as_ref().unwrap();
-    if ticket_id.is_empty() || ticket_id == "systicket" {
-        return Ok("cfg:Guest".to_owned());
-    }
-
-    if let Some(cached_ticket) = ticket_cache.read.get(ticket_id) {
-        if let Some(t) = cached_ticket.get_one() {
-            if t.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
-                return Err(ResultCode::TicketNotFound);
-            }
-            Ok(t.user_uri.clone())
-        } else {
-            Err(ResultCode::TicketNotFound)
-        }
-    } else {
-        let mut ticket_obj = Ticket::default();
-
-        if let Some(tt) = &db.tt {
-            let response = match tt.select(TICKETS_SPACE_ID, 0, &(&ticket_id,), 0, 100, IteratorType::EQ).await {
-                Ok(r) => r,
-                Err(_) => {
-                    return Err(ResultCode::TicketNotFound);
-                },
-            };
-
-            let mut to = Individual::default();
-            to.set_raw(&response.data[5..]);
-            if parse_raw(&mut to).is_ok() {
-                ticket_obj.update_from_individual(&mut to);
-                ticket_obj.result = ResultCode::Ok;
-            }
-        }
-        if let Some(lmdb) = &db.lmdb {
-            let mut to = Individual::default();
-            if lmdb.lock().await.get_individual_from_db(StorageId::Tickets, ticket_id, &mut to) {
-                ticket_obj.update_from_individual(&mut to);
-                ticket_obj.result = ResultCode::Ok;
-            }
-        }
-
-        if ticket_obj.result != ResultCode::Ok {
-            return Err(ResultCode::TicketNotFound);
-        }
-        if ticket_obj.is_ticket_valid(addr, ticket_cache.check_ticket_ip) != ResultCode::Ok {
-            return Err(ResultCode::TicketNotFound);
-        }
-
-        let user_uri = ticket_obj.user_uri.clone();
-        let mut t = ticket_cache.write.lock().await;
-        t.insert(ticket_id.to_owned(), ticket_obj);
-        //info!("ticket cache size = {}", t.len());
-        t.refresh();
-
-        return Ok(user_uri);
-    }
 }
