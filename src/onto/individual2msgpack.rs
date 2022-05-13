@@ -56,10 +56,10 @@ fn write_resource(out: &mut Vec<u8>, r: &Resource) -> Result<(), Error> {
 
             if l.is_some() {
                 match l.to_string() {
-                    "ru" => {
+                    "RU" => {
                         write_u8(out, 1 as u8)?;
                     },
-                    "en" => {
+                    "EN" => {
                         write_u8(out, 2 as u8)?;
                     },
                     v => {
