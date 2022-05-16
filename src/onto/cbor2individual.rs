@@ -110,9 +110,9 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
 
                         if tag == TagId::TextRu as u64 || tag == TagId::TextEn as u64 {
                             if tag == TagId::TextRu as u64 {
-                                lang = Lang::new_from_str("ru");
+                                lang = Lang::new_from_str("RU");
                             } else if tag == TagId::TextEn as u64 {
-                                lang = Lang::new_from_str("en");
+                                lang = Lang::new_from_str("EN");
                             }
                         }
 
