@@ -221,7 +221,7 @@ impl AuthClient {
         }
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &str, addr: Option<IpAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
+    pub fn authenticate(&mut self, login: &str, password: &Option<String>, addr: Option<IpAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
         let query = json!({
             "function": "authenticate",
             "login": login,
