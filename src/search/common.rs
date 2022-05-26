@@ -1,5 +1,15 @@
+use crate::onto::individual::Individual;
+use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
+use crate::search::sql_params::tr_statement;
 use crate::v_api::obj::ResultCode;
+use chrono::{TimeZone, Utc};
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::Value;
+use sqlparser::dialect::{AnsiDialect, ClickHouseDialect, MySqlDialect};
+use sqlparser::parser::Parser;
+use std::collections::HashMap;
+use std::io;
+use std::io::{Error, ErrorKind};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryResult {
@@ -103,4 +113,68 @@ impl FTQuery {
 
         s
     }
+}
+
+fn indv_to_args_map(indv: &mut Individual) -> io::Result<HashMap<String, Value>> {
+    let mut mm = HashMap::new();
+    for (p, vals) in &indv.get_obj().resources {
+        if p.starts_with("v-s:param") {
+            let pb = format!("'{}'", p);
+            if let Some(v) = vals.get(0) {
+                match &v.value {
+                    Uri(v) | Str(v, _) => {
+                        mm.insert(pb, sqlparser::ast::Value::DoubleQuotedString(v.to_owned()));
+                    },
+                    Int(v) => {
+                        mm.insert(pb, sqlparser::ast::Value::Number(v.to_string(), false));
+                    },
+                    Bool(v) => {
+                        mm.insert(pb, sqlparser::ast::Value::Boolean(*v));
+                    },
+                    Num(_m, _d) => {
+                        mm.insert(pb, sqlparser::ast::Value::Number(v.get_float().to_string(), false));
+                    },
+                    Datetime(v) => {
+                        mm.insert(pb, sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp(*v, 0))));
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    Ok(mm)
+}
+
+pub fn prepare_sql_params(in_query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
+    let mut query = in_query.to_owned();
+    for p in &params.get_predicates() {
+        if p.starts_with("v-s:param") {
+            let pb = "{".to_owned() + p + "}";
+            query = query.replace(&pb, &format!("'{}'", &p));
+        }
+    }
+
+    let lex_tree = match dialect {
+        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, &query),
+        "mysql" => Parser::parse_sql(&MySqlDialect {}, &query),
+        _ => Parser::parse_sql(&AnsiDialect {}, &query),
+    };
+
+    match lex_tree {
+        Ok(mut ast) => {
+            for el in ast.iter_mut() {
+                if let Ok(mm) = indv_to_args_map(params) {
+                    //println!("PREV: {}", el);
+                    tr_statement(el, &mm)?;
+                    //println!("NEW: {}", el);
+                    return Ok(el.to_string());
+                }
+            }
+        },
+        Err(e) => {
+            error!("{:?}", e);
+        },
+    }
+    return Err(Error::new(ErrorKind::Other, "?"));
 }

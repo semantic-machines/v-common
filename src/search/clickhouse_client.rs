@@ -2,9 +2,15 @@ use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
+use chrono::prelude::*;
+use chrono_tz::Tz;
 use clickhouse_rs::errors::Error;
+use clickhouse_rs::types::{Column, SqlType};
+use clickhouse_rs::types::{FromSql, Row};
 use clickhouse_rs::Pool;
 use futures::executor::block_on;
+use serde_json::json;
+use serde_json::Value;
 use std::time::*;
 use url::Url;
 use v_authorization::common::Access;
@@ -84,6 +90,206 @@ impl CHClient {
 
         Ok(res)
     }
+
+    pub async fn query_select_async(&mut self, query: &str, format: &str) -> Result<Value, Error> {
+        let mut res = Value::default();
+        if let Some(pool) = &self.client {
+            let mut client = pool.get_handle().await?;
+            let block = client.query(query).fetch_all().await?;
+
+            if format == "cols" {
+                for col in block.columns() {
+                    let mut jrow = Value::Array(vec![]);
+                    for row in block.rows() {
+                        col_to_json(&row, &col, &mut jrow)?;
+                    }
+                    res[col.name().to_owned()] = jrow;
+                }
+            } else {
+                let mut v_cols = vec![];
+                for col in block.columns() {
+                    v_cols.push(Value::String(col.name().to_owned()));
+                }
+                res["cols"] = Value::Array(v_cols);
+                let mut jrows = vec![];
+                for row in block.rows() {
+                    let mut jrow = if format == "full" {
+                        Value::from(serde_json::Map::new())
+                    } else if format == "rows" {
+                        Value::Array(vec![])
+                    } else {
+                        Value::Array(vec![])
+                    };
+                    for col in block.columns() {
+                        //println!("{} {}", col.name(), col.sql_type());
+                        col_to_json(&row, &col, &mut jrow)?;
+                    }
+                    jrows.push(jrow);
+                }
+
+                res["rows"] = Value::Array(jrows);
+            }
+        }
+
+        //println!("{}", res);
+        Ok(res)
+    }
+}
+
+fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::Serialize>(row: &'a Row<K>, col: &'a Column<K>, jrow: &mut Value) -> Result<(), Error> {
+    let v: T = row.get(col.name())?;
+    if let Some(o) = jrow.as_object_mut() {
+        o.insert(col.name().to_owned(), json!(v));
+    } else if let Some(o) = jrow.as_array_mut() {
+        o.push(json!(v));
+    }
+    Ok(())
+}
+
+fn col_to_json<K: clickhouse_rs::types::ColumnType>(row: &Row<K>, col: &Column<K>, jrow: &mut serde_json::Value) -> Result<(), Error> {
+    match col.sql_type() {
+        SqlType::UInt8 => {
+            cltjs::<K, u8>(row, col, jrow)?;
+        },
+        SqlType::UInt16 => {
+            cltjs::<K, u16>(row, col, jrow)?;
+        },
+        SqlType::UInt32 => {
+            cltjs::<K, u32>(row, col, jrow)?;
+        },
+        SqlType::UInt64 => {
+            cltjs::<K, u64>(row, col, jrow)?;
+        },
+        SqlType::Int8 => {
+            cltjs::<K, i8>(row, col, jrow)?;
+        },
+        SqlType::Int16 => {
+            cltjs::<K, i16>(row, col, jrow)?;
+        },
+        SqlType::Int32 => {
+            cltjs::<K, i32>(row, col, jrow)?;
+        },
+        SqlType::Int64 => {
+            cltjs::<K, i64>(row, col, jrow)?;
+        },
+        SqlType::String => {
+            cltjs::<K, String>(row, col, jrow)?;
+        },
+        SqlType::FixedString(_) => {
+            cltjs::<K, String>(row, col, jrow)?;
+        },
+        SqlType::Float32 => {
+            cltjs::<K, f32>(row, col, jrow)?;
+        },
+        SqlType::Float64 => {
+            cltjs::<K, f64>(row, col, jrow)?;
+        },
+        SqlType::Date => {
+            let v: Date<Tz> = row.get(col.name())?;
+            if let Some(o) = jrow.as_object_mut() {
+                o.insert(col.name().to_owned(), json!(v.to_string()));
+            } else if let Some(o) = jrow.as_array_mut() {
+                o.push(json!(v.to_string()));
+            }
+        },
+        SqlType::DateTime(_) => {
+            let v: DateTime<Tz> = row.get(col.name())?;
+            if let Some(o) = jrow.as_object_mut() {
+                o.insert(col.name().to_owned(), json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
+            } else if let Some(o) = jrow.as_array_mut() {
+                o.push(json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
+            }
+        },
+        SqlType::Decimal(_, _) => {
+            let v: f64 = row.get(col.name())?;
+            if let Some(o) = jrow.as_object_mut() {
+                o.insert(col.name().to_owned(), json!(v));
+            } else if let Some(o) = jrow.as_array_mut() {
+                o.push(json!(v));
+            }
+        },
+        SqlType::Array(stype) => match stype {
+            SqlType::UInt8 => {
+                cltjs::<K, Vec<u8>>(row, col, jrow)?;
+            },
+            SqlType::UInt16 => {
+                cltjs::<K, Vec<u16>>(row, col, jrow)?;
+            },
+            SqlType::UInt32 => {
+                cltjs::<K, Vec<u32>>(row, col, jrow)?;
+            },
+            SqlType::UInt64 => {
+                cltjs::<K, Vec<u64>>(row, col, jrow)?;
+            },
+            SqlType::Int8 => {
+                cltjs::<K, Vec<i8>>(row, col, jrow)?;
+            },
+            SqlType::Int16 => {
+                cltjs::<K, Vec<i16>>(row, col, jrow)?;
+            },
+            SqlType::Int32 => {
+                cltjs::<K, Vec<i32>>(row, col, jrow)?;
+            },
+            SqlType::Int64 => {
+                cltjs::<K, Vec<i64>>(row, col, jrow)?;
+            },
+            SqlType::String => {
+                cltjs::<K, Vec<String>>(row, col, jrow)?;
+            },
+            SqlType::FixedString(_) => {
+                cltjs::<K, Vec<String>>(row, col, jrow)?;
+            },
+            SqlType::Float32 => {
+                cltjs::<K, Vec<f32>>(row, col, jrow)?;
+            },
+            SqlType::Float64 => {
+                cltjs::<K, Vec<f64>>(row, col, jrow)?;
+            },
+            SqlType::Date => {
+                let v: Vec<Date<Tz>> = row.get(col.name())?;
+                let mut a = vec![];
+                for ev in v {
+                    a.push(json!(ev.to_string()));
+                }
+                if let Some(o) = jrow.as_object_mut() {
+                    o.insert(col.name().to_owned(), json!(a));
+                } else if let Some(o) = jrow.as_array_mut() {
+                    o.push(json!(a));
+                }
+            },
+            SqlType::DateTime(_) => {
+                let v: Vec<DateTime<Tz>> = row.get(col.name())?;
+                let mut a = vec![];
+                for ev in v {
+                    a.push(json!(ev.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                }
+                if let Some(o) = jrow.as_object_mut() {
+                    o.insert(col.name().to_owned(), json!(a));
+                } else if let Some(o) = jrow.as_array_mut() {
+                    o.push(json!(a));
+                }
+            },
+            SqlType::Decimal(_, _) => {
+                let v: Vec<f64> = row.get(col.name())?;
+                let mut a = vec![];
+                for ev in v {
+                    a.push(json!(ev));
+                }
+                if let Some(o) = jrow.as_object_mut() {
+                    o.insert(col.name().to_owned(), json!(a));
+                } else if let Some(o) = jrow.as_array_mut() {
+                    o.push(json!(a));
+                }
+            },
+            _ => {
+                println!("unknown type {:?}", stype);
+            },
+        },
+        _ => {
+            println!("unknown type {:?}", col.sql_type());
+        },
+    }
+    Ok(())
 }
 
 async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize, out_res: &mut QueryResult, az: &mut LmdbAzContext) -> Result<(), Error> {
@@ -94,7 +300,7 @@ async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize
         .query
         .to_uppercase()
         .split([':', '-', ' ', '(', ')', '<', '<', '=', ','].as_ref())
-        .any(|x| x == "INSERT" || x == "UPDATE" || x == "DROP" || x == "DELETE" || x == "ALTER" || x == "EXEC")
+        .any(|x| x.trim() == "INSERT" || x.trim() == "UPDATE" || x.trim() == "DROP" || x.trim() == "DELETE" || x.trim() == "ALTER" || x.trim() == "EXEC")
     {
         out_res.result_code = ResultCode::BadRequest;
         return Ok(());
