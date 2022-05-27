@@ -176,5 +176,5 @@ pub fn prepare_sql_params(in_query: &str, params: &mut Individual, dialect: &str
             error!("{:?}", e);
         },
     }
-    return Err(Error::new(ErrorKind::Other, "?"));
+    Err(Error::new(ErrorKind::Other, "?"))
 }

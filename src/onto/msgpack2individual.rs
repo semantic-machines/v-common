@@ -145,7 +145,7 @@ pub fn parse_msgpack_to_predicate(expect_predicate: &str, iraw: &mut Individual)
                                                         },
                                                     },
                                                     _ => {
-                                                        return Err(format!("value: fail read lang"));
+                                                        return Err("value: fail read lang".to_string());
                                                     },
                                                 };
 

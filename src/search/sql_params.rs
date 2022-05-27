@@ -360,13 +360,11 @@ fn tr_list_agg(f: &mut ListAgg, args_map: &HashMap<String, Value>) -> io::Result
 
 fn tr_list_agg_on_overflow(f: &mut ListAggOnOverflow, args_map: &HashMap<String, Value>) -> io::Result<()> {
     if let ListAggOnOverflow::Truncate {
-        filler,
+        filler: Some(filler),
         with_count: _,
     } = f
     {
-        if let Some(filler) = filler {
-            tr_expr(filler, args_map)?;
-        }
+        tr_expr(filler, args_map)?;
     }
 
     Ok(())

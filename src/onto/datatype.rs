@@ -73,11 +73,11 @@ impl Lang {
     }
 
     pub fn to_string(&self) -> &str {
-        return if let Some(v) = &self.data {
-            &v
+        if let Some(v) = &self.data {
+            v
         } else {
             "NONE"
-        };
+        }
     }
 }
 

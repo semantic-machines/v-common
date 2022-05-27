@@ -125,7 +125,7 @@ impl Key2Slot {
 
         if new_hash != hash_in_file {
             error!("key2slot: {} != {}", hash_in_file, new_hash);
-            return Err(XError::from(Error::new(ErrorKind::InvalidData, format!("invalid hash of key2slot"))));
+            return Err(XError::from(Error::new(ErrorKind::InvalidData, "invalid hash of key2slot".to_string())));
         }
 
         Ok(key2slot)

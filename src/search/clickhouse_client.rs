@@ -101,7 +101,7 @@ impl CHClient {
                 for col in block.columns() {
                     let mut jrow = Value::Array(vec![]);
                     for row in block.rows() {
-                        col_to_json(&row, &col, &mut jrow)?;
+                        col_to_json(&row, col, &mut jrow)?;
                     }
                     res[col.name().to_owned()] = jrow;
                 }
@@ -115,14 +115,12 @@ impl CHClient {
                 for row in block.rows() {
                     let mut jrow = if format == "full" {
                         Value::from(serde_json::Map::new())
-                    } else if format == "rows" {
-                        Value::Array(vec![])
                     } else {
                         Value::Array(vec![])
                     };
                     for col in block.columns() {
                         //println!("{} {}", col.name(), col.sql_type());
-                        col_to_json(&row, &col, &mut jrow)?;
+                        col_to_json(&row, col, &mut jrow)?;
                     }
                     jrows.push(jrow);
                 }
