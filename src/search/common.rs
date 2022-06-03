@@ -1,15 +1,10 @@
-use crate::onto::individual::Individual;
-use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
-use crate::search::sql_params::tr_statement;
+use crate::onto::onto_index::OntoIndex;
+use crate::storage::async_storage::get_individual_from_db;
+use crate::storage::async_storage::AStorage;
 use crate::v_api::obj::ResultCode;
-use chrono::{TimeZone, Utc};
+use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::Value;
-use sqlparser::dialect::{AnsiDialect, ClickHouseDialect, MySqlDialect};
-use sqlparser::parser::Parser;
-use std::collections::HashMap;
-use std::io;
-use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryResult {
@@ -115,66 +110,78 @@ impl FTQuery {
     }
 }
 
-fn indv_to_args_map(indv: &mut Individual) -> io::Result<HashMap<String, Value>> {
-    let mut mm = HashMap::new();
-    for (p, vals) in &indv.get_obj().resources {
-        if p.starts_with("v-s:param") {
-            let pb = format!("'{}'", p);
-            if let Some(v) = vals.get(0) {
-                match &v.value {
-                    Uri(v) | Str(v, _) => {
-                        mm.insert(pb, sqlparser::ast::Value::DoubleQuotedString(v.to_owned()));
-                    },
-                    Int(v) => {
-                        mm.insert(pb, sqlparser::ast::Value::Number(v.to_string(), false));
-                    },
-                    Bool(v) => {
-                        mm.insert(pb, sqlparser::ast::Value::Boolean(*v));
-                    },
-                    Num(_m, _d) => {
-                        mm.insert(pb, sqlparser::ast::Value::Number(v.get_float().to_string(), false));
-                    },
-                    Datetime(v) => {
-                        mm.insert(pb, sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp(*v, 0))));
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
+////////////////////////////////////////////////////////////////////////
 
-    Ok(mm)
+pub struct PrefixesCache {
+    pub full2short_r: evmap::ReadHandle<String, String>,
+    pub full2short_w: Arc<Mutex<evmap::WriteHandle<String, String>>>,
+    pub short2full_r: evmap::ReadHandle<String, String>,
+    pub short2full_w: Arc<Mutex<evmap::WriteHandle<String, String>>>,
 }
 
-pub fn prepare_sql_params(in_query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
-    let mut query = in_query.to_owned();
-    for p in &params.get_predicates() {
-        if p.starts_with("v-s:param") {
-            let pb = "{".to_owned() + p + "}";
-            query = query.replace(&pb, &format!("'{}'", &p));
+pub fn split_full_prefix(v: &str) -> (&str, &str) {
+    let pos = if let Some(n) = v.rfind('/') {
+        n
+    } else {
+        v.rfind('#').unwrap_or_default()
+    };
+
+    v.split_at(pos + 1)
+}
+
+pub fn split_short_prefix(v: &str) -> Option<(&str, &str)> {
+    if let Some(pos) = v.rfind(':') {
+        let lr = v.split_at(pos);
+        if let Some(l) = lr.1.strip_prefix(':') {
+            return Some((lr.0, l));
+        }
+    }
+    None
+}
+
+pub fn get_short_prefix(full_prefix: &str, prefixes_cache: &PrefixesCache) -> String {
+    if let Some(v) = prefixes_cache.full2short_r.get(full_prefix) {
+        if let Some(t) = v.get_one() {
+            return t.to_string();
         }
     }
 
-    let lex_tree = match dialect {
-        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, &query),
-        "mysql" => Parser::parse_sql(&MySqlDialect {}, &query),
-        _ => Parser::parse_sql(&AnsiDialect {}, &query),
-    };
+    full_prefix.to_owned()
+}
 
-    match lex_tree {
-        Ok(mut ast) => {
-            for el in ast.iter_mut() {
-                if let Ok(mm) = indv_to_args_map(params) {
-                    //println!("PREV: {}", el);
-                    tr_statement(el, &mm)?;
-                    //println!("NEW: {}", el);
-                    return Ok(el.to_string());
+pub fn get_full_prefix(short_prefix: &str, prefixes_cache: &PrefixesCache) -> String {
+    if let Some(v) = prefixes_cache.short2full_r.get(short_prefix) {
+        if let Some(t) = v.get_one() {
+            return t.to_string();
+        }
+    }
+
+    short_prefix.to_owned()
+}
+
+pub async fn load_prefixes(storage: &AStorage, prefixes_cache: &PrefixesCache) {
+    let onto_index = OntoIndex::load();
+
+    let mut f2s = prefixes_cache.full2short_w.lock().await;
+    let mut s2f = prefixes_cache.short2full_w.lock().await;
+
+    for id in onto_index.data.keys() {
+        if let Ok((mut rindv, _res)) = get_individual_from_db(id, "", storage, None).await {
+            rindv.parse_all();
+
+            if rindv.any_exists("rdf:type", &["owl:Ontology"]) {
+                if let Some(full_url) = rindv.get_first_literal("v-s:fullUrl") {
+                    debug!("prefix : {} -> {}", rindv.get_id(), full_url);
+                    let short_prefix = rindv.get_id().trim_end_matches(':');
+
+                    f2s.insert(full_url.to_owned(), short_prefix.to_owned());
+                    s2f.insert(short_prefix.to_owned(), full_url.to_owned());
                 }
             }
-        },
-        Err(e) => {
-            error!("{:?}", e);
-        },
+        } else {
+            error!("failed to read individual {}", id);
+        }
+        f2s.refresh();
+        s2f.refresh();
     }
-    Err(Error::new(ErrorKind::Other, "?"))
 }

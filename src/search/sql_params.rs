@@ -1,18 +1,48 @@
+use crate::onto::individual::Individual;
+use crate::onto::resource::Resource;
+use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
+use chrono::{TimeZone, Utc};
 use sqlparser::ast::{
     Cte, Expr, Fetch, Function, FunctionArg, FunctionArgExpr, Join, JoinConstraint, JoinOperator, LateralView, ListAgg, ListAggOnOverflow, Offset, OrderByExpr, Query,
-    Select, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins, Top, Value, Values, WindowSpec, With,
+    Select, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins, Top, Values, WindowSpec, With,
 };
-use std::collections::HashMap;
+use sqlparser::dialect::AnsiDialect;
+use sqlparser::dialect::ClickHouseDialect;
+use sqlparser::dialect::MySqlDialect;
+use sqlparser::parser::Parser;
 use std::io;
+use std::io::{Error, ErrorKind};
 
-pub fn tr_statement(f: &mut Statement, args_map: &HashMap<String, Value>) -> io::Result<()> {
+pub fn prepare_sql_params(query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
+    let lex_tree = match dialect {
+        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, &query),
+        "mysql" => Parser::parse_sql(&MySqlDialect {}, &query),
+        _ => Parser::parse_sql(&AnsiDialect {}, &query),
+    };
+
+    match lex_tree {
+        Ok(mut ast) => {
+            for el in ast.iter_mut() {
+                tr_statement(el, params)?;
+                //println!("NEW: {}", el);
+                return Ok(el.to_string());
+            }
+        },
+        Err(e) => {
+            error!("{:?}", e);
+        },
+    }
+    Err(Error::new(ErrorKind::Other, "?"))
+}
+
+fn tr_statement(f: &mut Statement, args_map: &mut Individual) -> io::Result<()> {
     if let Statement::Query(ref mut s) = f {
         tr_query(s, args_map)?;
     }
     Ok(())
 }
 
-fn tr_query(f: &mut Query, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_query(f: &mut Query, args_map: &mut Individual) -> io::Result<()> {
     if let Some(with) = &mut f.with {
         tr_with(with, args_map)?;
     }
@@ -34,36 +64,36 @@ fn tr_query(f: &mut Query, args_map: &HashMap<String, Value>) -> io::Result<()> 
     Ok(())
 }
 
-fn tr_offset(f: &mut Offset, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_offset(f: &mut Offset, args_map: &mut Individual) -> io::Result<()> {
     tr_expr(&mut f.value, args_map)?;
     Ok(())
 }
 
-fn tr_fetch(f: &mut Fetch, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_fetch(f: &mut Fetch, args_map: &mut Individual) -> io::Result<()> {
     if let Some(ref mut quantity) = f.quantity {
         tr_expr(quantity, args_map)?;
     }
     Ok(())
 }
 
-fn tr_order_by_expr(f: &mut OrderByExpr, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_order_by_expr(f: &mut OrderByExpr, args_map: &mut Individual) -> io::Result<()> {
     tr_expr(&mut f.expr, args_map)?;
     Ok(())
 }
 
-fn tr_with(f: &mut With, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_with(f: &mut With, args_map: &mut Individual) -> io::Result<()> {
     for x in f.cte_tables.iter_mut() {
         tr_cte(x, args_map)?;
     }
     Ok(())
 }
 
-fn tr_cte(f: &mut Cte, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_cte(f: &mut Cte, args_map: &mut Individual) -> io::Result<()> {
     tr_query(&mut f.query, args_map)?;
     Ok(())
 }
 
-fn tr_set_expr(f: &mut SetExpr, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_set_expr(f: &mut SetExpr, args_map: &mut Individual) -> io::Result<()> {
     match f {
         SetExpr::Select(s) => {
             tr_select(s, args_map)?;
@@ -90,7 +120,7 @@ fn tr_set_expr(f: &mut SetExpr, args_map: &HashMap<String, Value>) -> io::Result
     Ok(())
 }
 
-fn tr_values(f: &mut Values, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_values(f: &mut Values, args_map: &mut Individual) -> io::Result<()> {
     for row in f.0.iter_mut() {
         for x in row.iter_mut() {
             tr_expr(x, args_map)?;
@@ -99,7 +129,7 @@ fn tr_values(f: &mut Values, args_map: &HashMap<String, Value>) -> io::Result<()
     Ok(())
 }
 
-fn tr_expr(f: &mut Expr, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
     match f {
         Expr::MapAccess {
             column,
@@ -109,8 +139,8 @@ fn tr_expr(f: &mut Expr, args_map: &HashMap<String, Value>) -> io::Result<()> {
             for k in keys {
                 match k {
                     Expr::Value(v) => {
-                        if let Some(m) = args_map.get(&v.to_string()) {
-                            *v = m.clone();
+                        if let Some(m) = args_map.obj.resources.get(&v.to_string()) {
+                            *v = resource_val_to_sql_val(m.get(0));
                         }
                     },
                     _ => {
@@ -211,8 +241,8 @@ fn tr_expr(f: &mut Expr, args_map: &HashMap<String, Value>) -> io::Result<()> {
             tr_expr(ast, args_map)?;
         },
         Expr::Value(v) => {
-            if let Some(m) = args_map.get(&v.to_string()) {
-                *v = m.clone();
+            if let Some(m) = args_map.obj.resources.get(&v.to_string()) {
+                *v = resource_val_to_sql_val(m.get(0));
             }
         },
         Expr::Function(ref mut fun) => {
@@ -341,7 +371,7 @@ fn tr_expr(f: &mut Expr, args_map: &HashMap<String, Value>) -> io::Result<()> {
     Ok(())
 }
 
-fn tr_list_agg(f: &mut ListAgg, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_list_agg(f: &mut ListAgg, args_map: &mut Individual) -> io::Result<()> {
     tr_expr(&mut f.expr, args_map)?;
 
     if let Some(ref mut separator) = f.separator {
@@ -358,7 +388,7 @@ fn tr_list_agg(f: &mut ListAgg, args_map: &HashMap<String, Value>) -> io::Result
     Ok(())
 }
 
-fn tr_list_agg_on_overflow(f: &mut ListAggOnOverflow, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_list_agg_on_overflow(f: &mut ListAggOnOverflow, args_map: &mut Individual) -> io::Result<()> {
     if let ListAggOnOverflow::Truncate {
         filler: Some(filler),
         with_count: _,
@@ -370,7 +400,7 @@ fn tr_list_agg_on_overflow(f: &mut ListAggOnOverflow, args_map: &HashMap<String,
     Ok(())
 }
 
-fn tr_select_item(f: &mut SelectItem, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_select_item(f: &mut SelectItem, args_map: &mut Individual) -> io::Result<()> {
     match f {
         SelectItem::UnnamedExpr(ref mut expr) => {
             tr_expr(expr, args_map)?;
@@ -386,7 +416,7 @@ fn tr_select_item(f: &mut SelectItem, args_map: &HashMap<String, Value>) -> io::
     Ok(())
 }
 
-fn tr_select(f: &mut Select, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_select(f: &mut Select, args_map: &mut Individual) -> io::Result<()> {
     if let Some(ref mut top) = f.top {
         tr_top(top, args_map)?;
     }
@@ -436,14 +466,14 @@ fn tr_select(f: &mut Select, args_map: &HashMap<String, Value>) -> io::Result<()
     Ok(())
 }
 
-fn tr_top(f: &mut Top, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_top(f: &mut Top, args_map: &mut Individual) -> io::Result<()> {
     if let Some(ref mut quantity) = f.quantity {
         tr_expr(quantity, args_map)?;
     }
     Ok(())
 }
 
-fn tr_table_with_joins(f: &mut TableWithJoins, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_table_with_joins(f: &mut TableWithJoins, args_map: &mut Individual) -> io::Result<()> {
     tr_table_factor(&mut f.relation, args_map)?;
     for join in f.joins.iter_mut() {
         tr_join(join, args_map)?;
@@ -451,14 +481,14 @@ fn tr_table_with_joins(f: &mut TableWithJoins, args_map: &HashMap<String, Value>
     Ok(())
 }
 
-fn tr_join_constraint(f: &mut JoinConstraint, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_join_constraint(f: &mut JoinConstraint, args_map: &mut Individual) -> io::Result<()> {
     if let JoinConstraint::On(ref mut expr) = f {
         tr_expr(expr, args_map)?;
     }
     Ok(())
 }
 
-fn tr_join(f: &mut Join, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_join(f: &mut Join, args_map: &mut Individual) -> io::Result<()> {
     match &mut f.join_operator {
         JoinOperator::Inner(ref mut constraint) => {
             tr_table_factor(&mut f.relation, args_map)?;
@@ -489,7 +519,7 @@ fn tr_join(f: &mut Join, args_map: &HashMap<String, Value>) -> io::Result<()> {
     Ok(())
 }
 
-fn tr_table_factor(f: &mut TableFactor, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_table_factor(f: &mut TableFactor, args_map: &mut Individual) -> io::Result<()> {
     match f {
         TableFactor::Table {
             name: _,
@@ -529,7 +559,7 @@ fn tr_table_factor(f: &mut TableFactor, args_map: &HashMap<String, Value>) -> io
     Ok(())
 }
 
-fn tr_function_arg(f: &mut FunctionArg, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_function_arg(f: &mut FunctionArg, args_map: &mut Individual) -> io::Result<()> {
     match f {
         FunctionArg::Named {
             name: _,
@@ -544,14 +574,14 @@ fn tr_function_arg(f: &mut FunctionArg, args_map: &HashMap<String, Value>) -> io
     Ok(())
 }
 
-fn tr_function_arg_expr(f: &mut FunctionArgExpr, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_function_arg_expr(f: &mut FunctionArgExpr, args_map: &mut Individual) -> io::Result<()> {
     if let FunctionArgExpr::Expr(expr) = f {
         tr_expr(expr, args_map)?;
     }
     Ok(())
 }
 
-fn tr_function(f: &mut Function, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_function(f: &mut Function, args_map: &mut Individual) -> io::Result<()> {
     for x in f.args.iter_mut() {
         tr_function_arg(x, args_map)?;
     }
@@ -562,7 +592,7 @@ fn tr_function(f: &mut Function, args_map: &HashMap<String, Value>) -> io::Resul
     Ok(())
 }
 
-fn tr_window_spec(f: &mut WindowSpec, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_window_spec(f: &mut WindowSpec, args_map: &mut Individual) -> io::Result<()> {
     if !f.partition_by.is_empty() {
         for x in f.partition_by.iter_mut() {
             tr_expr(x, args_map)?;
@@ -577,7 +607,21 @@ fn tr_window_spec(f: &mut WindowSpec, args_map: &HashMap<String, Value>) -> io::
     Ok(())
 }
 
-fn tr_lateral_view(f: &mut LateralView, args_map: &HashMap<String, Value>) -> io::Result<()> {
+fn tr_lateral_view(f: &mut LateralView, args_map: &mut Individual) -> io::Result<()> {
     tr_expr(&mut f.lateral_view, args_map)?;
     Ok(())
+}
+
+fn resource_val_to_sql_val(ri: Option<&Resource>) -> sqlparser::ast::Value {
+    if let Some(r) = ri {
+        return match &r.value {
+            Uri(v) | Str(v, _) => sqlparser::ast::Value::DoubleQuotedString(v.to_owned()),
+            Int(v) => sqlparser::ast::Value::Number(v.to_string(), false),
+            Bool(v) => sqlparser::ast::Value::Boolean(*v),
+            Num(_m, _d) => sqlparser::ast::Value::Number(r.get_float().to_string(), false),
+            Datetime(v) => sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp(*v, 0))),
+            _ => sqlparser::ast::Value::Null,
+        };
+    }
+    sqlparser::ast::Value::Null
 }

@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.4.14"
+version = "0.4.15"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -54,6 +54,8 @@ thread-id = "4.0.0"
 iri-string = "0.4.0"
 sqlparser = "0.17.0"
 evmap = "10.0.2"
+spargebra = "0.2.0"
+oxrdf = { version = "0.1.0" }
 
 v_authorization = "=0.1.5"
 #v_authorization = { package = "v_authorization", path = "../v-authorization" }

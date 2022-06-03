@@ -92,7 +92,7 @@ impl CHClient {
     }
 
     pub async fn query_select_async(&mut self, query: &str, format: &str) -> Result<Value, Error> {
-        let mut res = Value::default();
+        let mut jres = Value::default();
         if let Some(pool) = &self.client {
             let mut client = pool.get_handle().await?;
             let block = client.query(query).fetch_all().await?;
@@ -103,14 +103,14 @@ impl CHClient {
                     for row in block.rows() {
                         col_to_json(&row, col, &mut jrow)?;
                     }
-                    res[col.name().to_owned()] = jrow;
+                    jres[col.name().to_owned()] = jrow;
                 }
             } else {
                 let mut v_cols = vec![];
                 for col in block.columns() {
                     v_cols.push(Value::String(col.name().to_owned()));
                 }
-                res["cols"] = Value::Array(v_cols);
+                jres["cols"] = Value::Array(v_cols);
                 let mut jrows = vec![];
                 for row in block.rows() {
                     let mut jrow = if format == "full" {
@@ -125,12 +125,12 @@ impl CHClient {
                     jrows.push(jrow);
                 }
 
-                res["rows"] = Value::Array(jrows);
+                jres["rows"] = Value::Array(jrows);
             }
         }
 
         //println!("{}", res);
-        Ok(res)
+        Ok(jres)
     }
 }
 
