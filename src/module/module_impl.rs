@@ -32,7 +32,7 @@ pub enum PrepareError {
     Recoverable = 102,
 }
 
-const TICKS_TO_UNIX_EPOCH: i64 = 62_135_596_800_000;
+pub const TICKS_TO_UNIX_EPOCH: i64 = 62_135_596_800_000;
 
 pub struct Module {
     pub(crate) queue_prepared_count: i64,

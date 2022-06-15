@@ -241,6 +241,15 @@ impl AuthClient {
         });
         self.req_recv(query)
     }
+
+    pub fn logout(&mut self, ticket: &str, addr: Option<IpAddr>) -> Result<Value, ApiError> {
+        let query = json!({
+            "function": "logout",
+            "addr" : addr.unwrap().to_string(),
+            "ticket": ticket
+        });
+        self.req_recv(query)
+    }
 }
 
 pub struct MStorageClient {

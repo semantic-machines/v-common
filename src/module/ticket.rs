@@ -1,3 +1,4 @@
+use crate::onto::datatype::Lang;
 use crate::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
 use chrono::{NaiveDateTime, Utc};
@@ -94,6 +95,28 @@ impl From<serde_json::Value> for Ticket {
 }
 
 impl Ticket {
+    pub fn to_individual(&self) -> Individual {
+        let mut ticket_indv = Individual::default();
+
+        ticket_indv.add_string("rdf:type", "ticket:ticket", Lang::none());
+        ticket_indv.set_id(&self.id);
+
+        ticket_indv.add_string("ticket:login", &self.user_login, Lang::none());
+        ticket_indv.add_string("ticket:accessor", &self.user_uri, Lang::none());
+        ticket_indv.add_string("ticket:addr", &self.user_addr, Lang::none());
+
+        let start_time_str = format!("{:?}", self.start_time);
+
+        if start_time_str.len() > 28 {
+            ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::none());
+        } else {
+            ticket_indv.add_string("ticket:when", &start_time_str, Lang::none());
+        }
+
+        ticket_indv.add_string("ticket:duration", &(self.end_time - self.start_time).to_string(), Lang::none());
+        ticket_indv
+    }
+
     pub fn update_from_individual(&mut self, src: &mut Individual) {
         let when = src.get_first_literal("ticket:when");
         let duration = src.get_first_literal("ticket:duration").unwrap_or_default().parse::<i32>().unwrap_or_default();
