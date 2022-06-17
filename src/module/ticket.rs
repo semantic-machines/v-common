@@ -1,3 +1,4 @@
+use crate::module::module_impl::TICKS_TO_UNIX_EPOCH;
 use crate::onto::datatype::Lang;
 use crate::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
@@ -105,7 +106,7 @@ impl Ticket {
         ticket_indv.add_string("ticket:accessor", &self.user_uri, Lang::none());
         ticket_indv.add_string("ticket:addr", &self.user_addr, Lang::none());
 
-        let start_time_str = format!("{:?}", self.start_time);
+        let start_time_str = NaiveDateTime::from_timestamp(self.start_time, 0).format("%Y-%m-%dT%H:%M:%S%.f").to_string();
 
         if start_time_str.len() > 28 {
             ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::none());
