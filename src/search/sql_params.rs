@@ -15,14 +15,14 @@ use std::io::{Error, ErrorKind};
 
 pub fn prepare_sql_params(query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
     let lex_tree = match dialect {
-        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, &query),
-        "mysql" => Parser::parse_sql(&MySqlDialect {}, &query),
-        _ => Parser::parse_sql(&AnsiDialect {}, &query),
+        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, query),
+        "mysql" => Parser::parse_sql(&MySqlDialect {}, query),
+        _ => Parser::parse_sql(&AnsiDialect {}, query),
     };
 
     match lex_tree {
         Ok(mut ast) => {
-            for el in ast.iter_mut() {
+            if let Some(el) = ast.iter_mut().next() {
                 tr_statement(el, params)?;
                 //println!("NEW: {}", el);
                 return Ok(el.to_string());

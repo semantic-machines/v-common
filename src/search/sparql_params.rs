@@ -13,18 +13,16 @@ use std::io::{Error, ErrorKind};
 use std::str::FromStr;
 
 pub fn prepare_sparql_params(query: &str, params: &mut Individual, prefix_cache: &PrefixesCache) -> Result<String, Error> {
-    match Query::parse(&query, None) {
+    match Query::parse(query, None) {
         Ok(ref mut sparql) => {
             warn!("{:?}", query);
-            match sparql {
-                Query::Select {
-                    dataset: _,
-                    ref mut pattern,
-                    base_iri: _,
-                } => {
-                    tr_graph_pattern(pattern, params, prefix_cache)?;
-                },
-                _ => {},
+            if let Query::Select {
+                dataset: _,
+                ref mut pattern,
+                base_iri: _,
+            } = sparql
+            {
+                tr_graph_pattern(pattern, params, prefix_cache)?;
             }
 
             //                            warn!("{}", sparql);
@@ -383,5 +381,5 @@ fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCach
             },
         }
     }
-    Err(Error::new(ErrorKind::Other, format!("fail convert empty data to literal")))
+    Err(Error::new(ErrorKind::Other, "fail convert empty data to literal".to_string()))
 }

@@ -32,15 +32,9 @@ impl ModuleInfo {
         let file_name_info = info_path + info_name + "_info";
 
         let ff = if is_writer {
-            match OpenOptions::new().read(true).write(is_writer).create(true).open(file_name_info) {
-                Ok(ff) => Ok(ff),
-                Err(e) => Err(e),
-            }
+            OpenOptions::new().read(true).write(is_writer).create(true).open(file_name_info)
         } else {
-            match OpenOptions::new().read(true).open(file_name_info) {
-                Ok(ff) => Ok(ff),
-                Err(e) => Err(e),
-            }
+            OpenOptions::new().read(true).open(file_name_info)
         };
 
         if let Ok(f) = ff {
