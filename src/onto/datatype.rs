@@ -55,9 +55,15 @@ impl Lang {
     }
 
     pub fn new_from_str(l: &str) -> Lang {
-        Lang {
-            data: Some(l.to_uppercase()),
-        }
+        let lu = l.to_uppercase();
+
+        return if lu == "NONE" {
+            Lang::none()
+        } else {
+            Lang {
+                data: Some(lu),
+            }
+        };
     }
 
     pub fn new_from_i64(l: i64) -> Lang {
