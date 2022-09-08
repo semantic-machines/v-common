@@ -57,7 +57,7 @@ impl Lang {
     pub fn new_from_str(l: &str) -> Lang {
         let lu = l.to_uppercase();
 
-        return if lu == "NONE" {
+        return if lu == "NONE" || lu == "UNDEFINED" {
             Lang::none()
         } else {
             Lang {
