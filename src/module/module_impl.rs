@@ -33,7 +33,7 @@ pub enum PrepareError {
 }
 
 pub const TICKS_TO_UNIX_EPOCH: i64 = 62_135_596_800_000;
-const NOTIFY_CHANNEL_RECONNECT_TIMEOUT: i32 = 300;
+const NOTIFY_CHANNEL_RECONNECT_TIMEOUT: u64 = 300;
 
 pub struct Module {
     pub(crate) queue_prepared_count: i64,
