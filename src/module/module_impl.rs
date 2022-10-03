@@ -274,7 +274,7 @@ impl Module {
             self.syssig_ch = Some(ch);
         }
 
-        let mut soc = Socket::new(Protocol::Sub0).unwrap();
+        let mut soc = None;
         let mut count_timeout_error = 0;
 
         let mut prev_batch_time = Instant::now();
@@ -297,14 +297,8 @@ impl Module {
                 break;
             }
 
-            for _ in 0..3 {
-                if let Some(s) = self.connect_to_notify_channel() {
-                    soc = s;
-                    break;
-                }
-                let tm = 300;
-                thread::sleep(time::Duration::from_millis(tm));
-                info!("sleep {} ms", tm);
+            if soc.is_none() {
+                soc = self.connect_to_notify_channel();
             }
 
             // read queue current part info
@@ -431,17 +425,19 @@ impl Module {
             }
 
             if prepared_batch_size == size_batch {
-                let wmsg = soc.recv();
-                if let Err(e) = wmsg {
-                    debug!("fail recv from queue notify channel, err={:?}", e);
+                if let Some(s) = &soc {
+                    let wmsg = s.recv();
+                    if let Err(e) = wmsg {
+                        debug!("fail recv from queue notify channel, err={:?}", e);
 
-                    if count_timeout_error > 0 && size_batch > 0 {
-                        warn!("queue changed but we not received notify message, need reconnect...");
-                        self.is_ready_notify_channel = false;
-                        count_timeout_error += 1;
+                        if count_timeout_error > 0 && size_batch > 0 {
+                            warn!("queue changed but we not received notify message, need reconnect...");
+                            self.is_ready_notify_channel = false;
+                            count_timeout_error += 1;
+                        }
+                    } else {
+                        count_timeout_error = 0;
                     }
-                } else {
-                    count_timeout_error = 0;
                 }
             }
 
