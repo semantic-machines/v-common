@@ -33,6 +33,7 @@ pub enum PrepareError {
 }
 
 pub const TICKS_TO_UNIX_EPOCH: i64 = 62_135_596_800_000;
+const NOTIFY_CHANNEL_RECONNECT_TIMEOUT: i32 = 300;
 
 pub struct Module {
     pub(crate) queue_prepared_count: i64,
@@ -299,6 +300,10 @@ impl Module {
 
             if soc.is_none() {
                 soc = self.connect_to_notify_channel();
+                if soc.is_none() {
+                    thread::sleep(time::Duration::from_millis(NOTIFY_CHANNEL_RECONNECT_TIMEOUT));
+                    info!("sleep {} ms", NOTIFY_CHANNEL_RECONNECT_TIMEOUT);
+                }
             }
 
             // read queue current part info
