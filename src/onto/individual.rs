@@ -12,7 +12,7 @@ use std::io::{Error, ErrorKind};
 use std::ops::Sub;
 use std::str::FromStr;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum IndividualError {
     None,
     ParseError,

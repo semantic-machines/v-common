@@ -5,7 +5,7 @@ use cbor::types::Type;
 use cbor::{Config, Decoder};
 use std::io::Cursor;
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum TagId {
     None = 255,
     TextRu = 42,

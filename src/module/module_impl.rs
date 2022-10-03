@@ -297,8 +297,14 @@ impl Module {
                 break;
             }
 
-            if let Some(s) = self.connect_to_notify_channel() {
-                soc = s;
+            for _ in 0..3 {
+                if let Some(s) = self.connect_to_notify_channel() {
+                    soc = s;
+                    break;
+                }
+                let tm = 300;
+                thread::sleep(time::Duration::from_millis(tm));
+                info!("sleep {} ms", tm);
             }
 
             // read queue current part info

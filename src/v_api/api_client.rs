@@ -41,7 +41,7 @@ impl Default for ApiError {
         }
     }
 }
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 #[repr(u16)]
 pub enum IndvOp {
     /// Сохранить

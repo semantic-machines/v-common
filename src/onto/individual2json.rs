@@ -51,24 +51,24 @@ impl Serialize for Resource {
                 tup.serialize_field("data", &self.value)?;
             },
             Value::Int(i) => {
-                tup.serialize_field("data", &*i)?;
+                tup.serialize_field("data", i)?;
             },
             Value::Datetime(i) => {
                 let dt = *i;
                 tup.serialize_field("data", &format!("{:?}", &Utc.timestamp(dt, 0)))?;
             },
             Value::Bool(b) => {
-                tup.serialize_field("data", &*b)?;
+                tup.serialize_field("data", b)?;
             },
             Value::Str(s, l) => {
-                tup.serialize_field("data", &*s)?;
+                tup.serialize_field("data", s)?;
 
                 if self.rtype == DataType::String && l.is_some() {
-                    tup.serialize_field("lang", &*l)?;
+                    tup.serialize_field("lang", l)?;
                 }
             },
             Value::Uri(s) => {
-                tup.serialize_field("data", &*s)?;
+                tup.serialize_field("data", s)?;
             },
             _ => {},
         }
@@ -97,10 +97,10 @@ impl Serialize for Value {
 
                 let mut tup = serializer.serialize_struct("E", 0)?;
                 //tup.serialize_element(&*s)?;
-                tup.serialize_field("data", &*s)?;
+                tup.serialize_field("data", s)?;
 
                 if l.is_some() {
-                    tup.serialize_field("lang", &*l)?;
+                    tup.serialize_field("lang", l)?;
                 }
                 tup.end()
             },
@@ -109,7 +109,7 @@ impl Serialize for Value {
 
                 let mut tup = serializer.serialize_struct("E", 0)?;
                 //tup.serialize_element(&*s)?;
-                tup.serialize_field("data", &*s)?;
+                tup.serialize_field("data", s)?;
 
                 tup.end()
             },

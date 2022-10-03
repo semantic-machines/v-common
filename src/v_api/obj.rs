@@ -6,7 +6,7 @@ use serde::Serializer;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 #[repr(u16)]
 pub enum ResultCode {
     /// 0
@@ -114,7 +114,7 @@ pub enum ResultCode {
     ConnectError = 4000,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum OptAuthorize {
     NO,
     YES,

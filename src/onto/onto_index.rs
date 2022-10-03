@@ -10,7 +10,7 @@ use std::time::SystemTime;
 
 const LOCAL_STORAGE_FILE_NAME: &str = "data/onto-index";
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct OntoIndex {
     pub data: HashMap<String, i64>,
 }

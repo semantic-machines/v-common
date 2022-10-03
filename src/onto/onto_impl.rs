@@ -4,7 +4,7 @@ use std::fmt;
 
 // TODO: Load ontology individuals to have them by hand at runtime.
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum RelType {
     Sub,
     Super,

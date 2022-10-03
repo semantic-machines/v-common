@@ -8,7 +8,7 @@ use std::str::from_utf8;
 //  "&&", "||",
 //  ">", "<", ">=", "<=",
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Decor {
     NONE,
     QUOTED,

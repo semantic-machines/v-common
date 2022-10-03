@@ -1,7 +1,7 @@
 use crate::onto::datatype::{DataType, Lang};
 use derivative::Derivative;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 
 pub enum Value {
     Int(i64),

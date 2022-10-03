@@ -8,13 +8,13 @@ pub enum StorageError {
     NotReady,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum StorageMode {
     ReadOnly,
     ReadWrite,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum StorageId {
     Individuals,
     Tickets,

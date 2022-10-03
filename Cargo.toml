@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.4.25"
+version = "0.4.26"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -12,7 +12,7 @@ license     = "MIT"
 [dependencies]
 tokio = { version = "0.2" }
 futures = "=0.3"
-nng = "1.0.0"
+nng = "1.0.1"
 nanoid = "0.3.0"
 num = "0.4.0"
 num-traits = "0.2.14"

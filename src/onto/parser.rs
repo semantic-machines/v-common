@@ -2,7 +2,7 @@ use crate::onto::cbor2individual::{parse_cbor, parse_cbor_to_predicate};
 use crate::onto::individual::*;
 use crate::onto::msgpack2individual::*;
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum RawType {
     Cbor,
     Json,

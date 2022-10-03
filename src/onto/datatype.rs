@@ -1,4 +1,4 @@
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 #[repr(u8)]
 pub enum DataType {
     Uri = 1,
@@ -38,7 +38,7 @@ impl DataType {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Lang {
     data: Option<String>,
 }
@@ -57,13 +57,13 @@ impl Lang {
     pub fn new_from_str(l: &str) -> Lang {
         let lu = l.to_uppercase();
 
-        return if lu == "NONE" || lu == "UNDEFINED" {
+        if lu == "NONE" || lu == "UNDEFINED" {
             Lang::none()
         } else {
             Lang {
                 data: Some(lu),
             }
-        };
+        }
     }
 
     pub fn new_from_i64(l: i64) -> Lang {
