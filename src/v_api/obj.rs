@@ -167,6 +167,7 @@ impl ResultCode {
             404 => ResultCode::NotFound,
             422 => ResultCode::UnprocessableEntity,
             429 => ResultCode::TooManyRequests,
+            463 => ResultCode::ChangePasswordForbidden,
             464 => ResultCode::SecretExpired,
             465 => ResultCode::EmptyPassword,
             466 => ResultCode::NewPasswordIsEqualToOld,
