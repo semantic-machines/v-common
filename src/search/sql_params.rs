@@ -2,6 +2,7 @@ use crate::onto::individual::Individual;
 use crate::onto::resource::Resource;
 use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
 use chrono::{TimeZone, Utc};
+use sqlparser::ast::TableFactor::UNNEST;
 use sqlparser::ast::{
     Cte, Expr, Fetch, Function, FunctionArg, FunctionArgExpr, Join, JoinConstraint, JoinOperator, LateralView, ListAgg, ListAggOnOverflow, Offset, OrderByExpr, Query,
     Select, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins, Top, Values, WindowSpec, With,
@@ -13,7 +14,7 @@ use sqlparser::parser::Parser;
 use std::io;
 use std::io::{Error, ErrorKind};
 
-pub fn prepare_sql_params(query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
+pub fn prepare_sql_with_params(query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
     let lex_tree = match dialect {
         "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, query),
         "mysql" => Parser::parse_sql(&MySqlDialect {}, query),
@@ -38,8 +39,10 @@ pub fn prepare_sql_params(query: &str, params: &mut Individual, dialect: &str) -
 fn tr_statement(f: &mut Statement, args_map: &mut Individual) -> io::Result<()> {
     if let Statement::Query(ref mut s) = f {
         tr_query(s, args_map)?;
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::Unsupported, format!("Query {:?} not supported", f)))
     }
-    Ok(())
 }
 
 fn tr_query(f: &mut Query, args_map: &mut Individual) -> io::Result<()> {
@@ -266,9 +269,9 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
                 tr_expr(else_result, args_map)?;
             }
         },
-        Expr::Exists(s) => {
-            tr_query(s, args_map)?;
-        },
+        //Expr::Exists(s) => {
+        //    tr_query(s, args_map)?;
+        //},
         Expr::Subquery(s) => {
             tr_query(s, args_map)?;
         },
@@ -323,13 +326,10 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
         },
         Expr::Trim {
             ref mut expr,
-            trim_where,
+            trim_where: _,
+            trim_what: _,
         } => {
             tr_expr(expr, args_map)?;
-
-            if let Some((_ident, ref mut trim_char)) = trim_where {
-                tr_expr(trim_char, args_map)?;
-            }
         },
         Expr::Tuple(exprs) => {
             for x in exprs.iter_mut() {
@@ -338,11 +338,11 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
         },
         Expr::ArrayIndex {
             ref mut obj,
-            indexs,
+            indexes,
         } => {
             tr_expr(obj, args_map)?;
 
-            for i in indexs.iter_mut() {
+            for i in indexes.iter_mut() {
                 tr_expr(i, args_map)?;
             }
             return Ok(());
@@ -521,14 +521,24 @@ fn tr_join(f: &mut Join, args_map: &mut Individual) -> io::Result<()> {
 
 fn tr_table_factor(f: &mut TableFactor, args_map: &mut Individual) -> io::Result<()> {
     match f {
+        &mut UNNEST {
+            ..
+        } => todo!(),
         TableFactor::Table {
-            name: _,
+            name,
             alias: _,
             args,
             with_hints,
         } => {
-            if !args.is_empty() {
-                for x in args.iter_mut() {
+            match name.to_string().as_str() {
+                "url" => {
+                    return Err(Error::new(ErrorKind::Unsupported, format!("Table [{}] forbidden", name)));
+                },
+                _ => {},
+            }
+
+            if let Some(a) = args {
+                for x in a.iter_mut() {
                     tr_function_arg(x, args_map)?;
                 }
             }
@@ -552,8 +562,11 @@ fn tr_table_factor(f: &mut TableFactor, args_map: &mut Individual) -> io::Result
         } => {
             tr_expr(expr, args_map)?;
         },
-        TableFactor::NestedJoin(table_reference) => {
-            tr_table_with_joins(table_reference, args_map)?;
+        TableFactor::NestedJoin {
+            table_with_joins,
+            alias: _,
+        } => {
+            tr_table_with_joins(table_with_joins, args_map)?;
         },
     }
     Ok(())
@@ -582,6 +595,13 @@ fn tr_function_arg_expr(f: &mut FunctionArgExpr, args_map: &mut Individual) -> i
 }
 
 fn tr_function(f: &mut Function, args_map: &mut Individual) -> io::Result<()> {
+    match f.name.to_string().as_str() {
+        "sleep" | "url" => {
+            return Err(Error::new(ErrorKind::Unsupported, format!("Function [{}] forbidden", f.name)));
+        },
+        _ => {},
+    }
+
     for x in f.args.iter_mut() {
         tr_function_arg(x, args_map)?;
     }
