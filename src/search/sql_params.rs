@@ -41,7 +41,7 @@ fn tr_statement(f: &mut Statement, args_map: &mut Individual) -> io::Result<()> 
         tr_query(s, args_map)?;
         Ok(())
     } else {
-        Err(Error::new(ErrorKind::Unsupported, format!("Query {:?} not supported", f)))
+        Err(Error::new(ErrorKind::Unsupported, format!("Query forbidden")))
     }
 }
 
