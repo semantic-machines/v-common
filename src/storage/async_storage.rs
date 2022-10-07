@@ -5,11 +5,12 @@ use crate::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
 use crate::storage::lmdb_storage::LMDBStorage;
 use crate::v_api::obj::ResultCode;
-use crate::v_authorization::common::{Access, AuthorizationContext};
+use crate::v_authorization::common::{Access, AuthorizationContext, Trace};
 use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
 use std::sync::Arc;
+use std::io::{Error, ErrorKind};
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;
@@ -26,7 +27,7 @@ pub struct TicketCache {
     pub are_external_users: bool,
 }
 
-async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+pub async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
     if let Some(a) = az {
         if a.lock().await.authorize(uri, user_uri, Access::CanRead as u8, false).unwrap_or(0) != Access::CanRead as u8 {
             return Ok((indv, ResultCode::NotAuthorized));
@@ -38,6 +39,32 @@ async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str,
     }
     indv.parse_all();
     Ok((indv, ResultCode::Ok))
+}
+
+pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<bool> {
+    if let Some(a) = az {
+        let mut tr = Trace{
+            acl: &mut "".to_string(),
+            is_acl: false,
+            group: &mut String::new(),
+            is_group: true,
+            info: &mut "".to_string(),
+            is_info: false,
+            str_num: 0
+        };
+        if a.lock().await.authorize_and_trace(user_id, user_id, 0xF, false,  &mut tr).is_ok() {
+            for gr in tr.group.split('\n') {
+                if gr == group_id {
+                    return Ok(true);
+                }
+            }
+        } else {
+            return Err(Error::new(ErrorKind::Other, "fail authorize_and_trace"));
+        }
+
+    }
+
+    Ok(false)
 }
 
 pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
