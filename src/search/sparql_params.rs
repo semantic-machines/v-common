@@ -340,7 +340,7 @@ fn tr_expression(f: &mut Expression, args_map: &mut Individual, prefix_cache: &P
 
 fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCache) -> io::Result<TermPattern> {
     if let Some(r) = ri {
-        match &r.value {
+        return match &r.value {
             Uri(v) => {
                 let iri = if let Some((short_prefix, id)) = split_short_prefix(v) {
                     format!("<{}{}>", get_full_prefix(short_prefix, prefix_cache), id)
@@ -349,37 +349,23 @@ fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCach
                 };
 
                 match NamedNode::from_str(&iri) {
-                    Ok(t) => {
-                        return Ok(TermPattern::NamedNode(t));
-                    },
-                    Err(e) => {
-                        return Err(Error::new(ErrorKind::Other, format!("fail convert {:?}{:?} to NamedNode, err={:?}", r.value, r.rtype, e)));
-                    },
+                    Ok(t) => Ok(TermPattern::NamedNode(t)),
+                    Err(e) => Err(Error::new(ErrorKind::Other, format!("fail convert {:?}{:?} to NamedNode, err={:?}", r.value, r.rtype, e))),
                 }
             },
             Str(v, lang) => {
                 if let Ok(t) = Literal::new_language_tagged_literal(v.to_string(), lang.to_string()) {
-                    return Ok(TermPattern::Literal(t));
+                    Ok(TermPattern::Literal(t))
                 } else {
-                    return Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype)));
+                    Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype)))
                 }
             },
-            Int(v) => {
-                return Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::INTEGER)));
-            },
-            Bool(v) => {
-                return Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::BOOLEAN)));
-            },
-            Num(_m, _d) => {
-                return Ok(TermPattern::Literal(Literal::new_typed_literal(r.get_float().to_string(), xsd::DECIMAL)));
-            },
-            Datetime(v) => {
-                return Ok(TermPattern::Literal(Literal::new_typed_literal(format!("{:?}", &Utc.timestamp(*v, 0)), xsd::DATE_TIME)));
-            },
-            _ => {
-                return Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype)));
-            },
-        }
+            Int(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::INTEGER))),
+            Bool(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::BOOLEAN))),
+            Num(_m, _d) => Ok(TermPattern::Literal(Literal::new_typed_literal(r.get_float().to_string(), xsd::DECIMAL))),
+            Datetime(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(format!("{:?}", &Utc.timestamp(*v, 0)), xsd::DATE_TIME))),
+            _ => Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype))),
+        };
     }
     Err(Error::new(ErrorKind::Other, "fail convert empty data to literal".to_string()))
 }

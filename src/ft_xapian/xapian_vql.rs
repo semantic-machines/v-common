@@ -148,7 +148,7 @@ pub(crate) fn transform_vql_to_xapian(
     op: Option<&mut String>,
     query: &mut Query,
     _rd: &mut f64,
-    level: i32,
+    _level: i32,
 ) -> Result<String> {
     let mut query_r = Query::new()?;
     let mut query_l = Query::new()?;
@@ -162,12 +162,12 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut ls = String::new();
         if let Some(l) = &mut tta.l {
-            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, level + 1)?;
+            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, _level + 1)?;
         }
 
         let mut rs = String::new();
         if let Some(r) = &mut tta.r {
-            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, level + 1)?;
+            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, _level + 1)?;
         }
 
         let (rs_type, value) = get_token_type(&rs);
@@ -195,12 +195,12 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut ls = String::new();
         if let Some(l) = &mut tta.l {
-            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, level + 1)?;
+            ls = transform_vql_to_xapian(ctx, l, None, None, &mut query_l, &mut ld, _level + 1)?;
         }
 
         let mut rs = String::new();
         if let Some(r) = &mut tta.r {
-            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, level + 1)?;
+            rs = transform_vql_to_xapian(ctx, r, None, None, &mut query_r, &mut rd, _level + 1)?;
         }
 
         if !is_strict_equality {
@@ -280,7 +280,7 @@ pub(crate) fn transform_vql_to_xapian(
                             } else if r.token_decor == Decor::RANGE {
                                 let vals: Vec<&str> = rs.split(',').collect();
                                 if vals.len() == 2 {
-                                    let (tt, c_from) = get_token_type(vals.get(0).unwrap());
+                                    let (tt, c_from) = get_token_type(vals.first().unwrap());
                                     if tt == TokenType::Date || tt == TokenType::Number {
                                         let (tt, c_to) = get_token_type(vals.get(1).unwrap());
                                         if tt == TokenType::Date || tt == TokenType::Number {
@@ -354,7 +354,7 @@ pub(crate) fn transform_vql_to_xapian(
         //let mut tta_r = String::new();
         if let Some(t) = &mut tta.r {
             //tta_r =
-            transform_vql_to_xapian(ctx, t, Some(&mut token_l), Some(&mut t_op_r), &mut query_r, &mut rd, level + 1)?;
+            transform_vql_to_xapian(ctx, t, Some(&mut token_l), Some(&mut t_op_r), &mut query_r, &mut rd, _level + 1)?;
         }
 
         if !t_op_r.is_empty() {
@@ -365,7 +365,7 @@ pub(crate) fn transform_vql_to_xapian(
 
         let mut tta_l = String::new();
         if let Some(t) = &mut tta.l {
-            tta_l = transform_vql_to_xapian(ctx, t, None, Some(&mut t_op_l), &mut query_l, &mut ld, level + 1)?;
+            tta_l = transform_vql_to_xapian(ctx, t, None, Some(&mut t_op_l), &mut query_l, &mut ld, _level + 1)?;
         }
 
         //        if !t_op_l.is_empty() {
@@ -433,13 +433,13 @@ pub(crate) fn transform_vql_to_xapian(
         //let mut tta_r = String::new();
         if let Some(t) = &mut tta.r {
             //tta_r =
-            transform_vql_to_xapian(ctx, t, None, None, &mut query_r, &mut rd, level + 1)?;
+            transform_vql_to_xapian(ctx, t, None, None, &mut query_r, &mut rd, _level + 1)?;
         }
 
         //let mut tta_l = String::new();
         if let Some(t) = &mut tta.l {
             //tta_l =
-            transform_vql_to_xapian(ctx, t, None, None, &mut query_l, &mut ld, level + 1)?;
+            transform_vql_to_xapian(ctx, t, None, None, &mut query_l, &mut ld, _level + 1)?;
         }
 
         if !query_l.is_empty() && !query_r.is_empty() {
@@ -463,7 +463,7 @@ pub fn get_sorter(sort: &str, key2slot: &Key2Slot) -> Result<Option<MultiValueKe
             let el: Vec<&str> = f.trim().split(' ').collect();
 
             if el.len() == 2 {
-                let key = el.get(0).unwrap().replace('\'', " ");
+                let key = el.first().unwrap().replace('\'', " ");
 
                 let direction = el.get(1).unwrap().trim();
                 let asc_desc = direction != "desc";

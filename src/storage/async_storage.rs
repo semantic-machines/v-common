@@ -9,8 +9,8 @@ use crate::v_authorization::common::{Access, AuthorizationContext, Trace};
 use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
-use std::sync::Arc;
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;
@@ -43,16 +43,16 @@ pub async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &
 
 pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<bool> {
     if let Some(a) = az {
-        let mut tr = Trace{
+        let mut tr = Trace {
             acl: &mut "".to_string(),
             is_acl: false,
             group: &mut String::new(),
             is_group: true,
             info: &mut "".to_string(),
             is_info: false,
-            str_num: 0
+            str_num: 0,
         };
-        if a.lock().await.authorize_and_trace(user_id, user_id, 0xF, false,  &mut tr).is_ok() {
+        if a.lock().await.authorize_and_trace(user_id, user_id, 0xF, false, &mut tr).is_ok() {
             for gr in tr.group.split('\n') {
                 if gr == group_id {
                     return Ok(true);
@@ -61,7 +61,6 @@ pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mute
         } else {
             return Err(Error::new(ErrorKind::Other, "fail authorize_and_trace"));
         }
-
     }
 
     Ok(false)

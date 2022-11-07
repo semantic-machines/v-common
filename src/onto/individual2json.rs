@@ -9,14 +9,14 @@ use serde_json::value::Value as JSONValue;
 
 impl IndividualObj {
     pub fn as_json_str(&self) -> String {
-        if let Ok(b) = serde_json::to_value(&self) {
+        if let Ok(b) = serde_json::to_value(self) {
             return b.to_string();
         }
         "".to_owned()
     }
 
     pub fn as_json(&self) -> JSONValue {
-        if let Ok(b) = serde_json::to_value(&self) {
+        if let Ok(b) = serde_json::to_value(self) {
             return b;
         }
 

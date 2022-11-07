@@ -41,7 +41,7 @@ fn tr_statement(f: &mut Statement, args_map: &mut Individual) -> io::Result<()> 
         tr_query(s, args_map)?;
         Ok(())
     } else {
-        Err(Error::new(ErrorKind::Unsupported, format!("Query forbidden")))
+        Err(Error::new(ErrorKind::Unsupported, "Query forbidden".to_string()))
     }
 }
 
@@ -530,11 +530,8 @@ fn tr_table_factor(f: &mut TableFactor, args_map: &mut Individual) -> io::Result
             args,
             with_hints,
         } => {
-            match name.to_string().as_str() {
-                "url" => {
-                    return Err(Error::new(ErrorKind::Unsupported, format!("Table [{}] forbidden", name)));
-                },
-                _ => {},
+            if name.to_string().as_str() == "url" {
+                return Err(Error::new(ErrorKind::Unsupported, format!("Table [{}] forbidden", name)));
             }
 
             if let Some(a) = args {
