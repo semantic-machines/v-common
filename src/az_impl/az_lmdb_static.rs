@@ -2,10 +2,11 @@ use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateN
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 
 use std::cell::RefCell;
+use std::io::{Error, ErrorKind};
 use std::sync::Mutex;
-use std::thread;
 use std::time;
 use std::time::SystemTime;
+use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
 
@@ -64,15 +65,12 @@ pub struct LMDBStorage<'a> {
 }
 
 impl<'a> Storage for LMDBStorage<'a> {
-    fn get(&self, key: &str) -> Result<String, i64> {
+    fn get(&self, key: &str) -> io::Result<Option<String>> {
         match self.db.get::<String>(&key) {
-            Ok(val) => Ok(val),
+            Ok(val) => Ok(Some(val)),
             Err(e) => match e {
-                MdbError::NotFound => Err(0),
-                _ => {
-                    eprintln!("ERR! Authorize: db.get {:?}, {}", e, key);
-                    Err(-1)
-                },
+                MdbError::NotFound => Ok(None),
+                _ => Err(Error::new(ErrorKind::Other, format!("ERR! Authorize: db.get {:?}, {}", e, key))),
             },
         }
     }
@@ -80,7 +78,7 @@ impl<'a> Storage for LMDBStorage<'a> {
     fn fiber_yield(&self) {}
 }
 
-pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, i64> {
+pub(crate) fn _f_authorize(uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: Option<&mut Trace>) -> Result<u8, std::io::Error> {
     if _is_check_for_reload {
         if let Ok(true) = check_for_reload() {
             //eprintln!("INFO: Authorize: reopen db");

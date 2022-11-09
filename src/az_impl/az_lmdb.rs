@@ -1,8 +1,10 @@
 use crate::v_authorization::common::AuthorizationContext;
+use io::Error;
 use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
-use std::thread;
+use std::io::ErrorKind;
 use std::time;
+use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
 
@@ -48,7 +50,7 @@ impl Default for LmdbAzContext {
 }
 
 impl AuthorizationContext for LmdbAzContext {
-    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool) -> Result<u8, i64> {
+    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool) -> Result<u8, std::io::Error> {
         let mut t = Trace {
             acl: &mut String::new(),
             is_acl: false,
@@ -62,7 +64,7 @@ impl AuthorizationContext for LmdbAzContext {
         self.authorize_and_trace(uri, user_uri, request_access, _is_check_for_reload, &mut t)
     }
 
-    fn authorize_and_trace(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
+    fn authorize_and_trace(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, std::io::Error> {
         self.authorize_counter += 1;
         //info!("az counter={}", self.authorize_counter);
         if self.authorize_counter >= self.max_authorize_counter {
@@ -75,8 +77,7 @@ impl AuthorizationContext for LmdbAzContext {
                     self.env = env1;
                 },
                 Err(e1) => {
-                    error!("Authorize: Err opening environment: {:?}", e1);
-                    return Err(-1);
+                    return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening environment: {:?}", e1)));
                 },
             }
         }
@@ -86,19 +87,17 @@ impl AuthorizationContext for LmdbAzContext {
                 return Ok(r);
             },
             Err(e) => {
-                if e < 0 {
-                    info!("reopen");
-                    let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+                info!("reopen");
+                let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
 
-                    match env_builder.open(DB_PATH, 0o644) {
-                        Ok(env1) => {
-                            self.env = env1;
-                        },
-                        Err(e1) => {
-                            error!("Authorize: Err opening environment: {:?}", e1);
-                            return Err(e);
-                        },
-                    }
+                match env_builder.open(DB_PATH, 0o644) {
+                    Ok(env1) => {
+                        self.env = env1;
+                    },
+                    Err(e1) => {
+                        error!("Authorize: Err opening environment: {:?}", e1);
+                        return Err(e);
+                    },
                 }
             },
         }
@@ -111,15 +110,12 @@ pub struct AzLmdbStorage<'a> {
 }
 
 impl<'a> Storage for AzLmdbStorage<'a> {
-    fn get(&self, key: &str) -> Result<String, i64> {
+    fn get(&self, key: &str) -> io::Result<Option<String>> {
         match self.db.get::<String>(&key) {
-            Ok(val) => Ok(val),
+            Ok(val) => Ok(Some(val)),
             Err(e) => match e {
-                MdbError::NotFound => Err(0),
-                _ => {
-                    error!("Authorize: db.get {:?}, {}", e, key);
-                    Err(-1)
-                },
+                MdbError::NotFound => Ok(None),
+                _ => Err(Error::new(ErrorKind::Other, format!("Authorize: db.get {:?}, {}", e, key))),
             },
         }
     }
@@ -127,23 +123,18 @@ impl<'a> Storage for AzLmdbStorage<'a> {
     fn fiber_yield(&self) {}
 }
 
-fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, i64> {
+fn _f_authorize(env: &mut Environment, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, std::io::Error> {
     let db_handle = match env.get_default_db(DbFlags::empty()) {
         Ok(db_handle_res) => db_handle_res,
         Err(e) => {
-            error!("Authorize: Err opening db handle: {:?}", e);
-            //            thread::sleep(time::Duration::from_secs(3));
-            //            error!("Retry");
-            return Err(-1);
+            return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening db handle: {:?}", e)));
         },
     };
 
     let txn = match env.get_reader() {
         Ok(txn1) => txn1,
         Err(e) => {
-            error!("Authorize:CREATING TRANSACTION {:?}", e);
-            error!("reopen db");
-            return Err(-1);
+            return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING TRANSACTION {:?}", e)));
         },
     };
 
