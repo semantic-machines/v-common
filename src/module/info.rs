@@ -3,7 +3,9 @@ use std::fs::*;
 use std::io::{BufRead, BufReader};
 use std::io::{Error, ErrorKind, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::time::SystemTime;
 
+#[derive(Debug)]
 pub struct ModuleInfo {
     _base_path: String,
     name: String,
@@ -84,6 +86,11 @@ impl ModuleInfo {
         //info!("op_id={}", op_id);
 
         Ok(())
+    }
+
+    pub fn read_modified(&self) -> std::io::Result<SystemTime> {
+        self.ff_info.sync_data()?;
+        self.ff_info.metadata()?.modified()
     }
 
     pub fn read_info(&mut self) -> Option<(i64, i64)> {

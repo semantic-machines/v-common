@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.4.34"
+version = "0.4.35"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -29,7 +29,7 @@ rust_decimal = "=1.12.3"
 rio_turtle = "0.5.3"
 rio_api = "0.5.3"
 derivative = "2.1.1"
-rusty_tarantool = "0.2.10"
+rusty_tarantool = "=0.2.10"
 lmdb-rs-m = "0.7.7"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 rust-ini = "0.16"
