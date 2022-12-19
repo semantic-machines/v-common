@@ -22,7 +22,6 @@ pub struct Ticket {
     /// Дата окончания действия тикета
     pub end_time: i64,
     pub user_addr: String,
-    pub last_activity: i64
 }
 
 impl Hash for Ticket {
@@ -54,7 +53,6 @@ impl ShallowCopy for Ticket {
             start_time: self.start_time,
             end_time: self.end_time,
             user_addr: self.user_addr.clone(),
-            last_activity: 0,
         })
     }
 }
@@ -69,7 +67,6 @@ impl Default for Ticket {
             start_time: 0,
             end_time: 0,
             user_addr: "".to_string(),
-            last_activity: Utc::now().naive_utc().timestamp(),
         }
     }
 }

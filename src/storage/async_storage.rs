@@ -1,5 +1,4 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
-use crate::module::ticket::Ticket;
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
@@ -10,7 +9,6 @@ use futures::lock::Mutex;
 use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
 use std::io::{Error, ErrorKind};
-use std::sync::Arc;
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;
@@ -18,13 +16,6 @@ pub const TICKETS_SPACE_ID: i32 = 513;
 pub struct AStorage {
     pub tt: Option<Client>,
     pub lmdb: Option<Mutex<LMDBStorage>>,
-}
-
-pub struct TicketCache {
-    pub read: evmap::ReadHandle<String, Ticket>,
-    pub write: Arc<Mutex<evmap::WriteHandle<String, Ticket>>>,
-    pub check_ticket_ip: bool,
-    pub are_external_users: bool,
 }
 
 pub async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
