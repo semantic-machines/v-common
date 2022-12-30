@@ -58,8 +58,12 @@ pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mute
 }
 
 pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+    get_individual_use_space(INDIVIDUALS_SPACE_ID, uri, user_uri, db, az).await
+}
+
+pub async fn get_individual_use_space(space_id: i32, uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
     if let Some(tt) = &db.tt {
-        let response = tt.select(INDIVIDUALS_SPACE_ID, 0, &(uri,), 0, 100, IteratorType::EQ).await?;
+        let response = tt.select(space_id, 0, &(uri,), 0, 100, IteratorType::EQ).await?;
 
         let mut iraw = Individual::default();
         iraw.set_raw(&response.data[5..]);

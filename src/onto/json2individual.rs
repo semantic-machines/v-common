@@ -16,7 +16,7 @@ pub fn parse_json_to_individual(src: &JSONValue, dest: &mut Individual) -> bool 
                     res = false;
                 }
             } else if let Some(values) = value.as_array() {
-                if !json_to_predicate(key, values, dest) {
+                if !json_to_predicate(key.trim(), values, dest) {
                     res = false;
                 }
             } else {

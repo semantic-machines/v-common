@@ -119,7 +119,7 @@ impl Key2Slot {
                 }
                 key2slot.data.insert(f, s);
             } else {
-                return Err(XError::from(Error::new(ErrorKind::InvalidData, format!("fail parse key2slot, line={}", line))));
+                error!("fail parse key2slot, line={}", line);
             }
         }
 
