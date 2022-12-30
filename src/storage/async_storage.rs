@@ -58,11 +58,23 @@ pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mute
 }
 
 pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
-    get_individual_use_space(INDIVIDUALS_SPACE_ID, uri, user_uri, db, az).await
+    get_individual_use_storage_id(StorageId::Individuals, uri, user_uri, db, az).await
 }
 
-pub async fn get_individual_use_space(space_id: i32, uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+pub async fn get_individual_use_storage_id(
+    storage_id: StorageId,
+    uri: &str,
+    user_uri: &str,
+    db: &AStorage,
+    az: Option<&Mutex<LmdbAzContext>>,
+) -> io::Result<(Individual, ResultCode)> {
     if let Some(tt) = &db.tt {
+        let space_id = match storage_id {
+            StorageId::Tickets => TICKETS_SPACE_ID,
+            StorageId::Individuals => INDIVIDUALS_SPACE_ID,
+            StorageId::Az => 514,
+        };
+
         let response = tt.select(space_id, 0, &(uri,), 0, 100, IteratorType::EQ).await?;
 
         let mut iraw = Individual::default();
@@ -74,7 +86,7 @@ pub async fn get_individual_use_space(space_id: i32, uri: &str, user_uri: &str, 
     }
     if let Some(lmdb) = &db.lmdb {
         let mut iraw = Individual::default();
-        if lmdb.lock().await.get_individual_from_db(StorageId::Individuals, uri, &mut iraw) {
+        if lmdb.lock().await.get_individual_from_db(storage_id, uri, &mut iraw) {
             return check_indv_access_read(iraw, uri, user_uri, az).await;
         } else {
             return Ok((Individual::default(), ResultCode::NotFound));
