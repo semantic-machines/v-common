@@ -91,7 +91,7 @@ impl FTQuery {
         }
 
         s.push_str("\",\"");
-        s.push_str(&self.query);
+        s.push_str(&self.query.replace('"', "\\\""));
         s.push_str("\",\"");
         s.push_str(&self.sort);
         s.push_str("\",\"");
