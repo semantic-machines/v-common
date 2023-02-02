@@ -16,6 +16,7 @@ use crate::v_api::obj::{OptAuthorize, ResultCode};
 use futures::executor::block_on;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
+use std::ops::Sub;
 use std::time::Instant;
 use std::time::SystemTime;
 use xapian_rusty::*;
@@ -90,6 +91,8 @@ impl XapianReader {
             return None;
         }
 
+        let now = SystemTime::now();
+
         let xr = XapianReader {
             using_dbqp: Default::default(),
             opened_db: Default::default(),
@@ -101,7 +104,7 @@ impl XapianReader {
             onto: Onto::default(),
             db2path: init_db_path(),
             committed_op_id: 0,
-            onto_modified: SystemTime::now(),
+            onto_modified: now.sub(now.elapsed().unwrap_or_default()),
             az: LmdbAzContext::default(),
         };
 
