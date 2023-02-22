@@ -1,15 +1,11 @@
 use crate::module::common::sys_sig_listener;
 use crate::module::info::ModuleInfo;
-use crate::module::ticket::Ticket;
 use crate::module::veda_backend::Backend;
-use crate::onto::datatype::Lang;
 use crate::onto::individual::{Individual, RawObj};
-use crate::onto::individual2msgpack::to_msgpack;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::{StorageId, VStorage};
 use crate::v_api::api_client::IndvOp;
-use crate::v_api::obj::ResultCode;
-use chrono::{Local, NaiveDateTime, Utc};
+use chrono::Local;
 use crossbeam_channel::{select, tick, Receiver};
 use env_logger::Builder;
 use ini::Ini;
@@ -18,11 +14,9 @@ use nng::options::Options;
 use nng::options::RecvTimeout;
 use nng::{Protocol, Socket};
 use std::io::Write;
-use std::net::IpAddr;
 use std::time::Duration;
 use std::time::Instant;
 use std::{env, thread, time};
-use uuid::Uuid;
 use v_queue::{consumer::*, record::*};
 
 #[derive(Debug)]
@@ -32,7 +26,6 @@ pub enum PrepareError {
     Recoverable = 102,
 }
 
-pub const TICKS_TO_UNIX_EPOCH: i64 = 62_135_596_800_000;
 const NOTIFY_CHANNEL_RECONNECT_TIMEOUT: u64 = 300;
 
 pub struct Module {
@@ -516,74 +509,6 @@ pub fn init_log_with_params(module_name: &str, filter: Option<&str>, with_thread
             .try_init()
             .unwrap_or(())
     }
-}
-
-pub fn create_new_ticket(login: &str, user_id: &str, addr: &str, duration: i64, ticket: &mut Ticket, storage: &mut VStorage) {
-    if addr.parse::<IpAddr>().is_err() {
-        error!("fail create_new_ticket: invalid ip {}", addr);
-        return;
-    }
-
-    let mut ticket_indv = Individual::default();
-
-    ticket.result = ResultCode::FailStore;
-    ticket_indv.add_string("rdf:type", "ticket:ticket", Lang::none());
-
-    if !ticket.id.is_empty() && !ticket.id.is_empty() {
-        ticket_indv.set_id(&ticket.id);
-    } else {
-        ticket_indv.set_id(&Uuid::new_v4().to_hyphenated().to_string());
-    }
-
-    ticket_indv.add_string("ticket:login", login, Lang::none());
-    ticket_indv.add_string("ticket:accessor", user_id, Lang::none());
-    ticket_indv.add_string("ticket:addr", addr, Lang::none());
-
-    let now = Utc::now();
-    let start_time_str = format!("{:?}", now.naive_utc());
-
-    if start_time_str.len() > 28 {
-        ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::none());
-    } else {
-        ticket_indv.add_string("ticket:when", &start_time_str, Lang::none());
-    }
-
-    ticket_indv.add_string("ticket:duration", &duration.to_string(), Lang::none());
-
-    let mut raw1: Vec<u8> = Vec::new();
-    if to_msgpack(&ticket_indv, &mut raw1).is_ok() && storage.put_kv_raw(StorageId::Tickets, ticket_indv.get_id(), raw1) {
-        ticket.update_from_individual(&mut ticket_indv);
-        ticket.result = ResultCode::Ok;
-        ticket.start_time = (TICKS_TO_UNIX_EPOCH + now.timestamp_millis()) * 10_000;
-        ticket.end_time = ticket.start_time + duration as i64 * 10_000_000;
-
-        let end_time_str = format!("{:?}", NaiveDateTime::from_timestamp((ticket.end_time / 10_000 - TICKS_TO_UNIX_EPOCH) / 1_000, 0));
-        info!("create new ticket {}, login={}, user={}, addr={}, start={}, end={}", ticket.id, ticket.user_login, ticket.user_uri, addr, start_time_str, end_time_str);
-    } else {
-        error!("fail store ticket {:?}", ticket)
-    }
-}
-
-pub fn create_sys_ticket(storage: &mut VStorage) -> Ticket {
-    let mut ticket = Ticket::default();
-    create_new_ticket("veda", "cfg:VedaSystem", "127.0.0.1", 90_000_000, &mut ticket, storage);
-
-    if ticket.result == ResultCode::Ok {
-        let mut sys_ticket_link = Individual::default();
-        sys_ticket_link.set_id("systicket");
-        sys_ticket_link.add_uri("rdf:type", "rdfs:Resource");
-        sys_ticket_link.add_uri("v-s:resource", &ticket.id);
-        let mut raw1: Vec<u8> = Vec::new();
-        if to_msgpack(&sys_ticket_link, &mut raw1).is_ok() && storage.put_kv_raw(StorageId::Tickets, sys_ticket_link.get_id(), raw1) {
-            return ticket;
-        } else {
-            error!("fail store system ticket link")
-        }
-    } else {
-        error!("fail create sys ticket")
-    }
-
-    ticket
 }
 
 pub fn get_info_of_module(module_name: &str) -> Option<(i64, i64)> {
