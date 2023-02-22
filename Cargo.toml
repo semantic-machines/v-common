@@ -59,8 +59,8 @@ oxrdf = { version = "0.1.0" }
 #xapian-rusty = { package = "xapian-rusty", path = "../xapian-rusty" }
 xapian-rusty = "=0.0.52"
 
-#v_authorization = "=0.1.7"
-v_authorization = { package = "v_authorization", path = "../v-authorization" }
+v_authorization = "=0.1.7"
+#v_authorization = { package = "v_authorization", path = "../v-authorization" }
 
 v_queue = "=0.2.4"
 #v_queue = { package = "v_queue", path = "../v-queue" }
