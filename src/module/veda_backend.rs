@@ -170,7 +170,11 @@ pub fn indv_apply_cmd(cmd: &IndvOp, prev_indv: &mut Individual, indv: &mut Indiv
 }
 
 pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
-    if let Some(p) = Module::get_property("db_connection") {
+    get_storage_with_prop(mode, "db_connection", true)
+}
+
+pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str, use_lmdb_if_not_exists_prop: bool) -> VStorage {
+    if let Some(p) = Module::get_property(prop_name) {
         match Url::parse(&p) {
             Ok(url) => {
                 let host = url.host_str().unwrap_or("127.0.0.1");
@@ -186,5 +190,8 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
         }
     }
 
-    VStorage::new_lmdb("./data", mode, None)
+    if use_lmdb_if_not_exists_prop {
+        return VStorage::new_lmdb("./data", mode, None);
+    }
+    VStorage::none()
 }

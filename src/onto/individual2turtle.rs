@@ -168,7 +168,7 @@ fn format_resources(subject: &str, predicate: &str, resources: &[Resource], form
                 formatter.format(&from_string(subject, predicate, r.get_str(), &r.get_lang()))?;
             },
             DataType::Datetime => {
-                formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
+                formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp_opt(r.get_datetime(), 0))))?;
             },
             DataType::Decimal => {
                 let (m, e) = r.get_num();
