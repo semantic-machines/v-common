@@ -55,7 +55,7 @@ impl Serialize for Resource {
             },
             Value::Datetime(i) => {
                 let dt = *i;
-                tup.serialize_field("data", &format!("{:?}", &Utc.timestamp_opt(dt, 0)))?;
+                tup.serialize_field("data", &format!("{:?}", &Utc.timestamp(dt, 0)))?;
             },
             Value::Bool(b) => {
                 tup.serialize_field("data", b)?;

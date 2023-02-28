@@ -636,7 +636,7 @@ fn resource_val_to_sql_val(ri: Option<&Resource>) -> sqlparser::ast::Value {
             Int(v) => sqlparser::ast::Value::Number(v.to_string(), false),
             Bool(v) => sqlparser::ast::Value::Boolean(*v),
             Num(_m, _d) => sqlparser::ast::Value::Number(r.get_float().to_string(), false),
-            Datetime(v) => sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp_opt(*v, 0))),
+            Datetime(v) => sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp(*v, 0))),
             _ => sqlparser::ast::Value::Null,
         };
     }

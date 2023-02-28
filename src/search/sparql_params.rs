@@ -363,7 +363,7 @@ fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCach
             Int(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::INTEGER))),
             Bool(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::BOOLEAN))),
             Num(_m, _d) => Ok(TermPattern::Literal(Literal::new_typed_literal(r.get_float().to_string(), xsd::DECIMAL))),
-            Datetime(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(format!("{:?}", &Utc.timestamp_opt(*v, 0)), xsd::DATE_TIME))),
+            Datetime(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(format!("{:?}", &Utc.timestamp(*v, 0)), xsd::DATE_TIME))),
             _ => Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype))),
         };
     }
