@@ -135,15 +135,20 @@ impl Module {
         Module::create(None, "")
     }
 
-    pub fn get_property(param: &str) -> Option<String> {
+    pub fn get_property(in_param: &str) -> Option<String> {
         let args: Vec<String> = env::args().collect();
+
+        let params = [in_param.replace('_', "-"), in_param.replace('-', "_")];
+
         for el in args.iter() {
-            if el.starts_with(&format!("--{}", param)) {
-                let p: Vec<&str> = el.split('=').collect();
-                if p.len() == 2 {
-                    let v = p[1].trim();
-                    info!("use arg --{}={}", param, v);
-                    return Some(p[1].to_owned());
+            for param in &params {
+                if el.starts_with(&format!("--{}", param)) {
+                    let p: Vec<&str> = el.split('=').collect();
+                    if p.len() == 2 {
+                        let v = p[1].trim();
+                        info!("use arg --{}={}", param, v);
+                        return Some(p[1].to_owned());
+                    }
                 }
             }
         }
@@ -151,7 +156,7 @@ impl Module {
         let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
 
         let section = conf.section(None::<String>).expect("fail parse veda.properties");
-        if let Some(v) = section.get(param) {
+        if let Some(v) = section.get(in_param) {
             let mut val = v.trim().to_owned();
             if val.starts_with('$') {
                 if let Ok(val4var) = env::var(val.strip_prefix('$').unwrap_or_default()) {
@@ -163,11 +168,11 @@ impl Module {
                 }
             }
 
-            info!("use param [{}]={}", param, val);
+            info!("use param [{}]={}", in_param, val);
             return Some(val);
         }
 
-        error!("param [{}] not found", param);
+        error!("param [{}] not found", in_param);
         None
     }
 
