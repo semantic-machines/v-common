@@ -135,29 +135,52 @@ impl Module {
         Module::create(None, "")
     }
 
+    // A function that retrieves a property value from a configuration file
+    // The function takes an input parameter as an argument and returns an Option<String>
     pub fn get_property(in_param: &str) -> Option<String> {
+        // Load the configuration file "veda.properties" using the Ini library and panic if it fails
+        let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
+
+        // Extract the [alias] section from the configuration file and panic if it fails
+        let aliases = conf.section(Some("alias")).expect("fail parse veda.properties, section [alias]");
+
+        // Collect command line arguments into a vector of strings
         let args: Vec<String> = env::args().collect();
 
         let params = [in_param.replace('_', "-"), in_param.replace('-', "_")];
 
+        // Loop through the command line arguments and check if any of them match the possible parameter names
         for el in args.iter() {
             for param in &params {
                 if el.starts_with(&format!("--{}", param)) {
+                    // Split the argument into a key and a value
                     let p: Vec<&str> = el.split('=').collect();
+
+                    // If the argument has a key and a value, retrieve the value and check for aliases
                     if p.len() == 2 {
                         let v = p[1].trim();
-                        info!("use arg --{}={}", param, v);
-                        return Some(p[1].to_owned());
+                        let val = if let Some(a) = aliases.get(v) {
+                            info!("use arg --{}={}, alias={}", param, a, v);
+                            a
+                        } else {
+                            info!("use arg --{}={}", param, v);
+                            v
+                        };
+
+                        return Some(val.to_string());
                     }
                 }
             }
         }
 
-        let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
-
+        // If the parameter was not found in the command line arguments, try to retrieve it from the configuration file
         let section = conf.section(None::<String>).expect("fail parse veda.properties");
+
         if let Some(v) = section.get(in_param) {
+            // If the parameter is found, retrieve its value and check for aliases
             let mut val = v.trim().to_owned();
+
+            // If the value starts with a dollar sign ($), it is interpreted as an environment variable and the value of the variable is retrieved
             if val.starts_with('$') {
                 if let Ok(val4var) = env::var(val.strip_prefix('$').unwrap_or_default()) {
                     info!("get env variable [{}]", val);
@@ -168,10 +191,20 @@ impl Module {
                 }
             }
 
-            info!("use param [{}]={}", in_param, val);
-            return Some(val);
+            // Check for aliases and log the parameter and its value
+            let res = if let Some(a) = aliases.get(&val) {
+                info!("use param [{}]={}, alias={}", in_param, a, val);
+                a
+            } else {
+                info!("use param [{}]={}", in_param, val);
+                &val
+            };
+
+            // Return the value as a Some(String)
+            return Some(res.to_string());
         }
 
+        // If the parameter was not found in the configuration file, log an error and return None
         error!("param [{}] not found", in_param);
         None
     }
