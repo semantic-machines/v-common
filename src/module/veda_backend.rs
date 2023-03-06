@@ -170,28 +170,33 @@ pub fn indv_apply_cmd(cmd: &IndvOp, prev_indv: &mut Individual, indv: &mut Indiv
 }
 
 pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
-    get_storage_with_prop(mode, "db_connection", true)
+    get_storage_with_prop(mode, "db_connection")
 }
 
-pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str, use_lmdb_if_not_exists_prop: bool) -> VStorage {
+pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
+
+    let mut lmdb_db_path = "./data".to_owned();
+
     if let Some(p) = Module::get_property(prop_name) {
-        match Url::parse(&p) {
-            Ok(url) => {
-                let host = url.host_str().unwrap_or("127.0.0.1");
-                let port = url.port().unwrap_or(3309);
-                let user = url.username();
-                let pass = url.password().unwrap_or("123");
-                info!("Trying to connect to Tarantool, host: {}, port: {}, user: {}, password: {}", host, port, user, pass);
-                return VStorage::new_tt(format!("{}:{}", host, port), user, pass);
-            },
-            Err(e) => {
-                error!("fail parse {}, err={}", p, e);
-            },
+        if p.contains("tcp://") {
+            match Url::parse(&p) {
+                Ok(url) => {
+                    let host = url.host_str().unwrap_or("127.0.0.1");
+                    let port = url.port().unwrap_or(3309);
+                    let user = url.username();
+                    let pass = url.password().unwrap_or("123");
+                    return VStorage::new_tt(format!("{}:{}", host, port), user, pass);
+                },
+                Err(e) => {
+                    error!("fail parse {}, err={}", p, e);
+                },
+            }
+        } else {
+            lmdb_db_path = p;
         }
+    } else {
+        lmdb_db_path = "./data".to_owned();
     }
 
-    if use_lmdb_if_not_exists_prop {
-        return VStorage::new_lmdb("./data", mode, None);
-    }
-    VStorage::none()
+    return VStorage::new_lmdb(&lmdb_db_path, mode, None);
 }

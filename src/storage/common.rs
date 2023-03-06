@@ -43,14 +43,11 @@ pub struct VStorage {
 }
 
 impl VStorage {
-
-    pub fn is_empty (&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         return match &self.storage {
-            EStorage::None => {
-                true
-            }
-            _ => false
-        }
+            EStorage::None => true,
+            _ => false,
+        };
     }
 
     pub fn none() -> VStorage {
@@ -60,18 +57,21 @@ impl VStorage {
     }
 
     pub fn new_remote(addr: &str) -> VStorage {
+        info!("Trying to connect to [remote], addr: {}", addr);
         VStorage {
             storage: EStorage::Remote(StorageROClient::new(addr)),
         }
     }
 
-    pub fn new_tt(tt_id: String, login: &str, pass: &str) -> VStorage {
+    pub fn new_tt(tt_uri: String, login: &str, pass: &str) -> VStorage {
+        info!("Trying to connect to [Tarantool], addr: {}", tt_uri);
         VStorage {
-            storage: EStorage::Tt(TTStorage::new(tt_id, login, pass)),
+            storage: EStorage::Tt(TTStorage::new(tt_uri, login, pass)),
         }
     }
 
     pub fn new_lmdb(db_path: &str, mode: StorageMode, max_read_counter_reopen: Option<u64>) -> VStorage {
+        info!("Trying to connect to [LMDB], path: {}", db_path);
         VStorage {
             storage: EStorage::Lmdb(LMDBStorage::new(db_path, mode, max_read_counter_reopen)),
         }
