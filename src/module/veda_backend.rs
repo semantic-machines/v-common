@@ -175,7 +175,7 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
 
 pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
 
-    let mut lmdb_db_path = "./data".to_owned();
+    let mut lmdb_db_path = None;
 
     if let Some(p) = Module::get_property(prop_name) {
         if p.contains("tcp://") {
@@ -192,11 +192,13 @@ pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
                 },
             }
         } else {
-            lmdb_db_path = p;
+            lmdb_db_path = Some(p);
         }
-    } else {
-        lmdb_db_path = "./data".to_owned();
     }
 
-    return VStorage::new_lmdb(&lmdb_db_path, mode, None);
+    if let Some(db_path) = lmdb_db_path {
+        return VStorage::new_lmdb(&db_path, mode, None);
+    }
+
+    VStorage::none()
 }
