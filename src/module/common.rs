@@ -1,6 +1,6 @@
 use crossbeam_channel::{bounded, Receiver};
 use signal_hook::consts::signal::*;
-use signal_hook::consts::{SIGCONT, SIGHUP, SIGTSTP, SIGWINCH};
+use signal_hook::consts::{SIGCONT, SIGTSTP, SIGWINCH};
 use std::collections::HashSet;
 use std::io::Error;
 use std::os::raw::c_int;
@@ -83,7 +83,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
     true
 }
 
-const SIGNALS: &[c_int] = &[SIGTERM, SIGQUIT, SIGINT, SIGTSTP, SIGWINCH, SIGHUP, SIGCHLD, SIGCONT];
+const SIGNALS: &[c_int] = &[SIGTERM, SIGQUIT, SIGINT, SIGTSTP, SIGWINCH, SIGCHLD, SIGCONT];
 
 pub fn sys_sig_listener() -> Result<Receiver<i32>, Error> {
     let (sender, receiver) = bounded(1);

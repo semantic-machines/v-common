@@ -15,7 +15,7 @@ use std::str::FromStr;
 pub fn prepare_sparql_params(query: &str, params: &mut Individual, prefix_cache: &PrefixesCache) -> Result<String, Error> {
     match Query::parse(query, None) {
         Ok(ref mut sparql) => {
-            warn!("{:?}", query);
+            debug!("{:?}", query);
             if let Query::Select {
                 dataset: _,
                 ref mut pattern,
@@ -128,7 +128,7 @@ fn tr_graph_pattern(f: &mut GraphPattern, args_map: &mut Individual, prefix_cach
             tr_graph_pattern(inner, args_map, prefix_cache)?;
 
             for el in variables.iter_mut() {
-                warn!("VARIABLE: {}", el);
+                debug!("VARIABLE: {}", el);
             }
         },
         GraphPattern::Distinct {
@@ -182,7 +182,7 @@ fn tr_ground_term(f: &mut GroundTerm, _args_map: &mut Individual, _prefix_cache:
     match f {
         GroundTerm::NamedNode(_) => {},
         GroundTerm::Literal(v) => {
-            warn!("ground_term::LITERAL: {}", v.value());
+            debug!("ground_term::LITERAL: {}", v.value());
             //tr_literal(l, args_map, prefix_cache)?;
         },
     }
@@ -194,7 +194,7 @@ fn tr_term_pattern(f: &mut TermPattern, _args_map: &mut Individual, _prefix_cach
         TermPattern::NamedNode(_) => {},
         TermPattern::BlankNode(_) => {},
         TermPattern::Literal(v) => {
-            warn!("term_pattern::LITERAL: {}", v.value());
+            debug!("term_pattern::LITERAL: {}", v.value());
             //tr_literal(v, args_map, prefix_cache)?;
         },
         TermPattern::Variable(_) => {},
@@ -208,7 +208,7 @@ fn tr_triple_pattern(f: &mut TriplePattern, args_map: &mut Individual, prefix_ca
         TermPattern::BlankNode(_) => {},
         TermPattern::Literal(ref mut v) => {
             //tr_literal(v, args_map, prefix_cache)?;
-            warn!("triple_pattern::subject::LITERAL: {}", v.value());
+            debug!("triple_pattern::subject::LITERAL: {}", v.value());
         },
         TermPattern::Variable(_) => {},
     }
@@ -223,7 +223,7 @@ fn tr_triple_pattern(f: &mut TriplePattern, args_map: &mut Individual, prefix_ca
         TermPattern::BlankNode(_) => {},
         TermPattern::Literal(ref mut v) => {
             //tr_literal(v, args_map, prefix_cache)?;
-            warn!("triple_pattern::object::LITERAL: {}", v.value());
+            debug!("triple_pattern::object::LITERAL: {}", v.value());
             if let Some(m) = args_map.obj.resources.get(v.value()) {
                 f.object = resource_val_to_sparql_val(m.get(0), prefix_cache)?;
             }
@@ -235,7 +235,7 @@ fn tr_triple_pattern(f: &mut TriplePattern, args_map: &mut Individual, prefix_ca
 }
 /*
 fn tr_literal0(f: &mut spargebra::term::Literal, args_map: &mut Individual, prefix_cache: &PrefixesCache) -> io::Result<()> {
-    warn!("LITERAL: {}", f.value());
+    debug!("LITERAL: {}", f.value());
     if let Some(m) = args_map.obj.resources.get(f.value()) {
         *f = resource_val_to_sparql_val(m.get(0))?;
     }
@@ -247,7 +247,10 @@ fn tr_expression(f: &mut Expression, args_map: &mut Individual, prefix_cache: &P
     match f {
         Expression::NamedNode(_) => {},
         Expression::Literal(v) => {
-            warn!("expression::object::LITERAL: {}", v.value());
+            debug!("expression::object::LITERAL: {}", v.value());
+            if let Some(m) = args_map.obj.resources.get(v.value()) {
+                *f = part_copy_termpattern_to_expression(resource_val_to_sparql_val(m.get(0), prefix_cache)?)?;
+            }
             //tr_literal(l, args_map, prefix_cache)?;
         },
         Expression::Variable(_) => {},
@@ -354,10 +357,14 @@ fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCach
                 }
             },
             Str(v, lang) => {
-                if let Ok(t) = Literal::new_language_tagged_literal(v.to_string(), lang.to_string()) {
-                    Ok(TermPattern::Literal(t))
+                if lang.is_some() {
+                    if let Ok(t) = Literal::new_language_tagged_literal(v.to_string(), lang.to_string()) {
+                        Ok(TermPattern::Literal(t))
+                    } else {
+                        Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype)))
+                    }
                 } else {
-                    Err(Error::new(ErrorKind::Other, format!("fail convert {:?} to literal, unknown type {:?}", r.value, r.rtype)))
+                    Ok(TermPattern::Literal(Literal::new_simple_literal(v.to_string())))
                 }
             },
             Int(v) => Ok(TermPattern::Literal(Literal::new_typed_literal(v.to_string(), xsd::INTEGER))),
@@ -368,4 +375,13 @@ fn resource_val_to_sparql_val(ri: Option<&Resource>, prefix_cache: &PrefixesCach
         };
     }
     Err(Error::new(ErrorKind::Other, "fail convert empty data to literal".to_string()))
+}
+
+fn part_copy_termpattern_to_expression(tp: TermPattern) -> io::Result<Expression> {
+    match tp {
+        TermPattern::NamedNode(v) => Ok(Expression::NamedNode(v)),
+        TermPattern::BlankNode(v) => Err(Error::new(ErrorKind::Other, format!("fail convert {:?} from blank node", v))),
+        TermPattern::Literal(v) => Ok(Expression::Literal(v)),
+        TermPattern::Variable(_) => Err(Error::new(ErrorKind::Other, format!("fail convert variable to expression"))),
+    }
 }

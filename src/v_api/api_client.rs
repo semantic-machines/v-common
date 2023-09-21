@@ -116,6 +116,7 @@ impl OpResult {
     }
 }
 
+#[derive(Clone)]
 pub struct NngClient {
     name: String,
     soc: Socket,
@@ -252,6 +253,7 @@ impl AuthClient {
     }
 }
 
+#[derive(Clone)]
 pub struct MStorageClient {
     client: NngClient,
     pub check_ticket_ip: bool,
