@@ -6,6 +6,17 @@ use serde::Serializer;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+impl From<std::io::Error> for ResultCode {
+    fn from(error: std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::NotFound => ResultCode::NotFound,
+            std::io::ErrorKind::PermissionDenied => ResultCode::Forbidden,
+            // ... other std::io::ErrorKind variants ...
+            _ => ResultCode::InternalServerError,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 #[repr(u16)]
 pub enum ResultCode {
