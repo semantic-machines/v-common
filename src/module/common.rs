@@ -37,7 +37,7 @@ pub async fn c_load_onto(storage: &AStorage, onto: &mut Onto) -> bool {
 
     info!("add to hierarchy {} elements", onto.relations.len());
 
-    let keys: Vec<String> = onto.relations.iter().map(|(key, _)| key.clone()).collect();
+    let keys: Vec<String> = onto.relations.keys().map(|key| key.clone()).collect();
 
     for el in keys.iter() {
         let mut buf: HashSet<String> = HashSet::new();
@@ -67,7 +67,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
 
     info!("add to hierarchy {} elements", onto.relations.len());
 
-    let keys: Vec<String> = onto.relations.iter().map(|(key, _)| key.clone()).collect();
+    let keys: Vec<String> = onto.relations.keys().map(|key| key.clone()).collect();
 
     for el in keys.iter() {
         let mut buf: HashSet<String> = HashSet::new();

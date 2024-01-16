@@ -44,10 +44,10 @@ pub struct VStorage {
 
 impl VStorage {
     pub fn is_empty(&self) -> bool {
-        return match &self.storage {
+        match &self.storage {
             EStorage::None => true,
             _ => false,
-        };
+        }
     }
 
     pub fn none() -> VStorage {

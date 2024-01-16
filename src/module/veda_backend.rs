@@ -115,7 +115,7 @@ impl Backend {
     }
 
     pub fn get_individual_h(&mut self, uri: &str) -> Option<Box<Individual>> {
-        let mut iraw = Box::new(Individual::default());
+        let mut iraw = Box::<Individual>::default();
         if !self.storage.get_individual(uri, &mut iraw) {
             return None;
         }
@@ -174,7 +174,6 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
 }
 
 pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
-
     let mut lmdb_db_path = None;
 
     if let Some(p) = Module::get_property(prop_name) {

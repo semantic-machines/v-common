@@ -237,7 +237,7 @@ pub fn extract_prefixes(indvs: &[Individual], all_prefixes: &HashMap<String, Str
     used_prefixes
 }
 
-fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
+fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>, exclude_counter: bool) -> Result<(), io::Error> {
     for (predicate, resources) in &indv.obj.resources {
         if predicate == "rdf:type" {
             format_resources(id, predicate, resources, formatter)?;
@@ -245,9 +245,13 @@ fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatte
         }
     }
     for (predicate, resources) in &indv.obj.resources {
-        if predicate == "rdf:type" || predicate == "v-s:updateCounter" {
+        if predicate == "rdf:type" {
             continue;
         }
+        if exclude_counter && predicate == "v-s:updateCounter" {
+            continue;
+        }
+
         if predicate == "?" {
             format_resources(id, "d:unknown", resources, formatter)?;
         } else if !predicate.contains(':') {
@@ -260,11 +264,11 @@ fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatte
     Ok(())
 }
 
-pub fn to_turtle_refs(indvs: &[&Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
+pub fn to_turtle_with_counter_refs(indvs: &[&Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
     let used_prefixes = extract_prefixes_ref(indvs, all_prefixes);
     let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
     for indv in indvs.iter() {
-        indv_format_to_tt(indv.get_id(), indv, &mut formatter)?;
+        indv_format_to_tt(indv.get_id(), indv, &mut formatter, false)?;
     }
 
     formatter.finish()
@@ -275,7 +279,7 @@ pub fn to_turtle(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -
     let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
 
     for indv in indvs.iter() {
-        indv_format_to_tt(indv.get_id(), indv, &mut formatter)?;
+        indv_format_to_tt(indv.get_id(), indv, &mut formatter, true)?;
     }
 
     formatter.finish()
