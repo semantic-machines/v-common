@@ -18,6 +18,7 @@ use std::time::Duration;
 use std::time::Instant;
 use std::{env, thread, time};
 use v_queue::{consumer::*, record::*};
+use crate::v_api::obj::ResultCode;
 
 #[derive(Debug)]
 #[repr(u8)]
@@ -222,7 +223,7 @@ impl Module {
 
     pub fn get_sys_ticket_id_from_db(storage: &mut VStorage) -> Result<String, i32> {
         let mut indv = Individual::default();
-        if storage.get_individual_from_db(StorageId::Tickets, "systicket", &mut indv) {
+        if storage.get_individual_from_db(StorageId::Tickets, "systicket", &mut indv) == ResultCode::Ok {
             if let Some(c) = indv.get_first_literal("v-s:resource") {
                 return Ok(c);
             }

@@ -1,6 +1,7 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
+use crate::v_api::obj::ResultCode;
 use rusty_tarantool::tarantool::{Client, ClientConfig, IteratorType};
 use std::str;
 use tokio::runtime::Runtime;
@@ -24,7 +25,7 @@ impl TTStorage {
 }
 
 impl Storage for TTStorage {
-    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> bool {
+    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> ResultCode {
         let space = if storage == StorageId::Tickets {
             TICKETS_SPACE_ID
         } else if storage == StorageId::Az {
@@ -39,16 +40,22 @@ impl Storage for TTStorage {
             Ok(v) => {
                 iraw.set_raw(&v.data[5..]);
 
-                if parse_raw(iraw).is_ok() {
-                    return !iraw.get_id().is_empty();
-                }
+                return if parse_raw(iraw).is_ok() {
+                    if !iraw.get_id().is_empty() {
+                        ResultCode::Ok
+                    } else {
+                        ResultCode::NotFound
+                    }
+                } else {
+                    ResultCode::UnprocessableEntity
+                };
             },
             Err(e) => {
                 error!("TTStorage: fail get [{}] from tarantool, err={:?}", uri, e);
             },
         }
 
-        false
+        ResultCode::NotReady
     }
 
     fn remove(&mut self, storage: StorageId, key: &str) -> bool {

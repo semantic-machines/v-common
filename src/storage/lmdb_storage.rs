@@ -1,6 +1,7 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId, StorageMode};
+use crate::v_api::obj::ResultCode;
 use lmdb_rs_m::core::{EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, DbHandle, EnvBuilder, Environment, MdbError};
 
@@ -85,7 +86,7 @@ impl LMDBStorage {
 }
 
 impl Storage for LMDBStorage {
-    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> bool {
+    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> ResultCode {
         for _it in 0..2 {
             let db_handle;
             let db_env;
@@ -129,19 +130,19 @@ impl Storage for LMDBStorage {
                                     iraw.set_raw(val);
 
                                     if parse_raw(iraw).is_ok() {
-                                        return true;
+                                        return ResultCode::Ok;
                                     } else {
                                         error!("LMDB:fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), uri);
-                                        return false;
+                                        return ResultCode::UnprocessableEntity;
                                     }
                                 },
                                 Err(e) => match e {
                                     MdbError::NotFound => {
-                                        return false;
+                                        return ResultCode::NotFound;
                                     },
                                     _ => {
                                         error!("LMDB:db.get {:?}, uri=[{}]", e, uri);
-                                        return false;
+                                        return ResultCode::NotReady;
                                     },
                                 },
                             }
@@ -152,7 +153,7 @@ impl Storage for LMDBStorage {
                                     is_need_reopen = true;
                                 } else {
                                     error!("LMDB:fail crate transaction, err={}, uri=[{}]", e, uri);
-                                    return false;
+                                    return ResultCode::NotReady;
                                 }
                             },
                             _ => {
@@ -162,7 +163,7 @@ impl Storage for LMDBStorage {
                     },
                     Err(e) => {
                         error!("LMDB:db handle, err={}, uri=[{}]", e, uri);
-                        return false;
+                        return ResultCode::NotReady;
                     },
                 },
                 Err(e) => match e {
@@ -171,7 +172,7 @@ impl Storage for LMDBStorage {
                     },
                     _ => {
                         error!("LMDB:db environment, err={}, uri=[{}]", e, uri);
-                        return false;
+                        return ResultCode::NotReady;
                     },
                 },
             }
@@ -181,7 +182,7 @@ impl Storage for LMDBStorage {
             }
         }
 
-        false
+        ResultCode::NotReady
     }
 
     fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {

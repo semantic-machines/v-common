@@ -2,11 +2,7 @@ use crate::onto::individual::Individual;
 use crate::storage::lmdb_storage::LMDBStorage;
 use crate::storage::remote_storage_client::*;
 use crate::storage::tt_storage::TTStorage;
-
-pub enum StorageError {
-    None,
-    NotReady,
-}
+use crate::v_api::obj::ResultCode;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum StorageMode {
@@ -29,7 +25,7 @@ pub(crate) enum EStorage {
 }
 
 pub trait Storage {
-    fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> bool;
+    fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> ResultCode;
     fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String>;
     fn get_raw(&mut self, storage: StorageId, key: &str) -> Vec<u8>;
     fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool;
@@ -77,21 +73,21 @@ impl VStorage {
         }
     }
 
-    pub fn get_individual(&mut self, id: &str, iraw: &mut Individual) -> bool {
+    pub fn get_individual(&mut self, id: &str, iraw: &mut Individual) -> ResultCode {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
             EStorage::Lmdb(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
             EStorage::Remote(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
-            _ => false,
+            _ => ResultCode::NotReady,
         }
     }
 
-    pub fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> bool {
+    pub fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> ResultCode {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_individual_from_db(storage, id, iraw),
             EStorage::Lmdb(s) => s.get_individual_from_db(storage, id, iraw),
             EStorage::Remote(s) => s.get_individual_from_db(storage, id, iraw),
-            _ => false,
+            _ => ResultCode::NotReady,
         }
     }
 

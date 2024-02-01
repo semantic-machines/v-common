@@ -1,6 +1,7 @@
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::StorageId;
+use crate::v_api::obj::ResultCode;
 use nng::{Message, Protocol, Socket};
 use std::str;
 
@@ -42,10 +43,10 @@ impl StorageROClient {
         self.is_ready
     }
 
-    pub fn get_individual_from_db(&mut self, db_id: StorageId, id: &str, iraw: &mut Individual) -> bool {
+    pub fn get_individual_from_db(&mut self, db_id: StorageId, id: &str, iraw: &mut Individual) -> ResultCode {
         if !self.is_ready && !self.connect() {
             error!("REMOTE STORAGE: fail send to storage_manager, not ready");
-            return false;
+            return ResultCode::NotReady;
         }
 
         let req = if db_id == StorageId::Tickets {
@@ -56,29 +57,29 @@ impl StorageROClient {
 
         if let Err(e) = self.soc.send(req) {
             error!("REMOTE STORAGE: fail send to storage_manager, err={:?}", e);
-            return false;
+            return ResultCode::NotReady;
         }
 
         // Wait for the response from the server.
         match self.soc.recv() {
             Err(e) => {
                 error!("REMOTE STORAGE: fail recv from main module, err={:?}", e);
-                false
+                ResultCode::NotReady
             },
 
             Ok(msg) => {
                 let data = msg.as_slice();
                 if data == b"[]" {
-                    return false;
+                    return ResultCode::NotFound;
                 }
 
                 iraw.set_raw(data);
 
                 if parse_raw(iraw).is_ok() {
-                    true
+                    ResultCode::Ok
                 } else {
                     error!("REMOTE STORAGE: fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), id);
-                    false
+                    ResultCode::NotReady
                 }
             },
         }
