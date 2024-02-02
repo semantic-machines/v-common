@@ -19,15 +19,16 @@ pub struct AStorage {
 }
 
 pub async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+    if indv.get_id().is_empty() {
+        return Ok((indv, ResultCode::NotFound));
+    }
+
     if let Some(a) = az {
         if a.lock().await.authorize(uri, user_uri, Access::CanRead as u8, false).unwrap_or(0) != Access::CanRead as u8 {
             return Ok((indv, ResultCode::NotAuthorized));
         }
     }
 
-    if indv.get_id().is_empty() {
-        return Ok((indv, ResultCode::NotFound));
-    }
     indv.parse_all();
     Ok((indv, ResultCode::Ok))
 }
