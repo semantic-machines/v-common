@@ -382,6 +382,6 @@ fn part_copy_termpattern_to_expression(tp: TermPattern) -> io::Result<Expression
         TermPattern::NamedNode(v) => Ok(Expression::NamedNode(v)),
         TermPattern::BlankNode(v) => Err(Error::new(ErrorKind::Other, format!("fail convert {:?} from blank node", v))),
         TermPattern::Literal(v) => Ok(Expression::Literal(v)),
-        TermPattern::Variable(_) => Err(Error::new(ErrorKind::Other, format!("fail convert variable to expression"))),
+        TermPattern::Variable(_) => Err(Error::new(ErrorKind::Other, "fail convert variable to expression".to_string())),
     }
 }

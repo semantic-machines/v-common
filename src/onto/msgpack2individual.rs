@@ -29,7 +29,7 @@ pub fn parse_msgpack(raw: &mut RawObj) -> Result<String, i8> {
     };
 
     if let Ok(size) = read_map_len(&mut cur) {
-        raw.len_predicates = size as u32;
+        raw.len_predicates = size;
         raw.cur = cur.position();
         Ok(uri)
     } else {

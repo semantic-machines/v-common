@@ -10,7 +10,7 @@ pub mod onto_impl;
 pub mod onto_index;
 pub mod parser;
 pub mod resource;
-mod turtle_formatters_with_prefixes;
+pub mod turtle_formatters_with_prefixes;
 
 /// -9223372036854775808…+9223372036854775807 (64 bit).
 pub const XSD_LONG: &str = "http://www.w3.org/2001/XMLSchema#long";

@@ -165,7 +165,7 @@ fn add_value(predicate: &str, d: &mut Decoder<Cursor<&[u8]>>, indv: &mut Individ
                                         if e < 0 {
                                             e += 1; // ?! this cbor decoder returned not correct negative number
                                         }
-                                        indv.add_decimal_d(predicate, m as i64, e);
+                                        indv.add_decimal_d(predicate, m, e);
                                     }
                                 }
                             }

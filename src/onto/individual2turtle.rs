@@ -148,36 +148,41 @@ fn from_string<'a>(id: &'a str, in_predicate: &'a str, s: &'a str, l: &'a Lang) 
     }
 }
 
-fn format_resources(subject: &str, predicate: &str, resources: &[Resource], formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
+pub fn format_resources(subject: &str, predicate: &str, resources: &[Resource], formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
     for r in resources {
-        match r.rtype {
-            DataType::Boolean => {
-                formatter.format(&from_boolean(subject, predicate, &r.get_bool().to_string()))?;
-            },
-            DataType::Integer => {
-                formatter.format(&from_integer(subject, predicate, &r.get_int().to_string()))?;
-            },
-            DataType::Uri => {
-                if !r.get_uri().contains(':') || r.get_uri().contains('/') {
-                    formatter.format(&from_string(subject, predicate, r.get_str(), &Lang::none()))?;
-                } else {
-                    formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
-                }
-            },
-            DataType::String => {
-                formatter.format(&from_string(subject, predicate, r.get_str(), &r.get_lang()))?;
-            },
-            DataType::Datetime => {
-                formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
-            },
-            DataType::Decimal => {
-                let (m, e) = r.get_num();
-                let c = exponent_to_scale(&m, &e);
-                let d = Decimal::new(c.0, c.1);
-                formatter.format(&from_decimal(subject, predicate, &format!("{:?}", d.to_string())))?;
-            },
-            _ => {},
-        }
+        format_resource(subject, predicate, r, formatter)?;
+    }
+    Ok(())
+}
+
+pub fn format_resource(subject: &str, predicate: &str, r: &Resource, formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
+    match r.rtype {
+        DataType::Boolean => {
+            formatter.format(&from_boolean(subject, predicate, &r.get_bool().to_string()))?;
+        },
+        DataType::Integer => {
+            formatter.format(&from_integer(subject, predicate, &r.get_int().to_string()))?;
+        },
+        DataType::Uri => {
+            if !r.get_uri().contains(':') || r.get_uri().contains('/') {
+                formatter.format(&from_string(subject, predicate, r.get_str(), &Lang::none()))?;
+            } else {
+                formatter.format(&from_uri(subject, predicate, r.get_uri()))?;
+            }
+        },
+        DataType::String => {
+            formatter.format(&from_string(subject, predicate, r.get_str(), &r.get_lang()))?;
+        },
+        DataType::Datetime => {
+            formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
+        },
+        DataType::Decimal => {
+            let (m, e) = r.get_num();
+            let c = exponent_to_scale(&m, &e);
+            let d = Decimal::new(c.0, c.1);
+            formatter.format(&from_decimal(subject, predicate, &format!("{:?}", d.to_string())))?;
+        },
+        _ => {},
     }
     Ok(())
 }
@@ -266,7 +271,7 @@ fn indv_format_to_tt(id: &str, indv: &Individual, formatter: &mut TurtleFormatte
 
 pub fn to_turtle_with_counter_refs(indvs: &[&Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
     let used_prefixes = extract_prefixes_ref(indvs, all_prefixes);
-    let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
+    let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes, true);
     for indv in indvs.iter() {
         indv_format_to_tt(indv.get_id(), indv, &mut formatter, false)?;
     }
@@ -276,7 +281,7 @@ pub fn to_turtle_with_counter_refs(indvs: &[&Individual], all_prefixes: &HashMap
 
 pub fn to_turtle(indvs: &[Individual], all_prefixes: &HashMap<String, String>) -> Result<Vec<u8>, io::Error> {
     let used_prefixes = extract_prefixes(indvs, all_prefixes);
-    let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes);
+    let mut formatter = TurtleFormatterWithPrefixes::new(Vec::default(), &used_prefixes, true);
 
     for indv in indvs.iter() {
         indv_format_to_tt(indv.get_id(), indv, &mut formatter, true)?;

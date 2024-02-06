@@ -37,14 +37,16 @@ pub struct TurtleFormatterWithPrefixes<W: Write> {
 
 impl<W: Write> TurtleFormatterWithPrefixes<W> {
     /// Builds a new formatter from a `Write` implementation
-    pub fn new(write: W, prefixes: &HashMap<String, String>) -> Self {
+    pub fn new(write: W, prefixes: &HashMap<String, String>, write_prefixes: bool) -> Self {
         let mut f = TurtleFormatterWithPrefixes {
             write,
             current_subject: String::default(),
             current_subject_type: None,
             current_predicate: String::default(),
         };
-        f.write_prefixes(prefixes).unwrap_or_default();
+        if write_prefixes {
+            f.write_prefixes(prefixes).unwrap_or_default();
+        }
         f
     }
 
@@ -53,6 +55,16 @@ impl<W: Write> TurtleFormatterWithPrefixes<W> {
         keys.sort();
         for prefix in keys.iter() {
             writeln!(self.write, "@prefix {}: <{}> .", prefix, prefixes.get(prefix.to_owned()).unwrap())?;
+        }
+        writeln!(self.write)?;
+        Ok(())
+    }
+
+    pub fn write_query_prefixes(&mut self, prefixes: &HashMap<String, String>) -> Result<(), io::Error> {
+        let mut keys: Vec<&String> = prefixes.keys().collect();
+        keys.sort();
+        for prefix in keys.iter() {
+            writeln!(self.write, "PREFIX {}: <{}>", prefix, prefixes.get(prefix.to_owned()).unwrap())?;
         }
         writeln!(self.write)?;
         Ok(())
