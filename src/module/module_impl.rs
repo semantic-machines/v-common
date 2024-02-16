@@ -318,6 +318,7 @@ impl Module {
                     recv(update) -> _ => {
                     }
                     recv(qq) -> _ => {
+                        info!("queue {}/{}, part:{}, pos:{}", queue_consumer.queue.base_path, queue_consumer.name, queue_consumer.id, queue_consumer.count_popped);
                         info!("Exit");
                         std::process::exit (exitcode::OK);
                         //break;
