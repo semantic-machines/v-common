@@ -633,7 +633,7 @@ fn tr_lateral_view(f: &mut LateralView, args_map: &mut Individual) -> io::Result
 fn resource_val_to_sql_val(ri: Option<&Resource>) -> sqlparser::ast::Value {
     if let Some(r) = ri {
         return match &r.value {
-            Uri(v) | Str(v, _) => sqlparser::ast::Value::DoubleQuotedString(v.to_owned()),
+            Uri(v) | Str(v, _) => sqlparser::ast::Value::SingleQuotedString(v.to_owned()),
             Int(v) => sqlparser::ast::Value::Number(v.to_string(), false),
             Bool(v) => sqlparser::ast::Value::Boolean(*v),
             Num(_m, _d) => sqlparser::ast::Value::Number(r.get_float().to_string(), false),
