@@ -5,6 +5,7 @@ use crate::v_api::obj::ResultCode;
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryResult {
@@ -33,6 +34,16 @@ impl Default for QueryResult {
             result_code: ResultCode::NotReady,
         }
     }
+}
+
+#[derive(Debug, PartialEq, EnumString)]
+pub enum ResultFormat {
+    #[strum(ascii_case_insensitive)]
+    Rows,
+    #[strum(ascii_case_insensitive)]
+    Cols,
+    #[strum(ascii_case_insensitive)]
+    Full,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

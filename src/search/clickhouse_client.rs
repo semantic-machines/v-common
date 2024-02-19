@@ -1,5 +1,5 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
-use crate::search::common::{FTQuery, QueryResult};
+use crate::search::common::{FTQuery, QueryResult, ResultFormat};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::prelude::*;
@@ -91,13 +91,13 @@ impl CHClient {
         Ok(res)
     }
 
-    pub async fn query_select_async(&mut self, query: &str, format: &str) -> Result<Value, Error> {
+    pub async fn query_select_async(&mut self, query: &str, format: ResultFormat) -> Result<Value, Error> {
         let mut jres = Value::default();
         if let Some(pool) = &self.client {
             let mut client = pool.get_handle().await?;
             let block = client.query(query).fetch_all().await?;
 
-            if format == "cols" {
+            if format == ResultFormat::Cols {
                 for col in block.columns() {
                     let mut jrow = Value::Array(vec![]);
                     for row in block.rows() {
@@ -113,7 +113,7 @@ impl CHClient {
                 jres["cols"] = Value::Array(v_cols);
                 let mut jrows = vec![];
                 for row in block.rows() {
-                    let mut jrow = if format == "full" {
+                    let mut jrow = if format == ResultFormat::Full {
                         Value::from(serde_json::Map::new())
                     } else {
                         Value::Array(vec![])

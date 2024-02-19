@@ -244,7 +244,8 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
             tr_expr(ast, args_map)?;
         },
         Expr::Value(v) => {
-            if let Some(m) = args_map.obj.resources.get(&v.to_string()) {
+            let v_s = v.to_string();
+            if let Some(m) = args_map.obj.resources.get(v_s.trim_matches('\'')) {
                 *v = resource_val_to_sql_val(m.get(0));
             }
         },
