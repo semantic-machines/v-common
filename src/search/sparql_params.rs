@@ -224,8 +224,12 @@ fn tr_triple_pattern(f: &mut TriplePattern, args_map: &mut Individual, prefix_ca
         TermPattern::Literal(ref mut v) => {
             //tr_literal(v, args_map, prefix_cache)?;
             debug!("triple_pattern::object::LITERAL: {}", v.value());
-            if let Some(m) = args_map.obj.resources.get(v.value()) {
-                f.object = resource_val_to_sparql_val(m.get(0), prefix_cache)?;
+            let v_s = v.value();
+            if v_s.starts_with('{') && v_s.ends_with('}') {
+                let val = v_s[1..v_s.len() - 1].to_string();
+                if let Some(m) = args_map.obj.resources.get(&val) {
+                    f.object = resource_val_to_sparql_val(m.get(0), prefix_cache)?;
+                }
             }
         },
         TermPattern::Variable(_) => {},
@@ -248,8 +252,13 @@ fn tr_expression(f: &mut Expression, args_map: &mut Individual, prefix_cache: &P
         Expression::NamedNode(_) => {},
         Expression::Literal(v) => {
             debug!("expression::object::LITERAL: {}", v.value());
-            if let Some(m) = args_map.obj.resources.get(v.value()) {
-                *f = part_copy_termpattern_to_expression(resource_val_to_sparql_val(m.get(0), prefix_cache)?)?;
+            let v_s = v.value();
+            if v_s.starts_with('{') && v_s.ends_with('}') {
+                let val = v_s[1..v_s.len() - 1].to_string();
+
+                if let Some(m) = args_map.obj.resources.get(&val) {
+                    *f = part_copy_termpattern_to_expression(resource_val_to_sparql_val(m.get(0), prefix_cache)?)?;
+                }
             }
             //tr_literal(l, args_map, prefix_cache)?;
         },
