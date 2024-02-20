@@ -1,5 +1,5 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
-use crate::search::common::{FTQuery, QueryResult, ResultFormat};
+use crate::search::common::{is_identifier, AuthorizationLevel, FTQuery, QueryResult, ResultFormat};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::prelude::*;
@@ -9,6 +9,7 @@ use clickhouse_rs::types::{Column, SqlType};
 use clickhouse_rs::types::{FromSql, Row};
 use clickhouse_rs::Pool;
 use futures::executor::block_on;
+use futures::lock::Mutex;
 use serde_json::json;
 use serde_json::Value;
 use std::time::*;
@@ -91,7 +92,14 @@ impl CHClient {
         Ok(res)
     }
 
-    pub async fn query_select_async(&mut self, query: &str, format: ResultFormat) -> Result<Value, Error> {
+    pub async fn query_select_async(
+        &mut self,
+        user_uri: &str,
+        query: &str,
+        format: ResultFormat,
+        authorization_level: AuthorizationLevel,
+        az: &Mutex<LmdbAzContext>,
+    ) -> Result<Value, Error> {
         let mut jres = Value::default();
         if let Some(pool) = &self.client {
             let mut client = pool.get_handle().await?;
@@ -101,7 +109,7 @@ impl CHClient {
                 for col in block.columns() {
                     let mut jrow = Value::Array(vec![]);
                     for row in block.rows() {
-                        col_to_json(&row, col, &mut jrow)?;
+                        col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await?;
                     }
                     jres[col.name().to_owned()] = jrow;
                 }
@@ -120,7 +128,7 @@ impl CHClient {
                     };
                     for col in block.columns() {
                         //println!("{} {}", col.name(), col.sql_type());
-                        col_to_json(&row, col, &mut jrow)?;
+                        col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await?;
                     }
                     jrows.push(jrow);
                 }
@@ -134,53 +142,93 @@ impl CHClient {
     }
 }
 
-fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::Serialize>(row: &'a Row<K>, col: &'a Column<K>, jrow: &mut Value) -> Result<(), Error> {
+async fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::Serialize>(
+    row: &'a Row<'_, K>,
+    col: &'a Column<K>,
+    jrow: &mut Value,
+    user_uri: &str,
+    authorization_level: &AuthorizationLevel,
+    az: &Mutex<LmdbAzContext>,
+) -> Result<(), Error> {
     let v: T = row.get(col.name())?;
+
     if let Some(o) = jrow.as_object_mut() {
-        o.insert(col.name().to_owned(), json!(v));
+        let jv = json!(v);
+        if let Some(vc) = jv.as_str() {
+            if is_identifier(vc) {
+                if az.lock().await.authorize(vc, user_uri, Access::CanRead as u8, false).unwrap_or(0) == Access::CanRead as u8 {
+                    o.insert(col.name().to_owned(), jv);
+                } else {
+                    if authorization_level == &AuthorizationLevel::Cell {
+                        o.insert(col.name().to_owned(), json!("d:NotAuthorized"));
+                    }
+                }
+                return Ok(());
+            }
+        }
+        o.insert(col.name().to_owned(), jv);
     } else if let Some(o) = jrow.as_array_mut() {
-        o.push(json!(v));
+        let jv = json!(v);
+        if let Some(vc) = jv.as_str() {
+            if is_identifier(vc) {
+                if az.lock().await.authorize(vc, user_uri, Access::CanRead as u8, false).unwrap_or(0) == Access::CanRead as u8 {
+                    o.push(jv);
+                } else {
+                    o.push(json!("d:NotAuthorized"));
+                }
+                return Ok(());
+            }
+        }
+        o.push(jv);
     }
     Ok(())
 }
 
-fn col_to_json<K: clickhouse_rs::types::ColumnType>(row: &Row<K>, col: &Column<K>, jrow: &mut serde_json::Value) -> Result<(), Error> {
-    match col.sql_type() {
+async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
+    row: &Row<'_, K>,
+    col: &Column<K>,
+    jrow: &mut Value,
+    user_uri: &str,
+    authorization_level: &AuthorizationLevel,
+    az: &Mutex<LmdbAzContext>,
+) -> Result<(), Error> {
+    let sql_type = col.sql_type();
+    match sql_type {
         SqlType::UInt8 => {
-            cltjs::<K, u8>(row, col, jrow)?;
+            cltjs::<K, u8>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt16 => {
-            cltjs::<K, u16>(row, col, jrow)?;
+            cltjs::<K, u16>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt32 => {
-            cltjs::<K, u32>(row, col, jrow)?;
+            cltjs::<K, u32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt64 => {
-            cltjs::<K, u64>(row, col, jrow)?;
+            cltjs::<K, u64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int8 => {
-            cltjs::<K, i8>(row, col, jrow)?;
+            cltjs::<K, i8>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int16 => {
-            cltjs::<K, i16>(row, col, jrow)?;
+            cltjs::<K, i16>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int32 => {
-            cltjs::<K, i32>(row, col, jrow)?;
+            cltjs::<K, i32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int64 => {
-            cltjs::<K, i64>(row, col, jrow)?;
+            cltjs::<K, i64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::String => {
-            cltjs::<K, String>(row, col, jrow)?;
+            cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::FixedString(_) => {
-            cltjs::<K, String>(row, col, jrow)?;
+            cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Float32 => {
-            cltjs::<K, f32>(row, col, jrow)?;
+            cltjs::<K, f32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Float64 => {
-            cltjs::<K, f64>(row, col, jrow)?;
+            cltjs::<K, f64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Date => {
             let v: Date<Tz> = row.get(col.name())?;
@@ -208,40 +256,40 @@ fn col_to_json<K: clickhouse_rs::types::ColumnType>(row: &Row<K>, col: &Column<K
         },
         SqlType::Array(stype) => match stype {
             SqlType::UInt8 => {
-                cltjs::<K, Vec<u8>>(row, col, jrow)?;
+                cltjs::<K, Vec<u8>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt16 => {
-                cltjs::<K, Vec<u16>>(row, col, jrow)?;
+                cltjs::<K, Vec<u16>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt32 => {
-                cltjs::<K, Vec<u32>>(row, col, jrow)?;
+                cltjs::<K, Vec<u32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt64 => {
-                cltjs::<K, Vec<u64>>(row, col, jrow)?;
+                cltjs::<K, Vec<u64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int8 => {
-                cltjs::<K, Vec<i8>>(row, col, jrow)?;
+                cltjs::<K, Vec<i8>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int16 => {
-                cltjs::<K, Vec<i16>>(row, col, jrow)?;
+                cltjs::<K, Vec<i16>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int32 => {
-                cltjs::<K, Vec<i32>>(row, col, jrow)?;
+                cltjs::<K, Vec<i32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int64 => {
-                cltjs::<K, Vec<i64>>(row, col, jrow)?;
+                cltjs::<K, Vec<i64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::String => {
-                cltjs::<K, Vec<String>>(row, col, jrow)?;
+                cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::FixedString(_) => {
-                cltjs::<K, Vec<String>>(row, col, jrow)?;
+                cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Float32 => {
-                cltjs::<K, Vec<f32>>(row, col, jrow)?;
+                cltjs::<K, Vec<f32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Float64 => {
-                cltjs::<K, Vec<f64>>(row, col, jrow)?;
+                cltjs::<K, Vec<f64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Date => {
                 let v: Vec<Date<Tz>> = row.get(col.name())?;

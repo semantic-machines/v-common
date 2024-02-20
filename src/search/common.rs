@@ -46,6 +46,16 @@ pub enum ResultFormat {
     Full,
 }
 
+#[derive(Debug, PartialEq, EnumString)]
+pub enum AuthorizationLevel {
+    #[strum(ascii_case_insensitive)]
+    Query,
+    #[strum(ascii_case_insensitive)]
+    Cell,
+    #[strum(ascii_case_insensitive, serialize = "row-column")]
+    RowColumn,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FTQuery {
     pub ticket: String,
@@ -195,4 +205,14 @@ pub async fn load_prefixes(storage: &AStorage, prefixes_cache: &PrefixesCache) {
         f2s.refresh();
         s2f.refresh();
     }
+}
+
+use regex::Regex;
+
+lazy_static! {
+    static ref REG_URI: Regex = Regex::new(r"^[a-z][a-z0-9]*:([a-zA-Z0-9-_])*$").expect("Invalid regex pattern");
+}
+
+pub fn is_identifier(str: &str) -> bool {
+    REG_URI.is_match(str)
 }
