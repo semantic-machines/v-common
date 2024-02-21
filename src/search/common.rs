@@ -216,3 +216,29 @@ lazy_static! {
 pub fn is_identifier(str: &str) -> bool {
     REG_URI.is_match(str)
 }
+
+pub fn replace_word(text: &str, a: &str, b: &str) -> String {
+    let a_lower = a.to_lowercase();
+    let re = Regex::new(r"[\w']+").unwrap();
+    let mut replaced_text = String::new();
+    let mut last_end = 0;
+
+    for word_match in re.find_iter(text) {
+        let (start, end) = (word_match.start(), word_match.end());
+        let word = &text[start..end];
+        let word_lower = word.to_lowercase();
+
+        if word_lower == a_lower {
+            replaced_text.push_str(&text[last_end..start]);
+            replaced_text.push_str(b);
+        } else {
+            replaced_text.push_str(&text[last_end..end]);
+        }
+
+        last_end = end;
+    }
+
+    replaced_text.push_str(&text[last_end..]);
+
+    replaced_text
+}

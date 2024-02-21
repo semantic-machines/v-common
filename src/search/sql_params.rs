@@ -1,6 +1,7 @@
 use crate::onto::individual::Individual;
 use crate::onto::resource::Resource;
 use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
+use crate::search::common::replace_word;
 use chrono::{TimeZone, Utc};
 use sqlparser::ast::TableFactor::UNNEST;
 use sqlparser::ast::{
@@ -15,8 +16,13 @@ use std::io;
 use std::io::{Error, ErrorKind};
 
 pub fn prepare_sql_with_params(query: &str, params: &mut Individual, dialect: &str) -> Result<String, Error> {
+    //warn! forced measure, as library sqlparser does not handle the FINAL keyword
+
     let lex_tree = match dialect {
-        "clickhouse" => Parser::parse_sql(&ClickHouseDialect {}, query),
+        "clickhouse" => {
+            let query = replace_word(&query, "final", " join 'clickhouse-final' ");
+            Parser::parse_sql(&ClickHouseDialect {}, &query)
+        },
         "mysql" => Parser::parse_sql(&MySqlDialect {}, query),
         _ => Parser::parse_sql(&AnsiDialect {}, query),
     };
@@ -25,8 +31,12 @@ pub fn prepare_sql_with_params(query: &str, params: &mut Individual, dialect: &s
         Ok(mut ast) => {
             if let Some(el) = ast.iter_mut().next() {
                 tr_statement(el, params)?;
-                //println!("NEW: {}", el);
-                return Ok(el.to_string());
+                debug!("NEW: {}", el);
+                return match dialect {
+                    "clickhouse" => Ok(el.to_string().replace("JOIN 'clickhouse-final'", " FINAL ")),
+                    "mysql" => Ok(el.to_string()),
+                    _ => Err(Error::new(ErrorKind::Other, "unknown SQL dialect")),
+                };
             }
         },
         Err(e) => {
