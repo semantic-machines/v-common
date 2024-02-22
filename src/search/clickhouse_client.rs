@@ -107,11 +107,16 @@ impl CHClient {
 
             if format == ResultFormat::Cols {
                 for col in block.columns() {
+                    let mut skip_col = false;
                     let mut jrow = Value::Array(vec![]);
                     for row in block.rows() {
-                        col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await?;
+                        if !col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await? {
+                            skip_col = true;
+                        }
                     }
-                    jres[col.name().to_owned()] = jrow;
+                    if !skip_col {
+                        jres[col.name().to_owned()] = jrow;
+                    }
                 }
             } else {
                 let mut v_cols = vec![];
@@ -121,6 +126,7 @@ impl CHClient {
                 jres["cols"] = Value::Array(v_cols);
                 let mut jrows = vec![];
                 for row in block.rows() {
+                    let mut skip_row = false;
                     let mut jrow = if format == ResultFormat::Full {
                         Value::from(serde_json::Map::new())
                     } else {
@@ -128,9 +134,14 @@ impl CHClient {
                     };
                     for col in block.columns() {
                         //println!("{} {}", col.name(), col.sql_type());
-                        col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await?;
+                        if !col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await? {
+                            skip_row = true;
+                            break;
+                        }
                     }
-                    jrows.push(jrow);
+                    if !skip_row {
+                        jrows.push(jrow);
+                    }
                 }
 
                 jres["rows"] = Value::Array(jrows);
@@ -149,39 +160,79 @@ async fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::
     user_uri: &str,
     authorization_level: &AuthorizationLevel,
     az: &Mutex<LmdbAzContext>,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     let v: T = row.get(col.name())?;
+    let jv = json!(v);
 
-    if let Some(o) = jrow.as_object_mut() {
-        let jv = json!(v);
-        if let Some(vc) = jv.as_str() {
-            if is_identifier(vc) {
-                if az.lock().await.authorize(vc, user_uri, Access::CanRead as u8, false).unwrap_or(0) == Access::CanRead as u8 {
-                    o.insert(col.name().to_owned(), jv);
+    async fn check_authorization(
+        jv: &Value,
+        jrow: &mut Value,
+        col_name: &str,
+        user_uri: &str,
+        authorization_level: &AuthorizationLevel,
+        az: &Mutex<LmdbAzContext>,
+    ) -> Result<bool, Error> {
+        match jv {
+            Value::String(vc) => {
+                let authorized = process_authorization(vc, user_uri, authorization_level, az).await?;
+                if authorized {
+                    insert_value(jrow, col_name, jv.clone());
                 } else {
-                    if authorization_level == &AuthorizationLevel::Cell {
-                        o.insert(col.name().to_owned(), json!("d:NotAuthorized"));
+                    match authorization_level {
+                        AuthorizationLevel::Cell => insert_value(jrow, col_name, json!("d:NotAuthorized")),
+                        _ => return Ok(false),
                     }
                 }
-                return Ok(());
-            }
-        }
-        o.insert(col.name().to_owned(), jv);
-    } else if let Some(o) = jrow.as_array_mut() {
-        let jv = json!(v);
-        if let Some(vc) = jv.as_str() {
-            if is_identifier(vc) {
-                if az.lock().await.authorize(vc, user_uri, Access::CanRead as u8, false).unwrap_or(0) == Access::CanRead as u8 {
-                    o.push(jv);
-                } else {
-                    o.push(json!("d:NotAuthorized"));
+                Ok(true)
+            },
+            Value::Array(array) => {
+                let mut new_array = Vec::new();
+                for item in array {
+                    match item {
+                        Value::String(vc) => {
+                            let authorized = process_authorization(vc, user_uri, authorization_level, az).await?;
+                            if authorized {
+                                new_array.push(json!(vc));
+                            } else {
+                                match authorization_level {
+                                    AuthorizationLevel::Cell => new_array.push(json!("d:NotAuthorized")),
+                                    _ => return Ok(false),
+                                }
+                            }
+                        },
+                        _ => new_array.push(item.clone()), // Для не строковых элементов вставка без изменений
+                    }
                 }
-                return Ok(());
-            }
+                insert_value(jrow, col_name, Value::Array(new_array));
+                Ok(true)
+            },
+            _ => {
+                insert_value(jrow, col_name, jv.clone());
+                Ok(true)
+            },
         }
-        o.push(jv);
     }
-    Ok(())
+
+    async fn process_authorization(vc: &str, user_uri: &str, authorization_level: &AuthorizationLevel, az: &Mutex<LmdbAzContext>) -> Result<bool, Error> {
+        if (authorization_level == &AuthorizationLevel::Cell || authorization_level == &AuthorizationLevel::RowColumn) && is_identifier(vc) {
+            let mut az_lock = az.lock().await;
+            let authorized = az_lock.authorize(vc, user_uri, Access::CanRead as u8, false)?;
+            Ok(authorized == Access::CanRead as u8)
+        } else {
+            // Если значение не является идентификатором, считаем, что авторизация не требуется
+            Ok(true)
+        }
+    }
+
+    fn insert_value(jrow: &mut Value, col_name: &str, value: Value) {
+        if let Some(o) = jrow.as_object_mut() {
+            o.insert(col_name.to_owned(), value);
+        } else if let Some(o) = jrow.as_array_mut() {
+            o.push(value);
+        }
+    }
+
+    check_authorization(&jv, jrow, col.name(), user_uri, authorization_level, az).await
 }
 
 async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
@@ -191,44 +242,45 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
     user_uri: &str,
     authorization_level: &AuthorizationLevel,
     az: &Mutex<LmdbAzContext>,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
+    let mut res = true;
     let sql_type = col.sql_type();
     match sql_type {
         SqlType::UInt8 => {
-            cltjs::<K, u8>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, u8>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt16 => {
-            cltjs::<K, u16>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, u16>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt32 => {
-            cltjs::<K, u32>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, u32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::UInt64 => {
-            cltjs::<K, u64>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, u64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int8 => {
-            cltjs::<K, i8>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, i8>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int16 => {
-            cltjs::<K, i16>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, i16>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int32 => {
-            cltjs::<K, i32>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, i32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Int64 => {
-            cltjs::<K, i64>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, i64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::String => {
-            cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::FixedString(_) => {
-            cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, String>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Float32 => {
-            cltjs::<K, f32>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, f32>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Float64 => {
-            cltjs::<K, f64>(row, col, jrow, user_uri, authorization_level, az).await?;
+            res = cltjs::<K, f64>(row, col, jrow, user_uri, authorization_level, az).await?;
         },
         SqlType::Date => {
             let v: Date<Tz> = row.get(col.name())?;
@@ -256,40 +308,40 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
         },
         SqlType::Array(stype) => match stype {
             SqlType::UInt8 => {
-                cltjs::<K, Vec<u8>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<u8>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt16 => {
-                cltjs::<K, Vec<u16>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<u16>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt32 => {
-                cltjs::<K, Vec<u32>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<u32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::UInt64 => {
-                cltjs::<K, Vec<u64>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<u64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int8 => {
-                cltjs::<K, Vec<i8>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<i8>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int16 => {
-                cltjs::<K, Vec<i16>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<i16>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int32 => {
-                cltjs::<K, Vec<i32>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<i32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Int64 => {
-                cltjs::<K, Vec<i64>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<i64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::String => {
-                cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::FixedString(_) => {
-                cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<String>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Float32 => {
-                cltjs::<K, Vec<f32>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<f32>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Float64 => {
-                cltjs::<K, Vec<f64>>(row, col, jrow, user_uri, authorization_level, az).await?;
+                res = cltjs::<K, Vec<f64>>(row, col, jrow, user_uri, authorization_level, az).await?;
             },
             SqlType::Date => {
                 let v: Vec<Date<Tz>> = row.get(col.name())?;
@@ -335,7 +387,7 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
             println!("unknown type {:?}", col.sql_type());
         },
     }
-    Ok(())
+    Ok(res)
 }
 
 async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize, out_res: &mut QueryResult, az: &mut LmdbAzContext) -> Result<(), Error> {
