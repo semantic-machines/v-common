@@ -152,7 +152,7 @@ impl CHClient {
             }
 
             if res_format == ResultFormat::Cols && authorization_level == AuthorizationLevel::RowColumn {
-                for (col_name, col_values) in jres.as_object_mut().unwrap().iter_mut() {
+                for (_col_name, col_values) in jres.as_object_mut().unwrap().iter_mut() {
                     if let Value::Array(ref mut rows) = col_values {
                         let mut i = 0;
                         rows.retain(|_| {
@@ -219,10 +219,10 @@ async fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::
                                 new_array.push(json!(vc));
                             } else {
                                 match authorization_level {
-                                    AuthorizationLevel::Cell => new_array.push(json!("d:NotAuthorized")),
+                                    AuthorizationLevel::Cell => new_array.push(json!("v-s:NotAuthorized")),
                                     _ => {
                                         if res_format == &ResultFormat::Cols {
-                                            new_array.push(json!("d:NotAuthorized"))
+                                            new_array.push(json!("v-s:NotAuthorized"))
                                         }
                                         return Ok(false);
                                     },

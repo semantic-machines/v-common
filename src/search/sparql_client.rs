@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::time::Instant;
 use stopwatch::Stopwatch;
@@ -104,7 +105,7 @@ impl SparqlClient {
         &mut self,
         user_uri: &str,
         query: String,
-        format: ResultFormat,
+        res_format: ResultFormat,
         authorization_level: AuthorizationLevel,
         az: &Mutex<LmdbAzContext>,
         prefix_cache: &PrefixesCache,
@@ -122,6 +123,9 @@ impl SparqlClient {
                     // Подготовка данных для разных форматов
                     let mut jrows = Vec::new();
                     let mut col_data: Map<String, Value> = Map::new();
+
+                    let mut excluded_rows = HashSet::new();
+                    let mut row_count = 0;
 
                     for el in v.results.bindings {
                         let mut skip_row = false;
@@ -142,9 +146,12 @@ impl SparqlClient {
                                                 json!(short_iri)
                                             } else {
                                                 if authorization_level == AuthorizationLevel::Cell {
-                                                    json!("d:NotAuthorized")
+                                                    json!("v-s:NotAuthorized")
                                                 } else if authorization_level == AuthorizationLevel::RowColumn {
-                                                    skip_row = true;
+                                                    excluded_rows.insert(row_count);
+                                                    if res_format == ResultFormat::Rows {
+                                                        skip_row = true;
+                                                    }
                                                     Value::Null
                                                 } else {
                                                     Value::Null
@@ -175,7 +182,7 @@ impl SparqlClient {
                             };
                             debug!("processed_value={}", processed_value);
                             if !skip_row {
-                                match format {
+                                match res_format {
                                     ResultFormat::Full => {
                                         jrow.insert(var.clone(), processed_value);
                                     },
@@ -190,7 +197,7 @@ impl SparqlClient {
                         }
 
                         if !skip_row {
-                            match format {
+                            match res_format {
                                 ResultFormat::Full => jrows.push(Value::Object(jrow)),
                                 ResultFormat::Rows => jrows.push(Value::Array(row_vec)),
                                 _ => (), // Для C
@@ -198,14 +205,33 @@ impl SparqlClient {
                                          //ols финальная обработка ниже
                             }
                         }
+                        row_count += 1;
                     }
 
-                    match format {
+                    match res_format {
                         ResultFormat::Full | ResultFormat::Rows => {
                             jres["cols"] = json!(v_cols);
                             jres["rows"] = json!(jrows);
                         },
                         ResultFormat::Cols => {
+                            if authorization_level == AuthorizationLevel::RowColumn {
+                                for (_col_name, col_values) in col_data.iter_mut() {
+                                    if let Value::Array(values) = col_values {
+                                        *values = values
+                                            .iter()
+                                            .enumerate()
+                                            .filter_map(|(index, value)| {
+                                                if !excluded_rows.contains(&index) {
+                                                    Some(value.clone())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect();
+                                    }
+                                }
+                            }
+
                             let cols = col_data.into_iter().map(|(k, v)| (k, json!(v))).collect::<Map<_, _>>();
                             jres = json!(cols);
                         },

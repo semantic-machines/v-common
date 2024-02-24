@@ -153,7 +153,7 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
                 match k {
                     Expr::Value(v) => {
                         if let Some(m) = args_map.obj.resources.get(&v.to_string()) {
-                            *v = resource_val_to_sql_val(m.get(0));
+                            *v = resource_val_to_sql_val(m.get(0))?;
                         }
                     },
                     _ => {
@@ -258,7 +258,7 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
             if v_s.starts_with("'{") && v_s.ends_with("}'") {
                 let val = v_s[2..v_s.len() - 2].to_string();
                 if let Some(m) = args_map.obj.resources.get(&val) {
-                    *v = resource_val_to_sql_val(m.get(0));
+                    *v = resource_val_to_sql_val(m.get(0))?;
                 }
             }
         },
@@ -643,16 +643,22 @@ fn tr_lateral_view(f: &mut LateralView, args_map: &mut Individual) -> io::Result
     Ok(())
 }
 
-fn resource_val_to_sql_val(ri: Option<&Resource>) -> sqlparser::ast::Value {
+fn resource_val_to_sql_val(ri: Option<&Resource>) -> io::Result<sqlparser::ast::Value> {
     if let Some(r) = ri {
         return match &r.value {
-            Uri(v) | Str(v, _) => sqlparser::ast::Value::SingleQuotedString(v.to_owned()),
-            Int(v) => sqlparser::ast::Value::Number(v.to_string(), false),
-            Bool(v) => sqlparser::ast::Value::Boolean(*v),
-            Num(_m, _d) => sqlparser::ast::Value::Number(r.get_float().to_string(), false),
-            Datetime(v) => sqlparser::ast::Value::SingleQuotedString(format!("{:?}", &Utc.timestamp(*v, 0))),
-            _ => sqlparser::ast::Value::Null,
+            Uri(v) | Str(v, _) => Ok(sqlparser::ast::Value::SingleQuotedString(v.to_owned())),
+            Int(v) => Ok(sqlparser::ast::Value::Number(v.to_string(), false)),
+            Bool(v) => Ok(sqlparser::ast::Value::Boolean(*v)),
+            Num(_m, _d) => Ok(sqlparser::ast::Value::Number(r.get_float().to_string(), false)),
+            Datetime(v) => {
+                match Utc.timestamp_opt(*v, 0) {
+                    chrono::LocalResult::Single(datetime) => Ok(sqlparser::ast::Value::SingleQuotedString(format!("{:?}", datetime))),
+                    // Handle other cases (None, Ambiguous) as needed
+                    _ => Err(Error::new(ErrorKind::Other, "Invalid or ambiguous datetime")),
+                }
+            },
+            _ => Err(Error::new(ErrorKind::Other, format!("Unknown type {:?}", r.value))),
         };
     }
-    sqlparser::ast::Value::Null
+    Ok(sqlparser::ast::Value::Null)
 }
