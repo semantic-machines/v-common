@@ -12,6 +12,7 @@ use futures::executor::block_on;
 use futures::lock::Mutex;
 use serde_json::json;
 use serde_json::Value;
+use std::collections::HashSet;
 use std::time::*;
 use url::Url;
 use v_authorization::common::Access;
@@ -96,7 +97,7 @@ impl CHClient {
         &mut self,
         user_uri: &str,
         query: &str,
-        format: ResultFormat,
+        res_format: ResultFormat,
         authorization_level: AuthorizationLevel,
         az: &Mutex<LmdbAzContext>,
     ) -> Result<Value, Error> {
@@ -105,18 +106,21 @@ impl CHClient {
             let mut client = pool.get_handle().await?;
             let block = client.query(query).fetch_all().await?;
 
-            if format == ResultFormat::Cols {
+            let mut excluded_rows = HashSet::new();
+
+            if res_format == ResultFormat::Cols {
                 for col in block.columns() {
-                    let mut skip_col = false;
                     let mut jrow = Value::Array(vec![]);
+                    let mut row_count = 0;
                     for row in block.rows() {
                         if !col_to_json(&row, col, &mut jrow, user_uri, &authorization_level, az).await? {
-                            skip_col = true;
+                            if authorization_level == AuthorizationLevel::RowColumn {
+                                excluded_rows.insert(row_count);
+                            }
                         }
+                        row_count += 1;
                     }
-                    if !skip_col {
-                        jres[col.name().to_owned()] = jrow;
-                    }
+                    jres[col.name().to_owned()] = jrow;
                 }
             } else {
                 let mut v_cols = vec![];
@@ -127,7 +131,7 @@ impl CHClient {
                 let mut jrows = vec![];
                 for row in block.rows() {
                     let mut skip_row = false;
-                    let mut jrow = if format == ResultFormat::Full {
+                    let mut jrow = if res_format == ResultFormat::Full {
                         Value::from(serde_json::Map::new())
                     } else {
                         Value::Array(vec![])
@@ -145,6 +149,19 @@ impl CHClient {
                 }
 
                 jres["rows"] = Value::Array(jrows);
+            }
+
+            if res_format == ResultFormat::Cols && authorization_level == AuthorizationLevel::RowColumn {
+                for (_col_name, col_values) in jres.as_object_mut().unwrap().iter_mut() {
+                    if let Value::Array(ref mut rows) = col_values {
+                        let mut i = 0;
+                        rows.retain(|_| {
+                            let retain = !excluded_rows.contains(&i);
+                            i += 1;
+                            retain
+                        });
+                    }
+                }
             }
         }
 
