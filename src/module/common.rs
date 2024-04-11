@@ -133,6 +133,8 @@ pub fn get_queue_status(id: &str) -> Individual {
 #[macro_export]
 macro_rules! init_module_log {
     ($module_name:expr) => {{
+        use version::version;
+        use git_version::git_version;
         init_log($module_name);
         info!("{} {} {}", $module_name, version!(), git_version!());
     }};
