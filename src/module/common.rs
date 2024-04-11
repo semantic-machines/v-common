@@ -129,3 +129,11 @@ pub fn get_queue_status(id: &str) -> Individual {
     }
     out_indv
 }
+
+#[macro_export]
+macro_rules! init_module_log {
+    ($module_name:expr) => {{
+        init_log($module_name);
+        info!("{} {} {}", $module_name, version!(), git_version!());
+    }};
+}

@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -54,6 +54,9 @@ sqlparser = "0.25.0"
 evmap = "10.0.2"
 spargebra = "0.2.8"
 oxrdf = { version = "0.1.0" }
+
+version = "3.0.0"
+git-version = "0.3.9"
 
 strum = "0.26"
 strum_macros = "0.26"
