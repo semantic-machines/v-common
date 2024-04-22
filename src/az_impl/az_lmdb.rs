@@ -1,3 +1,4 @@
+use crate::az_impl::formats::{decode_rec_to_rights, decode_rec_to_rightset};
 use crate::v_authorization::common::AuthorizationContext;
 use io::Error;
 use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
@@ -179,6 +180,14 @@ impl<'a> Storage for AzLmdbStorage<'a> {
     }
 
     fn fiber_yield(&self) {}
+
+    fn decode_rec_to_rights(&self, src: &str, result: &mut Vec<Right>) -> bool {
+        decode_rec_to_rights(src, result)
+    }
+
+    fn decode_rec_to_rightset(&self, src: &str, new_rights: &mut RightSet) -> bool {
+        decode_rec_to_rightset(src, new_rights)
+    }
 }
 
 impl LmdbAzContext {
