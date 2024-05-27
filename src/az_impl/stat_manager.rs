@@ -1,4 +1,6 @@
+use chrono::Utc;
 use nng::{Protocol, Socket};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::collections::VecDeque;
 
 pub(crate) struct StatPub {
@@ -6,17 +8,23 @@ pub(crate) struct StatPub {
     url: String,
     is_connected: bool,
     message_buffer: VecDeque<String>,
+    sender_id: String,
 }
 
 impl StatPub {
     pub(crate) fn new(url: &str) -> Result<Self, nng::Error> {
         let socket = Socket::new(Protocol::Pub0)?;
-        println!("Connected to {}", url);
+
+        let sender_id: String = thread_rng().sample_iter(&Alphanumeric).take(8).map(char::from).collect();
+
+        info!("StatManager: id={}, connected to {}", sender_id, url);
+
         Ok(Self {
             socket,
             url: url.to_string(),
             is_connected: false,
             message_buffer: VecDeque::new(),
+            sender_id,
         })
     }
 
@@ -39,11 +47,15 @@ impl StatPub {
             return Ok(());
         }
 
-        // Объединяем все строки в одну, используя разделитель
-        let combined_message = self.message_buffer.iter().map(|msg| msg.as_str()).collect::<Vec<&str>>().join("|"); // Использование '|' как разделителя; убедитесь, что он не встречается в сообщениях
+        // Объединяем все сообщения в одну строку, используя точку с запятой в качестве разделителя
+        let combined_message = self.message_buffer.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(";");
 
-        // Отправляем объединенное сообщение
-        self.socket.send(combined_message.as_bytes())?;
+        // Формируем строку с датой, идентификатором отправителя и объединенными сообщениями,
+        // используя запятую в качестве разделителя между элементами
+        let message_with_timestamp = format!("{},{}", self.sender_id, combined_message);
+
+        // Отправляем сообщение
+        self.socket.send(message_with_timestamp.as_bytes())?;
 
         // Очищаем буфер после отправки
         self.message_buffer.clear();

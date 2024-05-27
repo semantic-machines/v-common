@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use chrono::DateTime;
-use v_authorization::common::{Access, ACCESS_8_FULL_LIST, ACCESS_C_FULL_LIST, M_IGNORE_EXCLUSIVE, M_IS_EXCLUSIVE};
-use v_authorization::{Right, RightSet};
-use string_builder::Builder;
 use chrono::Utc;
+use chrono::{DateTime, NaiveDate};
+use std::collections::HashMap;
+use string_builder::Builder;
+use v_authorization::common::{Access, ACCESS_8_FULL_LIST, ACCESS_C_FULL_LIST, M_IGNORE_EXCLUSIVE, M_IS_EXCLUSIVE};
+use v_authorization::{ACLRecord, ACLRecordSet};
 
 pub(crate) fn access_from_char(c: char) -> Option<Access> {
     match c {
@@ -47,7 +47,7 @@ pub(crate) fn access8_to_char(a: u8) -> Option<char> {
     }
 }
 
-fn encode_value_v1(right: &Right, outbuff: &mut Builder) {
+fn encode_value_v1(right: &ACLRecord, outbuff: &mut Builder) {
     outbuff.append(format!("{:X}", right.access));
 
     if right.marker == M_IS_EXCLUSIVE || right.marker == M_IGNORE_EXCLUSIVE {
@@ -55,7 +55,7 @@ fn encode_value_v1(right: &Right, outbuff: &mut Builder) {
     }
 }
 
-fn encode_value_v2(right: &Right, outbuff: &mut Builder) {
+fn encode_value_v2(right: &ACLRecord, outbuff: &mut Builder) {
     let mut set_access = 0;
     for (tag, count) in right.counters.iter() {
         if let Some(c) = access_from_char(*tag) {
@@ -84,14 +84,16 @@ fn encode_value_v2(right: &Right, outbuff: &mut Builder) {
     //println!("{} -> {}", access_to_pretty_string(right.access), outbuff);
 }
 
-pub fn encode_record(date: Option<DateTime<Utc>>, new_rights: RightSet, version_of_index_format: u8) -> String {
+pub fn encode_record(date: Option<DateTime<Utc>>, new_rights: &ACLRecordSet, version_of_index_format: u8) -> String {
     let mut builder = Builder::new(16);
 
-    if let Some (d) = date {
-        let formatted_date = d.format("%y%m%d").to_string();
+    if let Some(d) = date {
+        let formatted_date = d.format("T%y%m%d").to_string();
         builder.append(formatted_date);
         builder.append(',');
     }
+
+    let mut count = 0;
 
     for key in new_rights.keys() {
         if let Some(right) = new_rights.get(key) {
@@ -106,14 +108,23 @@ pub fn encode_record(date: Option<DateTime<Utc>>, new_rights: RightSet, version_
                 }
 
                 builder.append(';');
+                count += 1;
             }
         }
     }
 
-    builder.string().unwrap()
+    if count == 0 {
+        builder.append('X');
+    }
+
+    if let Ok(s) = builder.string() {
+        s
+    } else {
+        "X".to_string()
+    }
 }
 
-fn decode_value_v2(value: &str, rr: &mut Right, with_count: bool) {
+fn decode_value_v2(value: &str, rr: &mut ACLRecord, with_count: bool) {
     let mut access = 0;
 
     let mut tag: Option<char> = None;
@@ -147,10 +158,10 @@ fn decode_value_v2(value: &str, rr: &mut Right, with_count: bool) {
         }
     }
 
-    rr.access = access as u8;
+    rr.access = access;
 }
 
-fn decode_value_v1(value: &str, rr: &mut Right, with_count: bool) {
+fn decode_value_v1(value: &str, rr: &mut ACLRecord, with_count: bool) {
     let mut access = 0;
     let mut marker = 0 as char;
 
@@ -185,15 +196,48 @@ fn decode_value_v1(value: &str, rr: &mut Right, with_count: bool) {
     }
 }
 
-fn decode_index_record<F>(src: &str, with_counter: bool, mut drain: F) -> bool
-where
-    F: FnMut(&str, Right),
-{
-    if src.is_empty() {
-        return false;
+fn extract_date(s: &str) -> (Option<DateTime<Utc>>, String) {
+    if let Some(date_str) = s.strip_prefix('T') {
+        if let Some((date_str, rest)) = date_str.split_once(',') {
+            if let Ok(date) = NaiveDate::parse_from_str(date_str, "%y%m%d") {
+                let datetime = date.and_hms_opt(0, 0, 0).map(|dt| DateTime::<Utc>::from_utc(dt, Utc));
+                return (datetime, rest.to_string());
+            }
+        }
     }
 
-    let tokens: Vec<&str> = src.split(';').collect();
+    return (None, s.to_string());
+}
+
+pub fn decode_filter(filter_value: String) -> (Option<ACLRecord>, Option<DateTime<Utc>>) {
+    let (date, filter_value) = extract_date(&filter_value);
+
+    if filter_value.len() < 3 {
+        return (Some(ACLRecord::new_with_access("", 0)), date);
+    }
+
+    let mut filters_set: Vec<ACLRecord> = Vec::new();
+    decode_rec_to_rights(&filter_value, &mut filters_set);
+
+    if filters_set.is_empty() {
+        (Some(ACLRecord::new_with_access(&filter_value, 0)), date)
+    } else {
+        let el = &mut filters_set[0];
+        (Some(ACLRecord::new_with_access(&el.id.clone(), el.access)), date)
+    }
+}
+
+fn decode_index_record<F>(src: &str, with_counter: bool, mut drain: F) -> (bool, Option<DateTime<Utc>>)
+where
+    F: FnMut(&str, ACLRecord),
+{
+    let (date, rest) = extract_date(src);
+
+    if rest.is_empty() {
+        return (false, date);
+    }
+
+    let tokens: Vec<&str> = rest.split(';').collect();
 
     let mut idx = 0;
     loop {
@@ -202,7 +246,7 @@ where
             let value = tokens[idx + 1];
 
             if !value.is_empty() {
-                let mut rr = Right::new(key);
+                let mut rr = ACLRecord::new(key);
 
                 if access_from_char(value.chars().next().unwrap()).is_none() {
                     decode_value_v1(value, &mut rr, with_counter);
@@ -224,16 +268,16 @@ where
         }
     }
 
-    true
+    (true, date)
 }
 
-pub fn decode_rec_to_rights(src: &str, result: &mut Vec<Right>) -> bool {
+pub fn decode_rec_to_rights(src: &str, result: &mut Vec<ACLRecord>) -> (bool, Option<DateTime<Utc>>) {
     decode_index_record(src, false, |_key, right| {
         result.push(right);
     })
 }
 
-pub fn decode_rec_to_rightset(src: &str, new_rights: &mut RightSet) -> bool {
+pub fn decode_rec_to_rightset(src: &str, new_rights: &mut ACLRecordSet) -> (bool, Option<DateTime<Utc>>) {
     decode_index_record(src, true, |key, right| {
         new_rights.insert(key.to_owned(), right);
     })

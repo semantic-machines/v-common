@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -66,10 +66,11 @@ string-builder = "0.2"
 #xapian-rusty = { package = "xapian-rusty", path = "../xapian-rusty" }
 xapian-rusty = "=0.0.55"
 
-v_authorization = "=0.3.0"
+v_authorization = "=0.4.0"
 #v_authorization = { package = "v_authorization", path = "../v-authorization" }
 
 v_queue = "=0.2.4"
+rand = "0.7.3"
 #v_queue = { package = "v_queue", path = "../v-queue" }
 
 # sudo apt install libglib2.0-dev

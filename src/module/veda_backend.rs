@@ -43,7 +43,7 @@ impl Backend {
         let storage: VStorage = if !use_remote_storage {
             get_storage_use_prop(storage_mode)
         } else {
-            let ro_storage_url = Module::get_property("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
+            let ro_storage_url: String = Module::get_property("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
             VStorage::new_remote(&ro_storage_url)
         };
 
@@ -176,7 +176,7 @@ pub fn get_storage_use_prop(mode: StorageMode) -> VStorage {
 pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
     let mut lmdb_db_path = None;
 
-    if let Some(p) = Module::get_property(prop_name) {
+    if let Some(p) = Module::get_property::<String>(prop_name) {
         if p.contains("tcp://") {
             match Url::parse(&p) {
                 Ok(url) => {

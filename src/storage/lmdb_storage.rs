@@ -35,6 +35,17 @@ impl Default for LmdbInstance {
 }
 
 impl LmdbInstance {
+    pub fn new(path: &str, mode: StorageMode) -> Self {
+        LmdbInstance {
+            max_read_counter: 1000,
+            path: path.to_string(),
+            mode,
+            db_handle: Err(MdbError::Panic),
+            db_env: Err(MdbError::Panic),
+            read_counter: 0,
+        }
+    }
+
     pub fn open(&mut self) {
         let env_builder = if self.mode == StorageMode::ReadOnly {
             EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync)
@@ -47,7 +58,7 @@ impl LmdbInstance {
         let db_handle = match &db_env {
             Ok(env) => env.get_default_db(DbFlags::empty()),
             Err(e) => {
-                error!("LMDB:fail opening read only environment, err={:?}", e);
+                error!("LMDB:fail opening read only environment, {}, err={:?}", self.path, e);
                 Err(MdbError::Corrupted)
             },
         };
@@ -64,7 +75,7 @@ impl LmdbInstance {
             return if parse_raw(iraw).is_ok() {
                 ResultCode::Ok
             } else {
-                error!("LMDB:fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), uri);
+                error!("LMDB:fail parse binobj, {}, len={}, uri=[{}]", self.path, iraw.get_raw_len(), uri);
                 ResultCode::UnprocessableEntity
             };
         }
@@ -81,6 +92,10 @@ impl LmdbInstance {
     }
 
     pub fn get<T: FromMdbValue>(&mut self, key: &str) -> Option<T> {
+        if self.db_env.is_err() {
+            self.open();
+        }
+
         for _it in 0..2 {
             let mut is_need_reopen = false;
 
@@ -104,7 +119,7 @@ impl LmdbInstance {
                                         return None;
                                     },
                                     _ => {
-                                        error!("LMDB:db.get {:?}, key=[{}]", e, key);
+                                        error!("LMDB:db.get {}, {:?}, key=[{}]", self.path, e, key);
                                         return None;
                                     },
                                 },
@@ -115,17 +130,17 @@ impl LmdbInstance {
                                 if c == -30785 {
                                     is_need_reopen = true;
                                 } else {
-                                    error!("LMDB:fail crate transaction, err={}", e);
+                                    error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
                                     return None;
                                 }
                             },
                             _ => {
-                                error!("LMDB:fail crate transaction, err={}", e);
+                                error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
                             },
                         },
                     },
                     Err(e) => {
-                        error!("LMDB:db handle, err={}", e);
+                        error!("LMDB:db handle, {}, err={}", self.path, e);
                         return None;
                     },
                 },
@@ -134,7 +149,7 @@ impl LmdbInstance {
                         is_need_reopen = true;
                     },
                     _ => {
-                        error!("LMDB:db environment, err={}", e);
+                        error!("LMDB:db environment, {}, err={}", self.path, e);
                         return None;
                     },
                 },
@@ -151,6 +166,10 @@ impl LmdbInstance {
     }
 
     pub fn count(&mut self) -> usize {
+        if self.db_env.is_err() {
+            self.open();
+        }
+
         for _it in 0..2 {
             let mut is_need_reopen = false;
 
@@ -164,12 +183,12 @@ impl LmdbInstance {
                             if c == -30785 {
                                 is_need_reopen = true;
                             } else {
-                                error!("LMDB:fail read stat, err={}", e);
+                                error!("LMDB:fail read stat, {}, err={}", self.path, e);
                                 return 0;
                             }
                         },
                         _ => {
-                            error!("LMDB:fail crate transaction, err={}", e);
+                            error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
                         },
                     },
                 },
@@ -178,7 +197,7 @@ impl LmdbInstance {
                         is_need_reopen = true;
                     },
                     _ => {
-                        error!("LMDB:db environment, err={}", e);
+                        error!("LMDB:db environment, {}, err={}", self.path, e);
                         return 0;
                     },
                 },
@@ -195,11 +214,17 @@ impl LmdbInstance {
     }
 
     pub fn remove(&mut self, key: &str) -> bool {
-        remove_from_lmdb(&self.db_env, &self.db_handle, key)
+        if self.db_env.is_err() {
+            self.open();
+        }
+        remove_from_lmdb(&self.db_env, &self.db_handle, key, &self.path)
     }
 
     pub fn put<T: ToMdbValue>(&mut self, key: &str, val: T) -> bool {
-        put_kv_lmdb(&self.db_env, &self.db_handle, key, val)
+        if self.db_env.is_err() {
+            self.open();
+        }
+        put_kv_lmdb(&self.db_env, &self.db_handle, key, val, &self.path)
     }
 }
 
@@ -249,24 +274,6 @@ impl Storage for LMDBStorage {
         db_instance.get_individual(uri, iraw)
     }
 
-    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {
-        let db_instance = self.get_db_instance(&storage);
-
-        put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_bytes())
-    }
-
-    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool {
-        let db_instance = self.get_db_instance(&storage);
-
-        put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_slice())
-    }
-
-    fn remove(&mut self, storage: StorageId, key: &str) -> bool {
-        let db_instance = self.get_db_instance(&storage);
-
-        remove_from_lmdb(&db_instance.db_env, &db_instance.db_handle, key)
-    }
-
     fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String> {
         let db_instance = self.get_db_instance(&storage);
 
@@ -278,91 +285,109 @@ impl Storage for LMDBStorage {
         db_instance.get_raw(key).unwrap_or_default()
     }
 
+    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {
+        let db_instance = self.get_db_instance(&storage);
+
+        put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_bytes(), &db_instance.path)
+    }
+
+    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool {
+        let db_instance = self.get_db_instance(&storage);
+
+        put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_slice(), &db_instance.path)
+    }
+
+    fn remove(&mut self, storage: StorageId, key: &str) -> bool {
+        let db_instance = self.get_db_instance(&storage);
+
+        remove_from_lmdb(&db_instance.db_env, &db_instance.db_handle, key, &db_instance.path)
+    }
+
     fn count(&mut self, storage: StorageId) -> usize {
         let db_instance = self.get_db_instance(&storage);
         db_instance.count()
     }
 }
 
-fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str) -> bool {
+fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, path: &str) -> bool {
     match db_env {
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
                 Ok(handle) => {
                     let db = txn.bind(handle);
                     if let Err(e) = db.del(&key) {
-                        error!("LMDB:failed put, err={}", e);
+                        error!("LMDB:failed put, {}, err={}", path, e);
                         return false;
                     }
 
                     if let Err(e) = txn.commit() {
                         if let MdbError::Other(c, _) = e {
-                            if c == -30792 && grow_db(db_env) {
-                                return remove_from_lmdb(db_env, db_handle, key);
+                            if c == -30792 && grow_db(db_env, path) {
+                                return remove_from_lmdb(db_env, db_handle, key, path);
                             }
                         }
-                        error!("LMDB:failed to commit, err={}", e);
+                        error!("LMDB:failed to commit, {}, err={}", path, e);
                         return false;
                     }
                     true
                 },
                 Err(e) => {
-                    error!("LMDB:db handle, err={}", e);
+                    error!("LMDB:db handle, {}, err={}", path, e);
                     false
                 },
             },
             Err(e) => {
-                error!("LMDB:db create transaction, err={}", e);
+                error!("LMDB:db create transaction, {}, err={}", path, e);
                 false
             },
         },
         Err(e) => {
-            error!("LMDB:db environment, err={}", e);
+            error!("LMDB:db environment, {}, err={}", path, e);
             false
         },
     }
 }
 
-fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, val: T) -> bool {
+fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, val: T, path: &str) -> bool {
     match db_env {
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
                 Ok(handle) => {
                     let db = txn.bind(handle);
                     if let Err(e) = db.set(&key, &val) {
-                        error!("LMDB:failed put, err={}", e);
+                        error!("LMDB:failed put, {}, err={}", path, e);
                         return false;
                     }
 
                     if let Err(e) = txn.commit() {
                         if let MdbError::Other(c, _) = e {
-                            if c == -30792 && grow_db(db_env) {
-                                return put_kv_lmdb(db_env, db_handle, key, val);
+                            if c == -30792 && grow_db(db_env, path) {
+                                return put_kv_lmdb(db_env, db_handle, key, val, path);
                             }
                         }
-                        error!("LMDB:failed to commit, err={}", e);
+                        error!("LMDB:failed to commit, {}, err={}", path, e);
                         return false;
                     }
                     true
                 },
                 Err(e) => {
-                    error!("LMDB:db handle, err={}", e);
+                    error!("LMDB:db handle, {}, err={}", path, e);
                     false
                 },
             },
             Err(e) => {
-                error!("LMDB:db create transaction, err={}", e);
+                error!("LMDB:db create transaction, {}, err={}", path, e);
                 false
             },
         },
         Err(e) => {
-            error!("LMDB:db environment, err={}", e);
+            error!("LMDB:db environment, {}, err={}", path, e);
             false
         },
     }
 }
 
-fn grow_db(db_env: &Result<Environment, MdbError>) -> bool {
+fn grow_db(db_env: &Result<Environment, MdbError>, path: &str) -> bool {
     match db_env {
         Ok(env) => {
             if let Ok(stat) = env.info() {
@@ -374,7 +399,7 @@ fn grow_db(db_env: &Result<Environment, MdbError>) -> bool {
             }
         },
         Err(e) => {
-            error!("LMDB:db environment, err={}", e);
+            error!("LMDB:db environment, {}, err={}", path, e);
         },
     }
     false

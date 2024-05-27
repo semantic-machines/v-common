@@ -17,6 +17,7 @@ use std::io::Write;
 use std::time::Duration;
 use std::time::Instant;
 use std::{env, thread, time};
+use std::str::FromStr;
 use v_queue::{consumer::*, record::*};
 use crate::v_api::obj::ResultCode;
 
@@ -138,7 +139,7 @@ impl Module {
 
     // A function that retrieves a property value from a configuration file
     // The function takes an input parameter as an argument and returns an Option<String>
-    pub fn get_property(in_param: &str) -> Option<String> {
+    pub fn get_property<T: FromStr>(in_param: &str) -> Option<T> {
         // Load the configuration file "veda.properties" using the Ini library and panic if it fails
         let conf = Ini::load_from_file("veda.properties").expect("fail load veda.properties file");
 
@@ -168,7 +169,7 @@ impl Module {
                             v
                         };
 
-                        return Some(val.to_string());
+                        return val.parse().ok();
                     }
                 }
             }
@@ -201,8 +202,8 @@ impl Module {
                 &val
             };
 
-            // Return the value as a Some(String)
-            return Some(res.to_string());
+            // Parse the value into the desired type and return it as an Option<T>
+            return res.parse().ok();
         }
 
         // If the parameter was not found in the configuration file, log an error and return None
