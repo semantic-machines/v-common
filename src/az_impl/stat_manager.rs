@@ -1,4 +1,3 @@
-use chrono::Utc;
 use nng::{Protocol, Socket};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::collections::VecDeque;

@@ -5,6 +5,7 @@ use crate::v_api::obj::ResultCode;
 use lmdb_rs_m::core::{EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, DbHandle, EnvBuilder, Environment, MdbError};
 use lmdb_rs_m::{FromMdbValue, ToMdbValue};
+use std::iter::Iterator;
 
 pub struct LMDBStorage {
     individuals_db: LmdbInstance,
@@ -34,6 +35,25 @@ impl Default for LmdbInstance {
     }
 }
 
+struct LmdbIterator {
+    keys: Vec<Vec<u8>>,
+    index: usize,
+}
+
+impl Iterator for LmdbIterator {
+    type Item = Vec<u8>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.keys.len() {
+            None
+        } else {
+            let key = self.keys[self.index].clone();
+            self.index += 1;
+            Some(key)
+        }
+    }
+}
+
 impl LmdbInstance {
     pub fn new(path: &str, mode: StorageMode) -> Self {
         LmdbInstance {
@@ -43,6 +63,41 @@ impl LmdbInstance {
             db_handle: Err(MdbError::Panic),
             db_env: Err(MdbError::Panic),
             read_counter: 0,
+        }
+    }
+
+    pub fn iter(&mut self) -> Box<dyn Iterator<Item = Vec<u8>>> {
+        if self.db_env.is_err() {
+            self.open();
+        }
+
+        match &self.db_env {
+            Ok(env) => match &self.db_handle {
+                Ok(handle) => match env.get_reader() {
+                    Ok(txn) => {
+                        let db = txn.bind(handle);
+                        let cursor_result = db.new_cursor();
+                        match cursor_result {
+                            Ok(mut cursor) => {
+                                let mut keys = Vec::new();
+                                while let Ok(()) = cursor.to_next_item() {
+                                    if let Ok(key) = cursor.get_key::<Vec<u8>>() {
+                                        keys.push(key);
+                                    }
+                                }
+                                Box::new(LmdbIterator {
+                                    keys,
+                                    index: 0,
+                                })
+                            },
+                            Err(_) => Box::new(std::iter::empty()),
+                        }
+                    },
+                    Err(_) => Box::new(std::iter::empty()),
+                },
+                Err(_) => Box::new(std::iter::empty()),
+            },
+            Err(_) => Box::new(std::iter::empty()),
         }
     }
 
