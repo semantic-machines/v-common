@@ -157,13 +157,21 @@ pub struct AzLmdbStorage<'a> {
     stat: &'a mut Option<StatPub>,
 }
 
+fn message(key: &str, use_cache: bool, from_cache: bool) -> String {
+    match (use_cache, from_cache) {
+        (true, true) => format!("{}/C", key),
+        (true, false) => format!("{}/cB", key),
+        (false, _) => format!("{}/B", key),
+    }
+}
+
 impl<'a> Storage for AzLmdbStorage<'a> {
     fn get(&mut self, key: &str) -> io::Result<Option<String>> {
         if let Some(cache_db) = self.cache_db {
             match cache_db.get::<String>(&key) {
                 Ok(val) => {
-                    if let Some(p) = self.stat {
-                        p.collect(key);
+                    if let Some(stat_pub) = self.stat {
+                        stat_pub.collect(message(key, true, true));
                     }
                     debug!("@cache val={}", val);
                     return Ok(Some(val));
@@ -179,8 +187,8 @@ impl<'a> Storage for AzLmdbStorage<'a> {
 
         match self.db.get::<String>(&key) {
             Ok(val) => {
-                if let Some(p) = self.stat {
-                    p.collect(key);
+                if let Some(stat_pub) = self.stat {
+                    stat_pub.collect(message(key, self.cache_db.is_some(), false));
                 }
                 debug!("@db val={}", val);
                 Ok(Some(val))

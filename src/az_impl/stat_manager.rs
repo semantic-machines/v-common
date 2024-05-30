@@ -33,8 +33,8 @@ impl StatPub {
         Ok(())
     }
 
-    pub(crate) fn collect(&mut self, message: &str) {
-        self.message_buffer.push_back(message.to_string());
+    pub(crate) fn collect(&mut self, message: String) {
+        self.message_buffer.push_back(message);
     }
 
     pub(crate) fn flush(&mut self) -> Result<(), nng::Error> {
