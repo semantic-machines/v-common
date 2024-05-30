@@ -76,7 +76,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Op
 
 impl LmdbAzContext {
     pub fn new(max_read_counter: u64) -> LmdbAzContext {
-        open(max_read_counter, Module::get_property("stat_collector_url"), Module::get_property("use_az_cache"))
+        open(max_read_counter, Module::get_property("stat_collector_url"), Module::get_property("use_authorization_cache"))
     }
 }
 
