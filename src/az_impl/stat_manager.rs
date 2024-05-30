@@ -1,6 +1,7 @@
 use nng::{Protocol, Socket};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::collections::VecDeque;
+use std::time::Duration;
 
 pub(crate) struct StatPub {
     socket: Socket,
@@ -8,6 +9,7 @@ pub(crate) struct StatPub {
     is_connected: bool,
     message_buffer: VecDeque<String>,
     sender_id: String,
+    duration: Duration,
 }
 
 impl StatPub {
@@ -24,6 +26,7 @@ impl StatPub {
             is_connected: false,
             message_buffer: VecDeque::new(),
             sender_id,
+            duration: Duration::default(),
         })
     }
 
@@ -35,6 +38,10 @@ impl StatPub {
 
     pub(crate) fn collect(&mut self, message: String) {
         self.message_buffer.push_back(message);
+    }
+
+    pub(crate) fn set_duration(&mut self, duration: Duration) {
+        self.duration = duration;
     }
 
     pub(crate) fn flush(&mut self) -> Result<(), nng::Error> {
@@ -51,7 +58,7 @@ impl StatPub {
 
         // Формируем строку с датой, идентификатором отправителя и объединенными сообщениями,
         // используя запятую в качестве разделителя между элементами
-        let message_with_timestamp = format!("{},{}", self.sender_id, combined_message);
+        let message_with_timestamp = format!("{},{},{}", self.sender_id, self.duration.as_micros(), combined_message);
 
         // Отправляем сообщение
         self.socket.send(message_with_timestamp.as_bytes())?;

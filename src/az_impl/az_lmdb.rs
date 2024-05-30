@@ -6,6 +6,7 @@ use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateN
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 use std::io::ErrorKind;
 use std::time;
+use std::time::SystemTime;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
@@ -98,9 +99,13 @@ impl AuthorizationContext for LmdbAzContext {
             str_num: 0,
         };
 
+        let start_time = SystemTime::now();
+
         let r = self.authorize_and_trace(uri, user_uri, request_access, _is_check_for_reload, &mut t);
 
         if let Some(s) = &mut self.stat {
+            let elapsed = start_time.elapsed().unwrap_or_default();
+            s.set_duration(elapsed);
             if let Err(e) = s.flush() {
                 warn!("fail flush stat, err={:?}", e);
             }
