@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use io::Error;
 use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
+use std::cmp::PartialEq;
 use std::io::ErrorKind;
 use std::time;
 use std::time::SystemTime;
@@ -17,25 +18,44 @@ const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
 use crate::az_impl::stat_manager::StatPub;
 use crate::module::module_impl::Module;
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+enum StatMode {
+    Full,
+    Minimal,
+    None,
+}
+
+struct Stat {
+    point: StatPub,
+    mode: StatMode,
+}
+
 pub struct LmdbAzContext {
     env: Environment,
     cache_env: Option<Environment>,
     authorize_counter: u64,
     max_authorize_counter: u64,
-    stat: Option<StatPub>,
+    stat: Option<Stat>,
 }
 
-fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Option<bool>) -> LmdbAzContext {
+fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
     let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-    let stat = if let Some(s) = stat_collector_url {
-        StatPub::new(&s).ok()
-    } else {
-        None
-    };
+
     loop {
         match env_builder.open(DB_PATH, 0o644) {
             Ok(env) => {
                 info!("LIB_AZ: Opened environment {}", DB_PATH);
+
+                let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
+                    point: p,
+                    mode: stat_mode.clone(),
+                });
+
+                if stat_ctx.is_some() {
+                    info!("LIB_AZ: Stat collector url: {:?}", stat_collector_url);
+                    info!("LIB_AZ: Stat mode: {:?}", &stat_mode);
+                }
+
                 return if use_cache.unwrap_or(false) {
                     let cache_env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
                     let cache_env = match cache_env_builder.open(CACHE_DB_PATH, 0o644) {
@@ -44,7 +64,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Op
                             Some(env)
                         },
                         Err(e) => {
-                            warn!("Authorize: Err opening cache environment: {:?}. Proceeding without cache.", e);
+                            warn!("LIB_AZ: Err opening cache environment: {:?}. Proceeding without cache.", e);
                             None
                         },
                     };
@@ -54,7 +74,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Op
                         cache_env,
                         authorize_counter: 0,
                         max_authorize_counter: max_read_counter,
-                        stat,
+                        stat: stat_ctx,
                     }
                 } else {
                     LmdbAzContext {
@@ -62,7 +82,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Op
                         cache_env: None,
                         authorize_counter: 0,
                         max_authorize_counter: max_read_counter,
-                        stat,
+                        stat: stat_ctx,
                     }
                 };
             },
@@ -77,7 +97,18 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, use_cache: Op
 
 impl LmdbAzContext {
     pub fn new(max_read_counter: u64) -> LmdbAzContext {
-        open(max_read_counter, Module::get_property("stat_collector_url"), Module::get_property("use_authorization_cache"))
+        let mode = if let Some(v) = Module::get_property::<String>("stat_mode") {
+            match v.to_lowercase().as_str() {
+                "full" => StatMode::Full,
+                "minimal" => StatMode::Minimal,
+                "off" => StatMode::None,
+                "none" => StatMode::None,
+                _ => StatMode::Full,
+            }
+        } else {
+            StatMode::Full
+        };
+        open(max_read_counter, Module::get_property("stat_collector_url"), mode, Module::get_property("use_authorization_cache"))
     }
 }
 
@@ -103,11 +134,13 @@ impl AuthorizationContext for LmdbAzContext {
 
         let r = self.authorize_and_trace(uri, user_uri, request_access, _is_check_for_reload, &mut t);
 
-        if let Some(s) = &mut self.stat {
-            let elapsed = start_time.elapsed().unwrap_or_default();
-            s.set_duration(elapsed);
-            if let Err(e) = s.flush() {
-                warn!("fail flush stat, err={:?}", e);
+        if let Some(stat) = &mut self.stat {
+            if stat.mode == StatMode::Full || stat.mode == StatMode::Minimal {
+                let elapsed = start_time.elapsed().unwrap_or_default();
+                stat.point.set_duration(elapsed);
+                if let Err(e) = stat.point.flush() {
+                    warn!("fail flush stat, err={:?}", e);
+                }
             }
         }
 
@@ -159,7 +192,7 @@ impl AuthorizationContext for LmdbAzContext {
 pub struct AzLmdbStorage<'a> {
     db: &'a Database<'a>,
     cache_db: Option<&'a Database<'a>>,
-    stat: &'a mut Option<StatPub>,
+    stat: &'a mut Option<Stat>,
 }
 
 fn message(key: &str, use_cache: bool, from_cache: bool) -> String {
@@ -175,8 +208,10 @@ impl<'a> Storage for AzLmdbStorage<'a> {
         if let Some(cache_db) = self.cache_db {
             match cache_db.get::<String>(&key) {
                 Ok(val) => {
-                    if let Some(stat_pub) = self.stat {
-                        stat_pub.collect(message(key, true, true));
+                    if let Some(stat) = self.stat {
+                        if stat.mode == StatMode::Full {
+                            stat.point.collect(message(key, true, true));
+                        }
                     }
                     debug!("@cache val={}", val);
                     return Ok(Some(val));
@@ -192,8 +227,10 @@ impl<'a> Storage for AzLmdbStorage<'a> {
 
         match self.db.get::<String>(&key) {
             Ok(val) => {
-                if let Some(stat_pub) = self.stat {
-                    stat_pub.collect(message(key, self.cache_db.is_some(), false));
+                if let Some(stat) = self.stat {
+                    if stat.mode == StatMode::Full {
+                        stat.point.collect(message(key, self.cache_db.is_some(), false));
+                    }
                 }
                 debug!("@db val={}", val);
                 Ok(Some(val))

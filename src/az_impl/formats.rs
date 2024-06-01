@@ -206,7 +206,7 @@ fn extract_date(s: &str) -> (Option<DateTime<Utc>>, String) {
         }
     }
 
-    return (None, s.to_string());
+    (None, s.to_string())
 }
 
 pub fn decode_filter(filter_value: String) -> (Option<ACLRecord>, Option<DateTime<Utc>>) {

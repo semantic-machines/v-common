@@ -49,9 +49,9 @@ impl StatPub {
             self.connect()?;
         }
 
-        if self.message_buffer.is_empty() {
-            return Ok(());
-        }
+        //if self.message_buffer.is_empty() {
+        //    return Ok(());
+        //}
 
         // Объединяем все сообщения в одну строку, используя точку с запятой в качестве разделителя
         let combined_message = self.message_buffer.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(";");
