@@ -71,6 +71,9 @@ v_authorization = "=0.4.0"
 
 v_queue = "=0.2.4"
 rand = "0.7.3"
+http = "0.2.9"
+bytes = "0.5.6"
+futures-util = "0.3.30"
 #v_queue = { package = "v_queue", path = "../v-queue" }
 
 # sudo apt install libglib2.0-dev
