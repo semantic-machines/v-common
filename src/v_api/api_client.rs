@@ -259,6 +259,15 @@ pub struct MStorageClient {
     pub check_ticket_ip: bool,
 }
 
+#[derive(Default, Clone)]
+pub struct UpdateOptions<'a> {
+    pub event_id: Option<&'a str>,
+    pub src: Option<&'a str>,
+    pub assigned_subsystems: Option<i64>,
+    pub n_count: Option<i64>,
+    pub addr: Option<IpAddr>,
+}
+
 impl MStorageClient {
     pub fn new(addr: String) -> MStorageClient {
         MStorageClient {
@@ -271,67 +280,58 @@ impl MStorageClient {
         self.client.connect()
     }
 
-    pub fn update(&mut self, ticket: &str, cmd: IndvOp, indv: &Individual) -> OpResult {
-        match self.update_use_param(ticket, "", "", ALL_MODULES, cmd, indv) {
-            Ok(r) => r,
-            Err(e) => OpResult::res(e.result),
-        }
+    pub fn update(&mut self, indv: &Individual, ticket: &str, cmd: IndvOp, options: UpdateOptions) -> Result<OpResult, ApiError> {
+        self.update_internal(indv, ticket, cmd, options)
     }
 
-    pub fn update_or_err(&mut self, ticket: &str, event_id: &str, src: &str, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
-        self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv)
+    pub fn updates(&mut self, indvs: &[Individual], ticket: &str, cmd: IndvOp, options: UpdateOptions) -> Result<OpResult, ApiError> {
+        self.updates_internal(indvs, ticket, cmd, options)
     }
 
-    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
-        let query = json!({
+    fn update_internal(&mut self, indv: &Individual, ticket: &str, cmd: IndvOp, options: UpdateOptions) -> Result<OpResult, ApiError> {
+        let mut query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,
             "individuals": [indv.get_obj().as_json()],
-            "assigned_subsystems": assigned_subsystems,
-            "event_id" : event_id,
-            "src" : src,
         });
 
+        self.add_options_to_query(&mut query, &options);
         self.update_form_json(query)
     }
 
-    pub fn updates_use_param(
-        &mut self,
-        ticket: &str,
-        event_id: &str,
-        src: &str,
-        assigned_subsystems: i64,
-        cmd: IndvOp,
-        indvs: &[Individual],
-    ) -> Result<OpResult, ApiError> {
-        self.updates_use_param_with_addr((ticket, None), event_id, src, assigned_subsystems, cmd, indvs)
-    }
-
-    pub fn updates_use_param_with_addr(
-        &mut self,
-        ticket_addr: (&str, Option<IpAddr>),
-        event_id: &str,
-        src: &str,
-        assigned_subsystems: i64,
-        cmd: IndvOp,
-        indvs: &[Individual],
-    ) -> Result<OpResult, ApiError> {
-        let (ticket, addr) = ticket_addr;
-
-        let mut jindvs = vec![];
-        for indv in indvs {
-            jindvs.push(indv.get_obj().as_json());
-        }
-        let query = json!({
+    fn updates_internal(&mut self, indvs: &[Individual], ticket: &str, cmd: IndvOp, options: UpdateOptions) -> Result<OpResult, ApiError> {
+        let mut query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,
-            "individuals": jindvs,
-            "assigned_subsystems": assigned_subsystems,
-            "event_id" : event_id,
-            "src" : src,
-            "addr": addr
+            "individuals": indvs.iter().map(|indv| indv.get_obj().as_json()).collect::<Vec<_>>(),
         });
+
+        self.add_options_to_query(&mut query, &options);
         self.update_form_json(query)
+    }
+
+    fn add_options_to_query(&self, query: &mut serde_json::Value, options: &UpdateOptions) {
+        if let Some(event_id) = options.event_id {
+            query["event_id"] = json!(event_id);
+        }
+
+        if let Some(src) = options.src {
+            query["src"] = json!(src);
+        }
+
+        if let Some(assigned_subsystems) = options.assigned_subsystems {
+            query["assigned_subsystems"] = json!(assigned_subsystems);
+        } else {
+            query["assigned_subsystems"] = json!(ALL_MODULES);
+        }
+
+        if let Some(n_count) = options.n_count {
+            query["n_count"] = json!(n_count);
+        }
+
+        if let Some(addr) = options.addr {
+            query["addr"] = json!(addr.to_string());
+        }
     }
 
     pub fn update_form_json(&mut self, query: Value) -> Result<OpResult, ApiError> {

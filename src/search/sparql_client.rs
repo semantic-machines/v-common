@@ -4,7 +4,6 @@ use crate::onto::*;
 use crate::search::common::{get_short_prefix, split_full_prefix, AuthorizationLevel, PrefixesCache, QueryResult, ResultFormat};
 use crate::v_api::obj::ResultCode;
 use awc::Client;
-use bytes::BytesMut;
 use futures::lock::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,9 +14,6 @@ use std::io::{Error, ErrorKind};
 use std::time::Instant;
 use stopwatch::Stopwatch;
 use v_authorization::common::{Access, AuthorizationContext};
-
-use http::header::{CONTENT_LENGTH, CONTENT_TYPE};
-use http::Response;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Head {
