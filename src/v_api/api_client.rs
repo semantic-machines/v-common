@@ -264,7 +264,6 @@ pub struct UpdateOptions<'a> {
     pub event_id: Option<&'a str>,
     pub src: Option<&'a str>,
     pub assigned_subsystems: Option<i64>,
-    pub n_count: Option<i64>,
     pub addr: Option<IpAddr>,
 }
 
@@ -323,10 +322,6 @@ impl MStorageClient {
             query["assigned_subsystems"] = json!(assigned_subsystems);
         } else {
             query["assigned_subsystems"] = json!(ALL_MODULES);
-        }
-
-        if let Some(n_count) = options.n_count {
-            query["n_count"] = json!(n_count);
         }
 
         if let Some(addr) = options.addr {

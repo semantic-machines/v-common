@@ -22,17 +22,18 @@ impl TTStorage {
             client: ClientConfig::new(tt_uri, login, pass).set_timeout_time_ms(1000).set_reconnect_time_ms(10000).build(),
         }
     }
+    fn get_space_id(&self, storage: &StorageId) -> i32 {
+        match storage {
+            StorageId::Tickets => TICKETS_SPACE_ID,
+            StorageId::Az => AZ_SPACE_ID,
+            _ => INDIVIDUALS_SPACE_ID,
+        }
+    }
 }
 
 impl Storage for TTStorage {
-    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> ResultCode {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
+    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
+        let space = self.get_space_id(&storage);
 
         let key = (uri,);
 
@@ -42,12 +43,12 @@ impl Storage for TTStorage {
 
                 return if parse_raw(iraw).is_ok() {
                     if !iraw.get_id().is_empty() {
-                        ResultCode::Ok
+                        Ok(())
                     } else {
-                        ResultCode::NotFound
+                        Err(ResultCode::NotFound)
                     }
                 } else {
-                    ResultCode::UnprocessableEntity
+                    Err(ResultCode::UnprocessableEntity)
                 };
             },
             Err(e) => {
@@ -55,118 +56,106 @@ impl Storage for TTStorage {
             },
         }
 
-        ResultCode::NotReady
+        Err(ResultCode::NotReady)
     }
 
-    fn remove(&mut self, storage: StorageId, key: &str) -> bool {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
-
+    fn remove(&mut self, storage: StorageId, key: &str) -> Result<(), ResultCode> {
+        let space = self.get_space_id(&storage);
         let tuple = (key,);
 
         if let Err(e) = self.rt.block_on(self.client.delete(space, &tuple)) {
             error!("tarantool: fail remove, db [{:?}], err = {:?}", storage, e);
-            false
+            Err(ResultCode::FailStore)
         } else {
-            true
+            Ok(())
         }
     }
 
-    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
-
+    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> Result<(), ResultCode> {
+        let space = self.get_space_id(&storage);
         let tuple = (key, val);
 
         if let Err(e) = self.rt.block_on(self.client.replace(space, &tuple)) {
             error!("tarantool: fail replace, db [{:?}], err = {:?}", storage, e);
-            false
+            Err(ResultCode::FailStore)
         } else {
-            true
+            Ok(())
         }
     }
 
-    fn put_kv_raw(&mut self, storage: StorageId, _key: &str, val: Vec<u8>) -> bool {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
+    fn put_kv_raw(&mut self, storage: StorageId, _key: &str, val: Vec<u8>) -> Result<(), ResultCode> {
+        let space = self.get_space_id(&storage);
 
         if let Err(e) = self.rt.block_on(self.client.replace_raw(space, val)) {
             error!("tarantool: fail replace, db [{:?}], err = {:?}", storage, e);
-            false
+            Err(ResultCode::FailStore)
         } else {
-            true
+            Ok(())
         }
     }
 
-    fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String> {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
-
+    fn get_v(&mut self, storage: StorageId, key: &str) -> Result<Option<String>, ResultCode> {
+        let space = self.get_space_id(&storage);
         let key = (key,);
 
-        if let Ok(v) = self.rt.block_on(self.client.select(space, 0, &key, 0, 100, IteratorType::EQ)) {
-            if let Ok(s) = std::str::from_utf8(&v.data[5..]) {
-                return Some(s.to_string());
-            }
+        match self.rt.block_on(self.client.select(space, 0, &key, 0, 100, IteratorType::EQ)) {
+            Ok(v) => {
+                if v.data.len() > 5 {
+                    match std::str::from_utf8(&v.data[5..]) {
+                        Ok(s) => Ok(Some(s.to_string())),
+                        Err(_) => Err(ResultCode::UnprocessableEntity),
+                    }
+                } else {
+                    Ok(None)
+                }
+            },
+            Err(e) => {
+                error!("TTStorage: fail get [{}] from tarantool, err={:?}", key.0, e);
+                Err(ResultCode::DatabaseQueryError)
+            },
         }
-
-        None
     }
 
-    fn get_raw(&mut self, storage: StorageId, key: &str) -> Vec<u8> {
-        let space = if storage == StorageId::Tickets {
-            TICKETS_SPACE_ID
-        } else if storage == StorageId::Az {
-            AZ_SPACE_ID
-        } else {
-            INDIVIDUALS_SPACE_ID
-        };
-
+    fn get_raw(&mut self, storage: StorageId, key: &str) -> Result<Option<Vec<u8>>, ResultCode> {
+        let space = self.get_space_id(&storage);
         let key = (key,);
 
-        if let Ok(v) = self.rt.block_on(self.client.select(space, 0, &key, 0, 100, IteratorType::EQ)) {
-            return v.data[5..].to_vec();
+        match self.rt.block_on(self.client.select(space, 0, &key, 0, 100, IteratorType::EQ)) {
+            Ok(v) => {
+                if v.data.len() > 5 {
+                    Ok(Some(v.data[5..].to_vec()))
+                } else {
+                    Ok(None)
+                }
+            },
+            Err(e) => {
+                error!("TTStorage: fail get_raw [{}] from tarantool, err={:?}", key.0, e);
+                Err(ResultCode::DatabaseQueryError)
+            },
         }
-
-        Vec::default()
     }
 
-    fn count(&mut self, storage: StorageId) -> usize {
-        let space_name = if storage == StorageId::Tickets {
-            "TICKETS"
-        } else if storage == StorageId::Az {
-            "AZ"
-        } else {
-            "INDIVIDUALS"
+    fn count(&mut self, storage: StorageId) -> Result<usize, ResultCode> {
+        let space_name = match storage {
+            StorageId::Tickets => "TICKETS",
+            StorageId::Az => "AZ",
+            _ => "INDIVIDUALS",
         };
 
-        if let Ok(response) = self.rt.block_on(self.client.eval(format!("return box.space.{}:len()", space_name), &(0,))) {
-            if let Ok(res) = response.decode::<(u64,)>() {
-                return res.0 as usize;
-            }
-        }
+        let query = format!("return box.space.{}:len()", space_name);
 
-        error!("failed to count the number of records: db [{}]", space_name);
-        0
+        match self.rt.block_on(self.client.eval(query, &(0,))) {
+            Ok(response) => match response.decode::<(u64,)>() {
+                Ok(res) => Ok(res.0 as usize),
+                Err(e) => {
+                    error!("Failed to decode count result for db [{}]: {:?}", space_name, e);
+                    Err(ResultCode::UnprocessableEntity)
+                },
+            },
+            Err(e) => {
+                error!("Failed to count the number of records in db [{}]: {:?}", space_name, e);
+                Err(ResultCode::DatabaseQueryError)
+            },
+        }
     }
 }

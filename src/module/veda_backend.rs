@@ -80,7 +80,7 @@ impl Backend {
     pub fn get_literal_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<String> {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to).is_ok() {
                     return to.get_first_literal(field);
                 }
             }
@@ -93,7 +93,7 @@ impl Backend {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
                 let to = &mut Individual::default();
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to).is_ok() {
                     if let Some(s) = to.get_first_literal(field) {
                         res.push(s);
                     }
@@ -106,7 +106,7 @@ impl Backend {
     pub fn get_datetime_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<i64> {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to).is_ok() {
                     return to.get_first_datetime(field);
                 }
             }
@@ -116,7 +116,7 @@ impl Backend {
 
     pub fn get_individual_h(&mut self, uri: &str) -> Option<Box<Individual>> {
         let mut iraw = Box::<Individual>::default();
-        if self.storage.get_individual(uri, &mut iraw) != ResultCode::Ok {
+        if !self.storage.get_individual(uri, &mut iraw).is_ok() {
             return None;
         }
         Some(iraw)
@@ -124,14 +124,14 @@ impl Backend {
 
     pub fn get_individual_s(&mut self, uri: &str) -> Option<Individual> {
         let mut iraw = Individual::default();
-        if self.storage.get_individual(uri, &mut iraw) != ResultCode::Ok {
+        if !self.storage.get_individual(uri, &mut iraw).is_ok() {
             return None;
         }
         Some(iraw)
     }
 
     pub fn get_individual<'a>(&mut self, uri: &str, iraw: &'a mut Individual) -> Option<&'a mut Individual> {
-        if uri.is_empty() || self.storage.get_individual(uri, iraw) != ResultCode::Ok {
+        if uri.is_empty() || !self.storage.get_individual(uri, iraw).is_ok() {
             return None;
         }
         Some(iraw)
@@ -140,7 +140,7 @@ impl Backend {
     pub fn get_ticket_from_db(&mut self, id: &str) -> Ticket {
         let mut dest = Ticket::default();
         let mut indv = Individual::default();
-        if self.storage.get_individual_from_db(StorageId::Tickets, id, &mut indv) == ResultCode::Ok{
+        if self.storage.get_individual_from_db(StorageId::Tickets, id, &mut indv).is_ok() {
             dest.update_from_individual(&mut indv);
             dest.result = ResultCode::Ok;
         }

@@ -87,11 +87,15 @@ pub async fn get_individual_use_storage_id(
     }
     if let Some(lmdb) = &db.lmdb {
         let mut iraw = Individual::default();
-        let res = lmdb.lock().await.get_individual_from_db(storage_id, uri, &mut iraw);
-        if res == ResultCode::Ok {
-            return check_indv_access_read(iraw, uri, user_uri, az).await;
-        } else if res == ResultCode::NotFound {
-            return Ok((Individual::default(), ResultCode::NotFound));
+        match lmdb.lock().await.get_individual_from_db(storage_id, uri, &mut iraw) {
+            Ok(()) => {
+                return check_indv_access_read(iraw, uri, user_uri, az).await;
+            },
+            Err(r) => {
+                if r == ResultCode::NotFound {
+                    return Ok((Individual::default(), ResultCode::NotFound));
+                }
+            },
         }
     }
 

@@ -43,10 +43,10 @@ impl StorageROClient {
         self.is_ready
     }
 
-    pub fn get_individual_from_db(&mut self, db_id: StorageId, id: &str, iraw: &mut Individual) -> ResultCode {
+    pub fn get_individual_from_db(&mut self, db_id: StorageId, id: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
         if !self.is_ready && !self.connect() {
             error!("REMOTE STORAGE: fail send to storage_manager, not ready");
-            return ResultCode::NotReady;
+            return Err(ResultCode::NotReady);
         }
 
         let req = if db_id == StorageId::Tickets {
@@ -57,35 +57,31 @@ impl StorageROClient {
 
         if let Err(e) = self.soc.send(req) {
             error!("REMOTE STORAGE: fail send to storage_manager, err={:?}", e);
-            return ResultCode::NotReady;
+            return Err(ResultCode::NotReady);
         }
 
         // Wait for the response from the server.
         match self.soc.recv() {
             Err(e) => {
                 error!("REMOTE STORAGE: fail recv from main module, err={:?}", e);
-                ResultCode::NotReady
+                Err(ResultCode::NotReady)
             },
 
             Ok(msg) => {
                 let data = msg.as_slice();
                 if data == b"[]" {
-                    return ResultCode::NotFound;
+                    return Err(ResultCode::NotFound);
                 }
 
                 iraw.set_raw(data);
 
                 if parse_raw(iraw).is_ok() {
-                    ResultCode::Ok
+                    Err(ResultCode::Ok)
                 } else {
                     error!("REMOTE STORAGE: fail parse binobj, len={}, uri=[{}]", iraw.get_raw_len(), id);
-                    ResultCode::NotReady
+                    Err(ResultCode::NotReady)
                 }
             },
         }
-    }
-
-    pub fn count(&mut self, _storage: StorageId) -> usize {
-        todo!()
     }
 }
