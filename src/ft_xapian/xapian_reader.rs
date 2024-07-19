@@ -241,7 +241,7 @@ impl XapianReader {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
                         let indv = &mut Individual::default();
-                        if storage.get_individual(id, indv).is_ok() {
+                        if storage.get_individual(id, indv) == ResultCode::Ok {
                             self.index_schema.add_schema_data(&self.onto, indv);
                         }
                     }
