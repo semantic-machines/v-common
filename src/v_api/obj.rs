@@ -123,8 +123,6 @@ pub enum ResultCode {
 
     /// 4000
     ConnectError = 4000,
-
-    DatabaseQueryError = 4010,
 }
 
 #[derive(Debug, Eq, PartialEq)]
