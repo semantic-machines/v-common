@@ -60,7 +60,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
 
     for id in onto_index.data.keys() {
         let mut indv: Individual = Individual::default();
-        if storage.get_individual(id, &mut indv).is_ok() {
+        if storage.get_individual(id, &mut indv) == ResultCode::Ok {
             onto.update(&mut indv);
         }
     }
@@ -133,8 +133,8 @@ pub fn get_queue_status(id: &str) -> Individual {
 #[macro_export]
 macro_rules! init_module_log {
     ($module_name:expr) => {{
-        use git_version::git_version;
         use version::version;
+        use git_version::git_version;
         init_log($module_name);
         info!("{} {} {}", $module_name, version!(), git_version!());
     }};
