@@ -123,30 +123,30 @@ impl LmdbInstance {
         self.read_counter = 0;
     }
 
-    fn get_individual(&mut self, uri: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
-        match self.get::<Vec<u8>>(uri) {
-            Ok(Some(val)) => {
-                iraw.set_raw(&val);
-                if parse_raw(iraw).is_ok() {
-                    Ok(())
-                } else {
-                    error!("LMDB:fail parse binobj, {}, len={}, uri=[{}]", self.path, iraw.get_raw_len(), uri);
-                    Err(ResultCode::UnprocessableEntity)
-                }
-            },
-            Ok(None) => Err(ResultCode::NotFound),
-            Err(e) => {
-                error!("LMDB:fail get individual, {}, uri=[{}], err={:?}", self.path, uri, e);
-                Err(e)
-            },
+    fn get_individual(&mut self, uri: &str, iraw: &mut Individual) -> ResultCode {
+        if let Some(val) = self.get::<&[u8]>(uri) {
+            iraw.set_raw(val);
+
+            return if parse_raw(iraw).is_ok() {
+                ResultCode::Ok
+            } else {
+                error!("LMDB:fail parse binobj, {}, len={}, uri=[{}]", self.path, iraw.get_raw_len(), uri);
+                ResultCode::UnprocessableEntity
+            };
         }
+
+        ResultCode::NotReady
     }
 
-    fn get_raw(&mut self, key: &str) -> Result<Option<Vec<u8>>, ResultCode> {
+    fn get_v(&mut self, key: &str) -> Option<String> {
+        self.get::<String>(key)
+    }
+
+    fn get_raw(&mut self, key: &str) -> Option<Vec<u8>> {
         self.get::<Vec<u8>>(key)
     }
 
-    pub fn get<T: FromMdbValue>(&mut self, key: &str) -> Result<Option<T>, ResultCode> {
+    pub fn get<T: FromMdbValue>(&mut self, key: &str) -> Option<T> {
         if self.db_env.is_err() {
             self.open();
         }
@@ -167,15 +167,15 @@ impl LmdbInstance {
 
                             match db.get::<T>(&key) {
                                 Ok(val) => {
-                                    return Ok(Some(val));
+                                    return Some(val);
                                 },
                                 Err(e) => match e {
                                     MdbError::NotFound => {
-                                        return Ok(None);
+                                        return None;
                                     },
                                     _ => {
                                         error!("LMDB:db.get {}, {:?}, key=[{}]", self.path, e, key);
-                                        return Ok(None);
+                                        return None;
                                     },
                                 },
                             }
@@ -185,18 +185,18 @@ impl LmdbInstance {
                                 if c == -30785 {
                                     is_need_reopen = true;
                                 } else {
-                                    error!("LMDB:fail create transaction, {}, err={}", self.path, e);
-                                    return Ok(None);
+                                    error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
+                                    return None;
                                 }
                             },
                             _ => {
-                                error!("LMDB:fail create transaction, {}, err={}", self.path, e);
+                                error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
                             },
                         },
                     },
                     Err(e) => {
                         error!("LMDB:db handle, {}, err={}", self.path, e);
-                        return Ok(None);
+                        return None;
                     },
                 },
                 Err(e) => match e {
@@ -205,25 +205,22 @@ impl LmdbInstance {
                     },
                     _ => {
                         error!("LMDB:db environment, {}, err={}", self.path, e);
-                        return Ok(None);
+                        return None;
                     },
                 },
             }
 
             if is_need_reopen {
                 warn!("db {} reopen", self.path);
+
                 self.open();
             }
         }
 
-        Ok(None)
+        None
     }
 
-    fn get_v(&mut self, key: &str) -> Result<Option<String>, ResultCode> {
-        self.get::<String>(key)
-    }
-
-    pub fn count(&mut self) -> Result<usize, ResultCode> {
+    pub fn count(&mut self) -> usize {
         if self.db_env.is_err() {
             self.open();
         }
@@ -234,7 +231,7 @@ impl LmdbInstance {
             match &self.db_env {
                 Ok(env) => match env.stat() {
                     Ok(stat) => {
-                        return Ok(stat.ms_entries);
+                        return stat.ms_entries;
                     },
                     Err(e) => match e {
                         MdbError::Other(c, _) => {
@@ -242,11 +239,11 @@ impl LmdbInstance {
                                 is_need_reopen = true;
                             } else {
                                 error!("LMDB:fail read stat, {}, err={}", self.path, e);
-                                return Err(ResultCode::DatabaseQueryError);
+                                return 0;
                             }
                         },
                         _ => {
-                            error!("LMDB:fail create transaction, {}, err={}", self.path, e);
+                            error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
                         },
                     },
                 },
@@ -256,30 +253,29 @@ impl LmdbInstance {
                     },
                     _ => {
                         error!("LMDB:db environment, {}, err={}", self.path, e);
-                        return Err(ResultCode::FailOpenTransaction);
+                        return 0;
                     },
                 },
             }
 
             if is_need_reopen {
                 warn!("db {} reopen", self.path);
+
                 self.open();
             }
         }
 
-        // If we've reached this point, we've tried opening the database twice and still failed
-        error!("LMDB:failed to open database after retries, {}", self.path);
-        Err(ResultCode::FailOpenTransaction)
+        0
     }
 
-    pub fn remove(&mut self, key: &str) -> Result<(), ResultCode> {
+    pub fn remove(&mut self, key: &str) -> bool {
         if self.db_env.is_err() {
             self.open();
         }
         remove_from_lmdb(&self.db_env, &self.db_handle, key, &self.path)
     }
 
-    pub fn put<T: ToMdbValue>(&mut self, key: &str, val: T) -> Result<(), ResultCode> {
+    pub fn put<T: ToMdbValue>(&mut self, key: &str, val: T) -> bool {
         if self.db_env.is_err() {
             self.open();
         }
@@ -328,46 +324,47 @@ impl LMDBStorage {
 }
 
 impl Storage for LMDBStorage {
-    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
+    fn get_individual_from_db(&mut self, storage: StorageId, uri: &str, iraw: &mut Individual) -> ResultCode {
         let db_instance = self.get_db_instance(&storage);
         db_instance.get_individual(uri, iraw)
     }
 
-    fn get_v(&mut self, storage: StorageId, key: &str) -> Result<Option<String>, ResultCode> {
+    fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String> {
         let db_instance = self.get_db_instance(&storage);
+
         db_instance.get_v(key)
     }
 
-    fn get_raw(&mut self, storage: StorageId, key: &str) -> Result<Option<Vec<u8>>, ResultCode> {
+    fn get_raw(&mut self, storage: StorageId, key: &str) -> Vec<u8> {
         let db_instance = self.get_db_instance(&storage);
-        db_instance.get_raw(key)
+        db_instance.get_raw(key).unwrap_or_default()
     }
 
-    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> Result<(), ResultCode> {
+    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {
         let db_instance = self.get_db_instance(&storage);
 
         put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_bytes(), &db_instance.path)
     }
 
-    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> Result<(), ResultCode> {
+    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool {
         let db_instance = self.get_db_instance(&storage);
 
         put_kv_lmdb(&db_instance.db_env, &db_instance.db_handle, key, val.as_slice(), &db_instance.path)
     }
 
-    fn remove(&mut self, storage: StorageId, key: &str) -> Result<(), ResultCode> {
+    fn remove(&mut self, storage: StorageId, key: &str) -> bool {
         let db_instance = self.get_db_instance(&storage);
 
         remove_from_lmdb(&db_instance.db_env, &db_instance.db_handle, key, &db_instance.path)
     }
 
-    fn count(&mut self, storage: StorageId) -> Result<usize, ResultCode> {
+    fn count(&mut self, storage: StorageId) -> usize {
         let db_instance = self.get_db_instance(&storage);
         db_instance.count()
     }
 }
 
-fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, path: &str) -> Result<(), ResultCode> {
+fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, path: &str) -> bool {
     match db_env {
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
@@ -375,7 +372,7 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
                     let db = txn.bind(handle);
                     if let Err(e) = db.del(&key) {
                         error!("LMDB:failed put, {}, err={}", path, e);
-                        return Err(ResultCode::FailStore);
+                        return false;
                     }
 
                     if let Err(e) = txn.commit() {
@@ -385,28 +382,28 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
                             }
                         }
                         error!("LMDB:failed to commit, {}, err={}", path, e);
-                        return Err(ResultCode::FailStore);
+                        return false;
                     }
-                    Ok(())
+                    true
                 },
                 Err(e) => {
                     error!("LMDB:db handle, {}, err={}", path, e);
-                    return Err(ResultCode::FailStore);
+                    false
                 },
             },
             Err(e) => {
                 error!("LMDB:db create transaction, {}, err={}", path, e);
-                return Err(ResultCode::FailStore);
+                false
             },
         },
         Err(e) => {
             error!("LMDB:db environment, {}, err={}", path, e);
-            return Err(ResultCode::FailStore);
+            false
         },
     }
 }
 
-fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, val: T, path: &str) -> Result<(), ResultCode> {
+fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle: &Result<DbHandle, MdbError>, key: &str, val: T, path: &str) -> bool {
     match db_env {
         Ok(env) => match env.new_transaction() {
             Ok(txn) => match db_handle {
@@ -414,7 +411,7 @@ fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle:
                     let db = txn.bind(handle);
                     if let Err(e) = db.set(&key, &val) {
                         error!("LMDB:failed put, {}, err={}", path, e);
-                        return Err(ResultCode::FailStore);
+                        return false;
                     }
 
                     if let Err(e) = txn.commit() {
@@ -424,23 +421,23 @@ fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle:
                             }
                         }
                         error!("LMDB:failed to commit, {}, err={}", path, e);
-                        return Err(ResultCode::FailStore);
+                        return false;
                     }
-                    return Ok(());
+                    true
                 },
                 Err(e) => {
                     error!("LMDB:db handle, {}, err={}", path, e);
-                    return Err(ResultCode::FailStore);
+                    false
                 },
             },
             Err(e) => {
                 error!("LMDB:db create transaction, {}, err={}", path, e);
-                return Err(ResultCode::FailStore);
+                false
             },
         },
         Err(e) => {
             error!("LMDB:db environment, {}, err={}", path, e);
-            return Err(ResultCode::FailStore);
+            false
         },
     }
 }

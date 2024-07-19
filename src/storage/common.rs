@@ -25,13 +25,13 @@ pub(crate) enum EStorage {
 }
 
 pub trait Storage {
-    fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> Result<(), ResultCode>;
-    fn get_v(&mut self, storage: StorageId, key: &str) -> Result<Option<String>, ResultCode>;
-    fn get_raw(&mut self, storage: StorageId, key: &str) -> Result<Option<Vec<u8>>, ResultCode>;
-    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> Result<(), ResultCode>;
-    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> Result<(), ResultCode>;
-    fn remove(&mut self, storage: StorageId, key: &str) -> Result<(), ResultCode>;
-    fn count(&mut self, storage: StorageId) -> Result<usize, ResultCode>;
+    fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> ResultCode;
+    fn get_v(&mut self, storage: StorageId, key: &str) -> Option<String>;
+    fn get_raw(&mut self, storage: StorageId, key: &str) -> Vec<u8>;
+    fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool;
+    fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool;
+    fn remove(&mut self, storage: StorageId, key: &str) -> bool;
+    fn count(&mut self, storage: StorageId) -> usize;
 }
 
 pub struct VStorage {
@@ -73,75 +73,75 @@ impl VStorage {
         }
     }
 
-    pub fn get_individual(&mut self, id: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
+    pub fn get_individual(&mut self, id: &str, iraw: &mut Individual) -> ResultCode {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
             EStorage::Lmdb(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
             EStorage::Remote(s) => s.get_individual_from_db(StorageId::Individuals, id, iraw),
-            _ => Err(ResultCode::NotImplemented),
+            _ => ResultCode::NotReady,
         }
     }
 
-    pub fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> Result<(), ResultCode> {
+    pub fn get_individual_from_db(&mut self, storage: StorageId, id: &str, iraw: &mut Individual) -> ResultCode {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_individual_from_db(storage, id, iraw),
             EStorage::Lmdb(s) => s.get_individual_from_db(storage, id, iraw),
             EStorage::Remote(s) => s.get_individual_from_db(storage, id, iraw),
-            _ => Err(ResultCode::NotImplemented),
+            _ => ResultCode::NotReady,
         }
     }
 
-    pub fn get_value(&mut self, storage: StorageId, id: &str) -> Result<Option<String>, ResultCode> {
+    pub fn get_value(&mut self, storage: StorageId, id: &str) -> Option<String> {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_v(storage, id),
             EStorage::Lmdb(s) => s.get_v(storage, id),
-            EStorage::Remote(_s) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(_s) => None,
+            _ => None,
         }
     }
 
-    pub fn get_raw_value(&mut self, storage: StorageId, id: &str) -> Result<Option<Vec<u8>>, ResultCode> {
+    pub fn get_raw_value(&mut self, storage: StorageId, id: &str) -> Vec<u8> {
         match &mut self.storage {
             EStorage::Tt(s) => s.get_raw(storage, id),
             EStorage::Lmdb(s) => s.get_raw(storage, id),
-            EStorage::Remote(_s) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(_s) => Default::default(),
+            _ => Default::default(),
         }
     }
 
-    pub fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> Result<(), ResultCode> {
+    pub fn put_kv(&mut self, storage: StorageId, key: &str, val: &str) -> bool {
         match &mut self.storage {
             EStorage::Tt(s) => s.put_kv(storage, key, val),
             EStorage::Lmdb(s) => s.put_kv(storage, key, val),
-            EStorage::Remote(_s) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(_s) => false,
+            _ => false,
         }
     }
 
-    pub fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> Result<(), ResultCode> {
+    pub fn put_kv_raw(&mut self, storage: StorageId, key: &str, val: Vec<u8>) -> bool {
         match &mut self.storage {
             EStorage::Tt(s) => s.put_kv_raw(storage, key, val),
             EStorage::Lmdb(s) => s.put_kv_raw(storage, key, val),
-            EStorage::Remote(_s) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(_s) => false,
+            _ => false,
         }
     }
 
-    pub fn remove(&mut self, storage: StorageId, key: &str) -> Result<(), ResultCode> {
+    pub fn remove(&mut self, storage: StorageId, key: &str) -> bool {
         match &mut self.storage {
             EStorage::Tt(s) => s.remove(storage, key),
             EStorage::Lmdb(s) => s.remove(storage, key),
-            EStorage::Remote(_s) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(_s) => false,
+            _ => false,
         }
     }
 
-    pub fn count(&mut self, storage: StorageId) -> Result<usize, ResultCode> {
+    pub fn count(&mut self, storage: StorageId) -> usize {
         match &mut self.storage {
             EStorage::Tt(s) => s.count(storage),
             EStorage::Lmdb(s) => s.count(storage),
-            EStorage::Remote(_) => Err(ResultCode::NotImplemented),
-            _ => Err(ResultCode::NotImplemented),
+            EStorage::Remote(s) => s.count(storage),
+            _ => 0,
         }
     }
 }
