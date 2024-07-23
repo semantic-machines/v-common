@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.10.7"
+version = "0.10.8"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -33,7 +33,7 @@ rusty_tarantool = "=0.2.10"
 lmdb-rs-m = "0.7.7"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 rust-ini = "0.18"
-clickhouse-rs = { version = "1.0.0-alpha.1", default-features = false, features = ["async_std"] }
+clickhouse-rs = { version = "1.1.0-alpha.1", default-features = false, features = ["async_std"] }
 url = "2.1.1"
 lazy_static = "1.4"
 scan_fmt = "0.1.3"

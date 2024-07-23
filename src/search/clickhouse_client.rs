@@ -106,6 +106,8 @@ impl CHClient {
             let mut client = pool.get_handle().await?;
             let block = client.query(query).fetch_all().await?;
 
+            //warn!("@ block={:?}", block);
+
             let mut excluded_rows = HashSet::new();
 
             if res_format == ResultFormat::Cols {
@@ -272,7 +274,7 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
     res_format: &ResultFormat,
     authorization_level: &AuthorizationLevel,
     az: &Mutex<LmdbAzContext>,
-) -> Result<bool, Error> {
+) -> Result<bool, clickhouse_rs::errors::Error> {
     let mut res = true;
     let sql_type = col.sql_type();
     match sql_type {
@@ -313,19 +315,22 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
             res = cltjs::<K, f64>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
         },
         SqlType::Date => {
-            let v: Date<Tz> = row.get(col.name())?;
+            let v: NaiveDate = row.get(col.name())?;
+            let date: Date<Tz> = Tz::UTC.from_utc_date(&v);
             if let Some(o) = jrow.as_object_mut() {
-                o.insert(col.name().to_owned(), json!(v.to_string()));
+                o.insert(col.name().to_owned(), json!(date.to_string()));
             } else if let Some(o) = jrow.as_array_mut() {
-                o.push(json!(v.to_string()));
+                o.push(json!(date.to_string()));
             }
         },
         SqlType::DateTime(_) => {
-            let v: DateTime<Tz> = row.get(col.name())?;
+            let v: i64 = row.get(col.name())?;
+            let datetime = NaiveDateTime::from_timestamp_opt(v, 0).unwrap_or_default();
+            let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
             if let Some(o) = jrow.as_object_mut() {
-                o.insert(col.name().to_owned(), json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                o.insert(col.name().to_owned(), json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
             } else if let Some(o) = jrow.as_array_mut() {
-                o.push(json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                o.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
             }
         },
         SqlType::Decimal(_, _) => {
@@ -336,7 +341,7 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 o.push(json!(v));
             }
         },
-        SqlType::Array(stype) => match stype {
+        SqlType::Array(ref stype) => match stype {
             SqlType::UInt8 => {
                 res = cltjs::<K, Vec<u8>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
             },
@@ -374,10 +379,11 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 res = cltjs::<K, Vec<f64>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
             },
             SqlType::Date => {
-                let v: Vec<Date<Tz>> = row.get(col.name())?;
+                let v: Vec<NaiveDate> = row.get(col.name())?;
                 let mut a = vec![];
                 for ev in v {
-                    a.push(json!(ev.to_string()));
+                    let date: Date<Tz> = Tz::UTC.from_utc_date(&ev);
+                    a.push(json!(date.to_string()));
                 }
                 if let Some(o) = jrow.as_object_mut() {
                     o.insert(col.name().to_owned(), json!(a));
@@ -386,10 +392,12 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 }
             },
             SqlType::DateTime(_) => {
-                let v: Vec<DateTime<Tz>> = row.get(col.name())?;
+                let v: Vec<i64> = row.get(col.name())?;
                 let mut a = vec![];
                 for ev in v {
-                    a.push(json!(ev.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                    let datetime = NaiveDateTime::from_timestamp_opt(ev, 0).unwrap_or_default();
+                    let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
+                    a.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
                 }
                 if let Some(o) = jrow.as_object_mut() {
                     o.insert(col.name().to_owned(), json!(a));
@@ -410,7 +418,80 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 }
             },
             _ => {
-                println!("unknown type {:?}", stype);
+                println!("unknown array type {:?}", stype);
+            },
+        },
+        SqlType::Nullable(ref inner_type) => match inner_type {
+            SqlType::UInt8 => {
+                res = cltjs::<K, Option<u8>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::UInt16 => {
+                res = cltjs::<K, Option<u16>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::UInt32 => {
+                res = cltjs::<K, Option<u32>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::UInt64 => {
+                res = cltjs::<K, Option<u64>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Int8 => {
+                res = cltjs::<K, Option<i8>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Int16 => {
+                res = cltjs::<K, Option<i16>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Int32 => {
+                res = cltjs::<K, Option<i32>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Int64 => {
+                res = cltjs::<K, Option<i64>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Float32 => {
+                res = cltjs::<K, Option<f32>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Float64 => {
+                res = cltjs::<K, Option<f64>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::String => {
+                res = cltjs::<K, Option<String>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
+            },
+            SqlType::Date => {
+                let v: Option<NaiveDate> = row.get(col.name())?;
+                if let Some(date) = v {
+                    let date: Date<Tz> = Tz::UTC.from_utc_date(&date);
+                    if let Some(o) = jrow.as_object_mut() {
+                        o.insert(col.name().to_owned(), json!(date.to_string()));
+                    } else if let Some(o) = jrow.as_array_mut() {
+                        o.push(json!(date.to_string()));
+                    }
+                } else {
+                    if let Some(o) = jrow.as_object_mut() {
+                        o.insert(col.name().to_owned(), json!(null));
+                    } else if let Some(o) = jrow.as_array_mut() {
+                        o.push(json!(null));
+                    }
+                }
+            },
+            SqlType::DateTime(_) => {
+                let v: Option<i64> = row.get(col.name())?;
+                if let Some(timestamp) = v {
+                    let datetime = NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap_or_default();
+                    let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
+                    if let Some(o) = jrow.as_object_mut() {
+                        o.insert(col.name().to_owned(), json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                    } else if let Some(o) = jrow.as_array_mut() {
+                        o.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                    }
+                } else {
+                    if let Some(o) = jrow.as_object_mut() {
+                        o.insert(col.name().to_owned(), json!(null));
+                    } else if let Some(o) = jrow.as_array_mut() {
+                        o.push(json!(null));
+                    }
+                }
+            },
+            _ => {
+                println!("unknown nullable type {:?}", inner_type);
             },
         },
         _ => {
