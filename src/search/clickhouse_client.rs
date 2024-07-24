@@ -16,6 +16,7 @@ use std::collections::HashSet;
 use std::time::*;
 use url::Url;
 use v_authorization::common::Access;
+use chrono::{DateTime};
 
 pub struct CHClient {
     client: Option<Pool>,
@@ -315,22 +316,19 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
             res = cltjs::<K, f64>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
         },
         SqlType::Date => {
-            let v: NaiveDate = row.get(col.name())?;
-            let date: Date<Tz> = Tz::UTC.from_utc_date(&v);
+            let v: Date<Tz> = row.get(col.name())?;
             if let Some(o) = jrow.as_object_mut() {
-                o.insert(col.name().to_owned(), json!(date.to_string()));
+                o.insert(col.name().to_owned(), json!(v.to_string()));
             } else if let Some(o) = jrow.as_array_mut() {
-                o.push(json!(date.to_string()));
+                o.push(json!(v.to_string()));
             }
         },
         SqlType::DateTime(_) => {
-            let v: i64 = row.get(col.name())?;
-            let datetime = NaiveDateTime::from_timestamp_opt(v, 0).unwrap_or_default();
-            let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
+            let v: DateTime<Tz> = row.get(col.name())?;
             if let Some(o) = jrow.as_object_mut() {
-                o.insert(col.name().to_owned(), json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                o.insert(col.name().to_owned(), json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
             } else if let Some(o) = jrow.as_array_mut() {
-                o.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                o.push(json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
             }
         },
         SqlType::Decimal(_, _) => {
@@ -379,11 +377,10 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 res = cltjs::<K, Vec<f64>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
             },
             SqlType::Date => {
-                let v: Vec<NaiveDate> = row.get(col.name())?;
+                let v: Vec<Date<Tz>> = row.get(col.name())?;
                 let mut a = vec![];
                 for ev in v {
-                    let date: Date<Tz> = Tz::UTC.from_utc_date(&ev);
-                    a.push(json!(date.to_string()));
+                    a.push(json!(ev.to_string()));
                 }
                 if let Some(o) = jrow.as_object_mut() {
                     o.insert(col.name().to_owned(), json!(a));
@@ -392,12 +389,10 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 }
             },
             SqlType::DateTime(_) => {
-                let v: Vec<i64> = row.get(col.name())?;
+                let v: Vec<DateTime<Tz>> = row.get(col.name())?;
                 let mut a = vec![];
                 for ev in v {
-                    let datetime = NaiveDateTime::from_timestamp_opt(ev, 0).unwrap_or_default();
-                    let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
-                    a.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                    a.push(json!(ev.to_rfc3339_opts(SecondsFormat::Millis, false)));
                 }
                 if let Some(o) = jrow.as_object_mut() {
                     o.insert(col.name().to_owned(), json!(a));
@@ -456,38 +451,19 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
                 res = cltjs::<K, Option<String>>(row, col, jrow, user_uri, res_format, authorization_level, az).await?;
             },
             SqlType::Date => {
-                let v: Option<NaiveDate> = row.get(col.name())?;
-                if let Some(date) = v {
-                    let date: Date<Tz> = Tz::UTC.from_utc_date(&date);
-                    if let Some(o) = jrow.as_object_mut() {
-                        o.insert(col.name().to_owned(), json!(date.to_string()));
-                    } else if let Some(o) = jrow.as_array_mut() {
-                        o.push(json!(date.to_string()));
-                    }
-                } else {
-                    if let Some(o) = jrow.as_object_mut() {
-                        o.insert(col.name().to_owned(), json!(null));
-                    } else if let Some(o) = jrow.as_array_mut() {
-                        o.push(json!(null));
-                    }
+                let v: Date<Tz> = row.get(col.name())?;
+                if let Some(o) = jrow.as_object_mut() {
+                    o.insert(col.name().to_owned(), json!(v.to_string()));
+                } else if let Some(o) = jrow.as_array_mut() {
+                    o.push(json!(v.to_string()));
                 }
             },
             SqlType::DateTime(_) => {
-                let v: Option<i64> = row.get(col.name())?;
-                if let Some(timestamp) = v {
-                    let datetime = NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap_or_default();
-                    let datetime: DateTime<Tz> = Tz::UTC.from_utc_datetime(&datetime);
-                    if let Some(o) = jrow.as_object_mut() {
-                        o.insert(col.name().to_owned(), json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
-                    } else if let Some(o) = jrow.as_array_mut() {
-                        o.push(json!(datetime.to_rfc3339_opts(SecondsFormat::Millis, false)));
-                    }
-                } else {
-                    if let Some(o) = jrow.as_object_mut() {
-                        o.insert(col.name().to_owned(), json!(null));
-                    } else if let Some(o) = jrow.as_array_mut() {
-                        o.push(json!(null));
-                    }
+                let v: DateTime<Tz> = row.get(col.name())?;
+                if let Some(o) = jrow.as_object_mut() {
+                    o.insert(col.name().to_owned(), json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
+                } else if let Some(o) = jrow.as_array_mut() {
+                    o.push(json!(v.to_rfc3339_opts(SecondsFormat::Millis, false)));
                 }
             },
             _ => {
