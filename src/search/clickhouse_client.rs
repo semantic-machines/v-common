@@ -4,10 +4,10 @@ use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::prelude::*;
 use chrono_tz::Tz;
-use clickhouse_rs::errors::Error;
-use clickhouse_rs::types::{Column, SqlType};
-use clickhouse_rs::types::{FromSql, Row};
-use clickhouse_rs::Pool;
+use v_clickhouse_rs::errors::Error;
+use v_clickhouse_rs::types::{Column, SqlType};
+use v_clickhouse_rs::types::{FromSql, Row};
+use v_clickhouse_rs::Pool;
 use futures::executor::block_on;
 use futures::lock::Mutex;
 use serde_json::json;
@@ -173,7 +173,7 @@ impl CHClient {
     }
 }
 
-async fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::Serialize>(
+async fn cltjs<'a, K: v_clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::Serialize>(
     row: &'a Row<'_, K>,
     col: &'a Column<K>,
     jrow: &mut Value,
@@ -267,7 +267,7 @@ async fn cltjs<'a, K: clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde::
     check_authorization(&jv, jrow, col.name(), user_uri, res_format, authorization_level, az).await
 }
 
-async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
+async fn col_to_json<K: v_clickhouse_rs::types::ColumnType>(
     row: &Row<'_, K>,
     col: &Column<K>,
     jrow: &mut Value,
@@ -275,7 +275,7 @@ async fn col_to_json<K: clickhouse_rs::types::ColumnType>(
     res_format: &ResultFormat,
     authorization_level: &AuthorizationLevel,
     az: &Mutex<LmdbAzContext>,
-) -> Result<bool, clickhouse_rs::errors::Error> {
+) -> Result<bool, v_clickhouse_rs::errors::Error> {
     let mut res = true;
     let sql_type = col.sql_type();
     match sql_type {
