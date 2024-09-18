@@ -40,6 +40,7 @@ pub struct LmdbAzContext {
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
     let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+    info!("LIB_AZ: Open LmdbAzContext");
 
     loop {
         match env_builder.open(DB_PATH, 0o644) {
@@ -108,7 +109,11 @@ impl LmdbAzContext {
         } else {
             StatMode::Full
         };
-        open(max_read_counter, Module::get_property("stat_collector_url"), mode, Module::get_property("use_authorization_cache"))
+
+        let stat_collector_url = Module::get_property("stat_collector_url");
+        let use_authorization_cache = Module::get_property("use_authorization_cache");
+
+        open(max_read_counter, stat_collector_url, mode, use_authorization_cache)
     }
 }
 
