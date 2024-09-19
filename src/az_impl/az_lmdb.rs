@@ -40,9 +40,9 @@ pub struct LmdbAzContext {
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
     let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
-    info!("LIB_AZ: Open LmdbAzContext");
 
     loop {
+        info!("LIB_AZ: Open LmdbAzContext {}", DB_PATH);
         match env_builder.open(DB_PATH, 0o644) {
             Ok(env) => {
                 info!("LIB_AZ: Opened environment {}", DB_PATH);
