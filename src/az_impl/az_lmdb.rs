@@ -11,6 +11,7 @@ use std::time::SystemTime;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
+use std::path::PathBuf;
 
 const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
@@ -42,18 +43,26 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
     let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
 
     loop {
-        info!("LIB_AZ: Open LmdbAzContext {}", DB_PATH);
+        let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
+
+        if !path.exists() {
+            error!("LIB_AZ: Database does not exist at path: {}", path.display());
+            thread::sleep(time::Duration::from_secs(3));
+            error!("Retrying database connection...");
+            continue;
+        }
+
         match env_builder.open(DB_PATH, 0o644) {
             Ok(env) => {
-                info!("LIB_AZ: Opened environment {}", DB_PATH);
+                info!("LIB_AZ: Opened environment at path: {}", DB_PATH);
 
                 let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
                     point: p,
                     mode: stat_mode.clone(),
                 });
 
-                if stat_ctx.is_some() {
-                    info!("LIB_AZ: Stat collector url: {:?}", stat_collector_url);
+                if let Some(stat) = &stat_ctx {
+                    info!("LIB_AZ: Stat collector URL: {:?}", stat_collector_url);
                     info!("LIB_AZ: Stat mode: {:?}", &stat_mode);
                 }
 
@@ -61,11 +70,11 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                     let cache_env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
                     let cache_env = match cache_env_builder.open(CACHE_DB_PATH, 0o644) {
                         Ok(env) => {
-                            info!("LIB_AZ: Opened cache environment {}", CACHE_DB_PATH);
+                            info!("LIB_AZ: Opened cache environment at path: {}", CACHE_DB_PATH);
                             Some(env)
                         },
                         Err(e) => {
-                            warn!("LIB_AZ: Err opening cache environment: {:?}. Proceeding without cache.", e);
+                            warn!("LIB_AZ: Error opening cache environment: {:?}. Proceeding without cache.", e);
                             None
                         },
                     };
@@ -88,9 +97,8 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                 };
             },
             Err(e) => {
-                error!("Authorize: Err opening environment: {:?}", e);
+                error!("Authorize: Error opening environment: {:?}. Retrying in 3 seconds...", e);
                 thread::sleep(time::Duration::from_secs(3));
-                error!("Retry");
             },
         }
     }
