@@ -102,16 +102,13 @@ impl LmdbInstance {
     }
 
     pub fn open(&mut self) {
-        info!("@A1");
         let env_builder = if self.mode == StorageMode::ReadOnly {
             EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync)
         } else {
             EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateNoMetaSync | EnvCreateNoSync)
         };
 
-        info!("@A2");
         let db_env = env_builder.open(&self.path, 0o644);
-        info!("@A3");
 
         let db_handle = match &db_env {
             Ok(env) => env.get_default_db(DbFlags::empty()),
