@@ -113,7 +113,7 @@ impl LmdbInstance {
         let db_handle = match &db_env {
             Ok(env) => env.get_default_db(DbFlags::empty()),
             Err(e) => {
-                error!("LMDB:fail opening read only environment, {}, err={:?}", self.path, e);
+                error!("LMDB: fail opening read only environment, path=[{}], err={:?}", self.path, e);
                 Err(MdbError::Corrupted)
             },
         };
@@ -130,7 +130,7 @@ impl LmdbInstance {
             return if parse_raw(iraw).is_ok() {
                 ResultCode::Ok
             } else {
-                error!("LMDB:fail parse binobj, {}, len={}, uri=[{}]", self.path, iraw.get_raw_len(), uri);
+                error!("LMDB: fail parse binobj, path=[{}], len={}, uri=[{}]", self.path, iraw.get_raw_len(), uri);
                 ResultCode::UnprocessableEntity
             };
         }
@@ -174,7 +174,7 @@ impl LmdbInstance {
                                         return None;
                                     },
                                     _ => {
-                                        error!("LMDB:db.get {}, {:?}, key=[{}]", self.path, e, key);
+                                        error!("LMDB: db.get failed for key=[{}], path=[{}], err={:?}", key, self.path, e);
                                         return None;
                                     },
                                 },
@@ -185,17 +185,17 @@ impl LmdbInstance {
                                 if c == -30785 {
                                     is_need_reopen = true;
                                 } else {
-                                    error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
+                                    error!("LMDB: failed to create transaction for key=[{}], path=[{}], err={}", key, self.path, e);
                                     return None;
                                 }
                             },
                             _ => {
-                                error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
+                                error!("LMDB: failed to create transaction for key=[{}], path=[{}], err={}", key, self.path, e);
                             },
                         },
                     },
                     Err(e) => {
-                        error!("LMDB:db handle, {}, err={}", self.path, e);
+                        error!("LMDB: db handle error for key=[{}], path=[{}], err={}", key, self.path, e);
                         return None;
                     },
                 },
@@ -204,15 +204,14 @@ impl LmdbInstance {
                         is_need_reopen = true;
                     },
                     _ => {
-                        error!("LMDB:db environment, {}, err={}", self.path, e);
+                        error!("LMDB: db environment error for key=[{}], path=[{}], err={}", key, self.path, e);
                         return None;
                     },
                 },
             }
 
             if is_need_reopen {
-                warn!("db {} reopen", self.path);
-
+                warn!("db {} reopen for key=[{}]", self.path, key);
                 self.open();
             }
         }
@@ -238,12 +237,12 @@ impl LmdbInstance {
                             if c == -30785 {
                                 is_need_reopen = true;
                             } else {
-                                error!("LMDB:fail read stat, {}, err={}", self.path, e);
+                                error!("LMDB: fail read stat for path=[{}], err={}", self.path, e);
                                 return 0;
                             }
                         },
                         _ => {
-                            error!("LMDB:fail crate transaction, {}, err={}", self.path, e);
+                            error!("LMDB: fail to create transaction for stat read, path=[{}], err={}", self.path, e);
                         },
                     },
                 },
@@ -252,15 +251,14 @@ impl LmdbInstance {
                         is_need_reopen = true;
                     },
                     _ => {
-                        error!("LMDB:db environment, {}, err={}", self.path, e);
+                        error!("LMDB: db environment error while reading stat, path=[{}], err={}", self.path, e);
                         return 0;
                     },
                 },
             }
 
             if is_need_reopen {
-                warn!("db {} reopen", self.path);
-
+                warn!("db {} reopen for stat read", self.path);
                 self.open();
             }
         }
@@ -371,7 +369,7 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
                 Ok(handle) => {
                     let db = txn.bind(handle);
                     if let Err(e) = db.del(&key) {
-                        error!("LMDB:failed put, {}, err={}", path, e);
+                        error!("LMDB: failed to remove key=[{}] from path=[{}], err={}", key, path, e);
                         return false;
                     }
 
@@ -381,23 +379,23 @@ fn remove_from_lmdb(db_env: &Result<Environment, MdbError>, db_handle: &Result<D
                                 return remove_from_lmdb(db_env, db_handle, key, path);
                             }
                         }
-                        error!("LMDB:failed to commit, {}, err={}", path, e);
+                        error!("LMDB: failed to commit removal for key=[{}], path=[{}], err={}", key, path, e);
                         return false;
                     }
                     true
                 },
                 Err(e) => {
-                    error!("LMDB:db handle, {}, err={}", path, e);
+                    error!("LMDB: db handle error while removing key=[{}], path=[{}], err={}", key, path, e);
                     false
                 },
             },
             Err(e) => {
-                error!("LMDB:db create transaction, {}, err={}", path, e);
+                error!("LMDB: failed to create transaction while removing key=[{}], path=[{}], err={}", key, path, e);
                 false
             },
         },
         Err(e) => {
-            error!("LMDB:db environment, {}, err={}", path, e);
+            error!("LMDB: db environment error while removing key=[{}], path=[{}], err={}", key, path, e);
             false
         },
     }
@@ -410,7 +408,7 @@ fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle:
                 Ok(handle) => {
                     let db = txn.bind(handle);
                     if let Err(e) = db.set(&key, &val) {
-                        error!("LMDB:failed put, {}, err={}", path, e);
+                        error!("LMDB: failed to put key=[{}] into path=[{}], err={}", key, path, e);
                         return false;
                     }
 
@@ -420,23 +418,23 @@ fn put_kv_lmdb<T: ToMdbValue>(db_env: &Result<Environment, MdbError>, db_handle:
                                 return put_kv_lmdb(db_env, db_handle, key, val, path);
                             }
                         }
-                        error!("LMDB:failed to commit, {}, err={}", path, e);
+                        error!("LMDB: failed to commit put for key=[{}], path=[{}], err={}", key, path, e);
                         return false;
                     }
                     true
                 },
                 Err(e) => {
-                    error!("LMDB:db handle, {}, err={}", path, e);
+                    error!("LMDB: db handle error while putting key=[{}], path=[{}], err={}", key, path, e);
                     false
                 },
             },
             Err(e) => {
-                error!("LMDB:db create transaction, {}, err={}", path, e);
+                error!("LMDB: failed to create transaction while putting key=[{}], path=[{}], err={}", key, path, e);
                 false
             },
         },
         Err(e) => {
-            error!("LMDB:db environment, {}, err={}", path, e);
+            error!("LMDB: db environment error while putting key=[{}], path=[{}], err={}", key, path, e);
             false
         },
     }
@@ -454,8 +452,9 @@ fn grow_db(db_env: &Result<Environment, MdbError>, path: &str) -> bool {
             }
         },
         Err(e) => {
-            error!("LMDB:db environment, {}, err={}", path, e);
+            error!("LMDB: db environment error while growing db, path=[{}], err={}", path, e);
         },
     }
     false
 }
+
