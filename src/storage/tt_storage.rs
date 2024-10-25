@@ -4,10 +4,10 @@ use crate::storage::common::{Storage, StorageId};
 use crate::v_api::obj::ResultCode;
 use rusty_tarantool::tarantool::{Client, ClientConfig, IteratorType};
 use std::str;
-use tokio::runtime::Runtime;
+use crate::RuntimeWrapper;
 
 pub struct TTStorage {
-    rt: Runtime,
+    rt: RuntimeWrapper,
     client: Client,
 }
 
@@ -18,7 +18,7 @@ const AZ_SPACE_ID: i32 = 514;
 impl TTStorage {
     pub fn new(tt_uri: String, login: &str, pass: &str) -> TTStorage {
         TTStorage {
-            rt: Runtime::new().unwrap(),
+            rt: RuntimeWrapper::new(),
             client: ClientConfig::new(tt_uri, login, pass).set_timeout_time_ms(1000).set_reconnect_time_ms(10000).build(),
         }
     }

@@ -20,3 +20,7 @@ pub mod v_api;
 
 pub use v_authorization;
 pub use v_queue;
+
+pub mod runtime_wrapper;
+
+pub use runtime_wrapper::RuntimeWrapper;
