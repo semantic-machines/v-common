@@ -61,7 +61,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                     mode: stat_mode.clone(),
                 });
 
-                if let Some(stat) = &stat_ctx {
+                if let Some(_stat) = &stat_ctx {
                     info!("LIB_AZ: Stat collector URL: {:?}", stat_collector_url);
                     info!("LIB_AZ: Stat mode: {:?}", &stat_mode);
                 }

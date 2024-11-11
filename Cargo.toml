@@ -1,22 +1,30 @@
 [package]
 name = "v-common"
-version = "0.10.18"
+version = "0.10.19"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
 license     = "MIT"
 
-#[lib]
-#path = "src/lib.rs"
-
 [features]
-default = ["tokio-0_2"]
-tokio-0_2 = ["tokio_0_2"]
-tokio-1 = ["tokio_1"]
+#default = ["tokio_0_2", "tt_2", "awc_2"]
+default = []
+tokio_0_2 = ["tokio_dep_0_2"]
+tokio_1 = ["tokio_dep_1"]
+tt_2 = ["rusty_tarantool_2"]
+tt_3 = ["rusty_tarantool_3"]
+awc_2 = ["awc_old"]
+awc_3 = ["awc_new"]
 
 [dependencies]
-tokio_0_2 = { version = "0.2", optional = true, package = "tokio", features = ["full"] }
-tokio_1 = { version = "1", optional = true, package = "tokio", features = ["full"] }
+tokio_dep_0_2 = { version = "0.2", optional = true, package = "tokio", features = ["full"] }
+tokio_dep_1 = { version = "1", optional = true, package = "tokio", features = ["full"] }
+
+# Conditional dependencies with aliases
+rusty_tarantool_2 = { version = "=0.2.10", optional = true, package = "rusty_tarantool" }
+rusty_tarantool_3 = { version = "=0.3.0", optional = true, package = "rusty_tarantool" }
+awc_old = { version = "2.0.3", optional = true, package = "awc", features = ["openssl"] }
+awc_new = { version = "3.5", optional = true, package = "awc", features = ["openssl"] }
 
 futures = "=0.3"
 nng = "1.0.1"
@@ -27,7 +35,6 @@ chrono = "0.4.19"
 chrono-tz = "0.5.3"
 v-cbr-codec = "0.7.1"
 rmp = "^0.8"
-#rmp-serialize = "^0.8"
 bincode = "1.2.1"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0"
@@ -36,7 +43,6 @@ rust_decimal = "=1.32.0"
 rio_turtle = "0.5.3"
 rio_api = "0.5.3"
 derivative = "2.1.1"
-rusty_tarantool = "=0.2.10"
 lmdb-rs-m = "0.7.8"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 rust-ini = "0.18"
@@ -61,28 +67,16 @@ sqlparser = "0.25.0"
 evmap = "10.0.2"
 spargebra = "0.2.8"
 oxrdf = { version = "0.1.0" }
-
 version = "3.0.0"
 git-version = "0.3.9"
-
 strum = "0.26"
 strum_macros = "0.26"
-awc = { version = "2.0.3", features = ["openssl"] }
 string-builder = "0.2"
 klickhouse = "0.13.0"
-
-#xapian-rusty = { package = "xapian-rusty", path = "../xapian-rusty" }
 xapian-rusty = "=0.0.55"
-
 v_authorization = "=0.4.0"
-#v_authorization = { package = "v_authorization", path = "../v-authorization" }
-
 v_queue = "=0.2.4"
 rand = "0.7.3"
 http = "0.2.9"
 bytes = "0.5.6"
 futures-util = "0.3.30"
-#v_queue = { package = "v_queue", path = "../v-queue" }
-
-# sudo apt install libglib2.0-dev
-

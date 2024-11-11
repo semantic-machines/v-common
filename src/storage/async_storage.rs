@@ -6,9 +6,10 @@ use crate::storage::lmdb_storage::LMDBStorage;
 use crate::v_api::obj::ResultCode;
 use crate::v_authorization::common::{Access, AuthorizationContext, Trace};
 use futures::lock::Mutex;
-use rusty_tarantool::tarantool::{Client, IteratorType};
 use std::io;
 use std::io::{Error, ErrorKind};
+
+use super::tt_wrapper::{Client, ClientConfig, IteratorType};
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;

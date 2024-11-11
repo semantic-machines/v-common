@@ -1,10 +1,10 @@
 pub struct RuntimeWrapper {
-    pub runtime: tokio_1::runtime::Runtime,
+    pub runtime: tokio_dep_1::runtime::Runtime,
 }
 
 impl RuntimeWrapper {
     pub fn new() -> Self {
-        let runtime = tokio_1::runtime::Runtime::new().unwrap();
+        let runtime = tokio_dep_1::runtime::Runtime::new().unwrap();
         RuntimeWrapper { runtime }
     }
 

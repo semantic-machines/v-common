@@ -1,9 +1,7 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::module::module_impl::Module;
-use crate::onto::*;
 use crate::search::common::{get_short_prefix, split_full_prefix, AuthorizationLevel, PrefixesCache, QueryResult, ResultFormat};
 use crate::v_api::obj::ResultCode;
-use awc::Client;
 use futures::lock::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,19 +13,24 @@ use std::time::Instant;
 use stopwatch::Stopwatch;
 use v_authorization::common::{Access, AuthorizationContext};
 
+use super::awc_wrapper::{Client, ACCEPT, CONTENT_TYPE, HeaderValue};
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Head {
     pub vars: Vec<String>,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Bindings {
     pub bindings: Vec<Value>,
 }
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct SparqlResponse {
     pub head: Head,
     pub results: Bindings,
 }
+
 pub struct SparqlClient {
     pub(crate) point: String,
     pub(crate) client: Client,
@@ -41,7 +44,7 @@ impl Default for SparqlClient {
         SparqlClient {
             point: format!("{}/{}?{}", Module::get_property::<String>("sparql_db").unwrap_or_default(), "query", "default"),
             client,
-            az: LmdbAzContext::new(1000),
+            az: LmdbAzContext::default(),
         }
     }
 }
@@ -50,8 +53,21 @@ impl SparqlClient {
     pub async fn query_select_ids(&mut self, user_uri: &str, query: String, prefix_cache: &PrefixesCache) -> QueryResult {
         let total_time = Instant::now();
 
-        let res_req =
-            self.client.post(&self.point).header("Content-Type", "application/sparql-query").header("Accept", "application/sparql-results+json").send_body(query).await;
+        #[cfg(feature = "awc_2")]
+        let res_req = self.client
+            .post(&self.point)
+            .header("Content-Type", "application/sparql-query")
+            .header("Accept", "application/sparql-results+json")
+            .send_body(query)
+            .await;
+
+        #[cfg(feature = "awc_3")]
+        let res_req = self.client
+            .post(&self.point)
+            .insert_header((CONTENT_TYPE, HeaderValue::from_static("application/sparql-query")))
+            .insert_header((ACCEPT, HeaderValue::from_static("application/sparql-results+json")))
+            .send_body(query)
+            .await;
 
         let mut qres = QueryResult::default();
 
@@ -112,11 +128,20 @@ impl SparqlClient {
         az: &Mutex<LmdbAzContext>,
         prefix_cache: &PrefixesCache,
     ) -> Result<Value, Error> {
-        let mut response = self
-            .client
+        #[cfg(feature = "awc_2")]
+        let mut response = self.client
             .post(&self.point)
             .header("Content-Type", "application/sparql-query")
             .header("Accept", "application/sparql-results+json")
+            .send_body(query)
+            .await
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
+
+        #[cfg(feature = "awc_3")]
+        let mut response = self.client
+            .post(&self.point)
+            .insert_header((CONTENT_TYPE, HeaderValue::from_static("application/sparql-query")))
+            .insert_header((ACCEPT, HeaderValue::from_static("application/sparql-results+json")))
             .send_body(query)
             .await
             .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
@@ -138,67 +163,81 @@ impl SparqlClient {
 
         for el in v.results.bindings {
             let mut skip_row = false;
-            let mut jrow = Map::new();
-            let mut row_vec = Vec::new();
+            let mut jrow = if res_format == ResultFormat::Full {
+                Value::Object(Map::new())
+            } else {
+                Value::Array(Vec::new())
+            };
 
-            for var in &v.head.vars {
+            for var in v.head.vars.iter() {
+                let mut is_authorized = true;
                 let r = &el[var];
-                let processed_value = if let (Some(r_type), Some(r_value), r_datatype) = (r.get("type"), r.get("value"), r.get("datatype")) {
-                    match (r_type.as_str(), r_value.as_str()) {
-                        (Some("uri"), Some(data)) => {
-                            let iri = split_full_prefix(data);
-                            let prefix = get_short_prefix(iri.0, &prefix_cache);
-                            let short_iri = format!("{prefix}:{}", iri.1);
-                            if authorization_level == AuthorizationLevel::Cell || authorization_level == AuthorizationLevel::RowColumn {
-                                if az.lock().await.authorize(&short_iri, user_uri, Access::CanRead as u8, false).unwrap_or(0) == Access::CanRead as u8 {
-                                    json!(short_iri)
-                                } else {
-                                    if authorization_level == AuthorizationLevel::Cell {
-                                        json!("v-s:NotAuthorized")
-                                    } else if authorization_level == AuthorizationLevel::RowColumn {
-                                        excluded_rows.insert(row_count);
-                                        if res_format == ResultFormat::Rows {
-                                            skip_row = true;
+
+                let processed_value = if let (Some(r_type), Some(r_value)) = (r.get("type"), r.get("value")) {
+                    if r_type == "uri" {
+                        if authorization_level == AuthorizationLevel::Cell || authorization_level == AuthorizationLevel::RowColumn {
+                            if r_type == "uri" {
+                                if let Some(val) = r_value.as_str() {
+                                    let iri = split_full_prefix(val);
+                                    let prefix = get_short_prefix(iri.0, prefix_cache);
+                                    let short_iri = format!("{prefix}:{}", iri.1);
+
+                                    if az.lock().await.authorize(&short_iri, user_uri, Access::CanRead as u8, false).unwrap_or(0) != Access::CanRead as u8 {
+                                        is_authorized = false;
+                                        if authorization_level == AuthorizationLevel::Cell {
+                                            json!("v-s:NotAuthorized")
+                                        } else {
+                                            excluded_rows.insert(row_count);
+                                            if res_format == ResultFormat::Rows {
+                                                skip_row = true;
+                                            }
+                                            Value::Null
                                         }
-                                        Value::Null
                                     } else {
-                                        Value::Null
+                                        json!(short_iri)
                                     }
+                                } else {
+                                    Value::Null
                                 }
                             } else {
+                                json!(r_value)
+                            }
+                        } else {
+                            if let Some(val) = r_value.as_str() {
+                                let iri = split_full_prefix(val);
+                                let prefix = get_short_prefix(iri.0, prefix_cache);
+                                let short_iri = format!("{prefix}:{}", iri.1);
                                 json!(short_iri)
-                            }
-                        },
-                        (Some("literal"), Some(data)) => {
-                            if let Some(dt) = r_datatype.and_then(|dt| dt.as_str()) {
-                                match dt {
-                                    XSD_INTEGER | XSD_INT | XSD_LONG => json!(data.parse::<i64>().unwrap_or_default()),
-                                    XSD_STRING | XSD_NORMALIZED_STRING => json!(data),
-                                    XSD_BOOLEAN => json!(data.parse::<bool>().unwrap_or_default()),
-                                    XSD_DATE_TIME => json!(data),
-                                    XSD_FLOAT | XSD_DOUBLE | XSD_DECIMAL => json!(data.parse::<f64>().unwrap_or_default()),
-                                    _ => json!(data), // Для неопознанных типов данных просто возвращаем строку
-                                }
                             } else {
-                                json!(data) // Если тип данных не указан, возвращаем как строку
+                                Value::Null
                             }
-                        },
-                        _ => Value::Null, // Для неизвестных или необработанных типов
+                        }
+                    } else {
+                        json!(r_value)
                     }
                 } else {
                     Value::Null
                 };
 
-                if !skip_row {
+                if is_authorized && !skip_row {
                     match res_format {
                         ResultFormat::Full => {
-                            jrow.insert(var.clone(), processed_value);
+                            if let Some(obj) = jrow.as_object_mut() {
+                                obj.insert(var.clone(), processed_value);
+                            }
                         },
                         ResultFormat::Rows => {
-                            row_vec.push(processed_value);
+                            if let Some(arr) = jrow.as_array_mut() {
+                                arr.push(processed_value);
+                            }
                         },
                         ResultFormat::Cols => {
-                            col_data.entry(var.clone()).or_insert_with(|| Value::Array(Vec::new())).as_array_mut().unwrap().push(processed_value);
+                            col_data
+                                .entry(var.clone())
+                                .or_insert_with(|| Value::Array(Vec::new()))
+                                .as_array_mut()
+                                .unwrap()
+                                .push(processed_value);
                         },
                     }
                 }
@@ -206,9 +245,8 @@ impl SparqlClient {
 
             if !skip_row {
                 match res_format {
-                    ResultFormat::Full => jrows.push(Value::Object(jrow)),
-                    ResultFormat::Rows => jrows.push(Value::Array(row_vec)),
-                    _ => (), // Для Cols финальная обработка ниже
+                    ResultFormat::Full | ResultFormat::Rows => jrows.push(jrow),
+                    _ => (),
                 }
             }
             row_count += 1;
@@ -222,24 +260,18 @@ impl SparqlClient {
             ResultFormat::Cols => {
                 if authorization_level == AuthorizationLevel::RowColumn {
                     for (_col_name, col_values) in col_data.iter_mut() {
-                        if let Value::Array(values) = col_values {
-                            *values = values
-                                .iter()
-                                .enumerate()
-                                .filter_map(|(index, value)| {
-                                    if !excluded_rows.contains(&index) {
-                                        Some(value.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
+                        if let Value::Array(ref mut rows) = col_values {
+                            let mut i = 0;
+                            rows.retain(|_| {
+                                let retain = !excluded_rows.contains(&i);
+                                i += 1;
+                                retain
+                            });
                         }
                     }
                 }
 
-                let cols = col_data.into_iter().map(|(k, v)| (k, json!(v))).collect::<Map<_, _>>();
-                jres = json!(cols);
+                jres = json!(col_data);
             },
         }
 
