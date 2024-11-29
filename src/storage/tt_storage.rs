@@ -1,10 +1,10 @@
+use super::tt_wrapper::{Client, ClientConfig, IteratorType};
 use crate::onto::individual::Individual;
 use crate::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
 use crate::v_api::obj::ResultCode;
 use crate::RuntimeWrapper;
 use std::str;
-use super::tt_wrapper::{Client, ClientConfig, IteratorType};
 
 pub struct TTStorage {
     rt: RuntimeWrapper,
@@ -19,10 +19,7 @@ impl TTStorage {
     pub fn new(tt_uri: String, login: &str, pass: &str) -> TTStorage {
         TTStorage {
             rt: RuntimeWrapper::new(),
-            client: ClientConfig::new(tt_uri, login, pass)
-                .set_timeout_time_ms(1000)
-                .set_reconnect_time_ms(10000)
-                .build(),
+            client: ClientConfig::new(tt_uri, login, pass).set_timeout_time_ms(1000).set_reconnect_time_ms(10000).build(),
         }
     }
 }
@@ -52,10 +49,10 @@ impl Storage for TTStorage {
                 } else {
                     ResultCode::UnprocessableEntity
                 };
-            }
+            },
             Err(e) => {
                 error!("TTStorage: fail get [{}] from tarantool, err={:?}", uri, e);
-            }
+            },
         }
 
         ResultCode::NotReady

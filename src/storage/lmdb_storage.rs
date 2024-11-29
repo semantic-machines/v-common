@@ -457,4 +457,3 @@ fn grow_db(db_env: &Result<Environment, MdbError>, path: &str) -> bool {
     }
     false
 }
-
