@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.10.20"
+version = "0.10.21"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -39,7 +39,7 @@ bincode = "1.2.1"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
-rust_decimal = "=1.32.0"
+rust_decimal = "=1.36"
 rio_turtle = "0.5.3"
 rio_api = "0.5.3"
 derivative = "2.1.1"

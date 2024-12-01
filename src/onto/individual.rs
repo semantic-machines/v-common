@@ -221,13 +221,21 @@ impl Individual {
 
     pub fn add_decimal_from_f64(&mut self, predicate: &str, value: f64) {
         if let Some(v) = Decimal::from_f64(value) {
-            error!("*1 value={}", value);
             let exp = v.scale() as usize;
             let p: i64 = pow(10, exp);
             let mantissa: f64 = value * p as f64;
-            error!("*1 exp={}, mantissa={}", exp, mantissa);
-
             self.add_decimal_d(predicate, mantissa as i64, -(exp as i64));
+        } else {
+            error!("fail parse [{}] to decimal", value);
+        }
+    }
+
+    pub fn set_decimal_from_f64(&mut self, predicate: &str, value: f64) {
+        if let Some(v) = Decimal::from_f64(value) {
+            let exp = v.scale() as usize;
+            let p: i64 = pow(10, exp);
+            let mantissa: f64 = value * p as f64;
+            self.set_decimal_d(predicate, mantissa as i64, -(exp as i64));
         } else {
             error!("fail parse [{}] to decimal", value);
         }
