@@ -83,7 +83,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
     true
 }
 
-const SIGNALS: &[c_int] = &[SIGTERM, SIGQUIT, SIGINT, SIGTSTP, SIGWINCH, SIGCHLD, SIGCONT];
+const SIGNALS: &[c_int] = &[SIGTERM, SIGQUIT, SIGINT, SIGTSTP, SIGWINCH, SIGCONT];
 
 pub fn sys_sig_listener() -> Result<Receiver<i32>, Error> {
     let (sender, receiver) = bounded(1);
@@ -118,7 +118,8 @@ pub fn get_queue_status(id: &str) -> Individual {
             if c.queue.get_info_of_part(c.id, false).is_ok() {
                 out_indv.set_id(id);
                 out_indv.add_uri("rdf:type", "v-s:AppInfo");
-                out_indv.add_datetime("v-s:created", Utc::now().naive_utc().timestamp());
+                // Исправленная строка
+                out_indv.add_datetime("v-s:created", Utc::now().timestamp());
                 out_indv.add_uri("srv:queue", &("srv:".to_owned() + consumer_name));
                 out_indv.add_integer("srv:total_count", c.queue.count_pushed as i64);
                 out_indv.add_integer("srv:current_count", c.count_popped as i64);
@@ -133,8 +134,8 @@ pub fn get_queue_status(id: &str) -> Individual {
 #[macro_export]
 macro_rules! init_module_log {
     ($module_name:expr) => {{
-        use version::version;
         use git_version::git_version;
+        use version::version;
         init_log($module_name);
         info!("{} {} {}", $module_name, version!(), git_version!());
     }};

@@ -153,9 +153,9 @@ impl Individual {
 
             if let Ok(v) = ndt {
                 if let Single(offset) = Local.offset_from_local_datetime(&v) {
-                    self.add_datetime(predicate, v.sub(offset).timestamp());
+                    self.add_datetime(predicate, v.sub(offset).and_utc().timestamp());
                 } else {
-                    self.add_datetime(predicate, v.timestamp());
+                    self.add_datetime(predicate, v.and_utc().timestamp());
                 }
             } else {
                 error!("fail parse [{}] to datetime", value);
@@ -180,17 +180,18 @@ impl Individual {
     }
 
     pub fn set_resources(&mut self, predicate: &str, v: &[Resource]) {
+        self.remove(predicate);
         for el in v.iter() {
             match el.rtype {
-                DataType::String => self.set_string(predicate, el.get_str(), el.get_lang()),
-                DataType::Uri => self.set_uri(predicate, el.get_uri()),
-                DataType::Datetime => self.set_datetime(predicate, el.get_datetime()),
-                DataType::Integer => self.set_integer(predicate, el.get_int()),
+                DataType::String => self.add_string(predicate, el.get_str(), el.get_lang()),
+                DataType::Uri => self.add_uri(predicate, el.get_uri()),
+                DataType::Datetime => self.add_datetime(predicate, el.get_datetime()),
+                DataType::Integer => self.add_integer(predicate, el.get_int()),
                 DataType::Decimal => {
                     let d = el.get_num();
-                    self.set_decimal_d(predicate, d.0, d.1);
+                    self.add_decimal_d(predicate, d.0, d.1);
                 },
-                DataType::Boolean => self.set_bool(predicate, el.get_bool()),
+                DataType::Boolean => self.add_bool(predicate, el.get_bool()),
                 DataType::Binary => {},
             }
         }
@@ -787,6 +788,54 @@ impl Individual {
         }
 
         true
+    }
+
+    pub fn set_datetime_from_str(&mut self, predicate: &str, value: &str) {
+        if value.contains('Z') {
+            if let Ok(v) = DateTime::parse_from_rfc3339(value) {
+                self.set_datetime(predicate, v.timestamp());
+            } else {
+                error!("fail parse [{}] to datetime", value);
+            }
+        } else {
+            let ndt;
+            if value.len() == 10 {
+                if value.contains('.') {
+                    ndt = NaiveDateTime::parse_from_str(&(value.to_owned() + "T00:00:00"), "%d.%m.%YT%H:%M:%S");
+                } else {
+                    ndt = NaiveDateTime::parse_from_str(&(value.to_owned() + "T00:00:00"), "%Y-%m-%dT%H:%M:%S");
+                }
+            } else {
+                ndt = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S")
+            }
+
+            if let Ok(v) = ndt {
+                if let Single(offset) = Local.offset_from_local_datetime(&v) {
+                    self.set_datetime(predicate, v.sub(offset).and_utc().timestamp());
+                } else {
+                    self.set_datetime(predicate, v.and_utc().timestamp());
+                }
+            } else {
+                error!("fail parse [{}] to datetime", value);
+            }
+        }
+    }
+
+    // Add missing set_decimal_from_str method
+    pub fn set_decimal_from_str(&mut self, predicate: &str, value: &str) {
+        if let Ok(v) = Decimal::from_str(value) {
+            let exp = -(v.scale() as i32);
+            if let Ok(m) = value.replace('.', "").parse::<i64>() {
+                self.set_decimal_d(predicate, m, exp as i64);
+            }
+        } else {
+            error!("fail parse [{}] to decimal", value);
+        }
+    }
+
+    // Add missing set_decimal_from_i64 method
+    pub fn set_decimal_from_i64(&mut self, predicate: &str, value: i64) {
+        self.set_decimal_d(predicate, value, 0);
     }
 }
 

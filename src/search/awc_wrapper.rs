@@ -11,6 +11,6 @@ mod inner {
 
 // Re-export what we need through a single path
 pub use inner::awc::{
+    http::header::{HeaderValue, ACCEPT, CONTENT_TYPE},
     Client,
-    http::header::{ACCEPT, CONTENT_TYPE, HeaderValue},
 };

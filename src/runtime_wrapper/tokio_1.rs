@@ -5,7 +5,9 @@ pub struct RuntimeWrapper {
 impl RuntimeWrapper {
     pub fn new() -> Self {
         let runtime = tokio_dep_1::runtime::Runtime::new().unwrap();
-        RuntimeWrapper { runtime }
+        RuntimeWrapper {
+            runtime,
+        }
     }
 
     pub fn version(&self) -> &'static str {

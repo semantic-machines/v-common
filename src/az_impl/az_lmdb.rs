@@ -6,12 +6,12 @@ use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateN
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 use std::cmp::PartialEq;
 use std::io::ErrorKind;
+use std::path::PathBuf;
 use std::time;
 use std::time::SystemTime;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
-use std::path::PathBuf;
 
 const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";

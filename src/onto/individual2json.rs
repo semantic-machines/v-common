@@ -43,7 +43,6 @@ impl Serialize for Resource {
     where
         S: Serializer,
     {
-        //serializer.serialize_some (&self.value)
         let mut tup = serializer.serialize_struct("E", 0)?;
 
         match &self.value {
@@ -55,7 +54,12 @@ impl Serialize for Resource {
             },
             Value::Datetime(i) => {
                 let dt = *i;
-                tup.serialize_field("data", &format!("{:?}", &Utc.timestamp(dt, 0)))?;
+                if let Some(datetime) = Utc.timestamp_opt(dt, 0).single() {
+                    tup.serialize_field("data", &format!("{:?}", datetime))?;
+                } else {
+                    error!("Invalid timestamp value: {}", dt);
+                    tup.serialize_field("data", &format!("Invalid timestamp: {}", dt))?;
+                }
             },
             Value::Bool(b) => {
                 tup.serialize_field("data", b)?;
@@ -70,7 +74,9 @@ impl Serialize for Resource {
             Value::Uri(s) => {
                 tup.serialize_field("data", s)?;
             },
-            _ => {},
+            Value::Binary(_) => {
+                // Handle binary data case if needed
+            },
         }
         tup.serialize_field("type", &self.rtype)?;
 

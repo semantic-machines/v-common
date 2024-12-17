@@ -13,7 +13,7 @@ use std::time::Instant;
 use stopwatch::Stopwatch;
 use v_authorization::common::{Access, AuthorizationContext};
 
-use super::awc_wrapper::{Client, ACCEPT, CONTENT_TYPE, HeaderValue};
+use super::awc_wrapper::{Client, HeaderValue, ACCEPT, CONTENT_TYPE};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Head {
@@ -54,15 +54,12 @@ impl SparqlClient {
         let total_time = Instant::now();
 
         #[cfg(feature = "awc_2")]
-        let res_req = self.client
-            .post(&self.point)
-            .header("Content-Type", "application/sparql-query")
-            .header("Accept", "application/sparql-results+json")
-            .send_body(query)
-            .await;
+        let res_req =
+            self.client.post(&self.point).header("Content-Type", "application/sparql-query").header("Accept", "application/sparql-results+json").send_body(query).await;
 
         #[cfg(feature = "awc_3")]
-        let res_req = self.client
+        let res_req = self
+            .client
             .post(&self.point)
             .insert_header((CONTENT_TYPE, HeaderValue::from_static("application/sparql-query")))
             .insert_header((ACCEPT, HeaderValue::from_static("application/sparql-results+json")))
@@ -129,7 +126,8 @@ impl SparqlClient {
         prefix_cache: &PrefixesCache,
     ) -> Result<Value, Error> {
         #[cfg(feature = "awc_2")]
-        let mut response = self.client
+        let mut response = self
+            .client
             .post(&self.point)
             .header("Content-Type", "application/sparql-query")
             .header("Accept", "application/sparql-results+json")
@@ -138,7 +136,8 @@ impl SparqlClient {
             .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))?;
 
         #[cfg(feature = "awc_3")]
-        let mut response = self.client
+        let mut response = self
+            .client
             .post(&self.point)
             .insert_header((CONTENT_TYPE, HeaderValue::from_static("application/sparql-query")))
             .insert_header((ACCEPT, HeaderValue::from_static("application/sparql-results+json")))
@@ -232,12 +231,7 @@ impl SparqlClient {
                             }
                         },
                         ResultFormat::Cols => {
-                            col_data
-                                .entry(var.clone())
-                                .or_insert_with(|| Value::Array(Vec::new()))
-                                .as_array_mut()
-                                .unwrap()
-                                .push(processed_value);
+                            col_data.entry(var.clone()).or_insert_with(|| Value::Array(Vec::new())).as_array_mut().unwrap().push(processed_value);
                         },
                     }
                 }

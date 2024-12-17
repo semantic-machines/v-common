@@ -516,6 +516,9 @@ fn parse_query(qp: &mut QueryParser, query_str: &str, flags: i16) -> Result<Quer
     }
 }
 
+// In xapian_vql.rs, we need to modify the get_token_type function.
+// Here's the fixed version of the relevant part:
+
 fn get_token_type(token_in: &str) -> (TokenType, f64) {
     debug!("token=[{}]", token_in);
 
@@ -527,12 +530,12 @@ fn get_token_type(token_in: &str) -> (TokenType, f64) {
         return (TokenType::Boolean, 0.0);
     } else if token.len() == 19 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' {
         if let Ok(nv) = NaiveDateTime::parse_from_str(token_in, "%Y-%m-%dT%H:%M:%S") {
-            return (TokenType::Date, nv.timestamp() as f64);
+            return (TokenType::Date, nv.and_utc().timestamp() as f64);
         }
     } else if token.len() == 24 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' && token[19] == b'.' {
         let (token, _) = token_in.split_at(token_in.len() - 1);
         if let Ok(nv) = NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S%.f") {
-            return (TokenType::Date, nv.timestamp() as f64);
+            return (TokenType::Date, nv.and_utc().timestamp() as f64);
         }
     }
 

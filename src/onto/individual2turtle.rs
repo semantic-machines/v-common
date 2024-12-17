@@ -174,7 +174,12 @@ pub fn format_resource(subject: &str, predicate: &str, r: &Resource, formatter: 
             formatter.format(&from_string(subject, predicate, r.get_str(), &r.get_lang()))?;
         },
         DataType::Datetime => {
-            formatter.format(&from_datetime(subject, predicate, &format!("{:?}", &Utc.timestamp(r.get_datetime(), 0))))?;
+            let datetime = match Utc.timestamp_opt(r.get_datetime(), 0) {
+                chrono::LocalResult::Single(dt) => dt,
+                _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid timestamp value: {}", r.get_datetime()))),
+            };
+
+            formatter.format(&from_datetime(subject, predicate, &format!("{:?}", datetime)))?;
         },
         DataType::Decimal => {
             let (m, e) = r.get_num();

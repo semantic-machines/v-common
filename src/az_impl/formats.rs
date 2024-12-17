@@ -200,7 +200,7 @@ fn extract_date(s: &str) -> (Option<DateTime<Utc>>, String) {
     if let Some(date_str) = s.strip_prefix('T') {
         if let Some((date_str, rest)) = date_str.split_once(',') {
             if let Ok(date) = NaiveDate::parse_from_str(date_str, "%y%m%d") {
-                let datetime = date.and_hms_opt(0, 0, 0).map(|dt| DateTime::<Utc>::from_utc(dt, Utc));
+                let datetime = date.and_hms_opt(0, 0, 0).map(|dt| DateTime::from_naive_utc_and_offset(dt, Utc));
                 return (datetime, rest.to_string());
             }
         }

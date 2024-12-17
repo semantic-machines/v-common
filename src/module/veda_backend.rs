@@ -140,7 +140,7 @@ impl Backend {
     pub fn get_ticket_from_db(&mut self, id: &str) -> Ticket {
         let mut dest = Ticket::default();
         let mut indv = Individual::default();
-        if self.storage.get_individual_from_db(StorageId::Tickets, id, &mut indv) == ResultCode::Ok{
+        if self.storage.get_individual_from_db(StorageId::Tickets, id, &mut indv) == ResultCode::Ok {
             dest.update_from_individual(&mut indv);
             dest.result = ResultCode::Ok;
         }

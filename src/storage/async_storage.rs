@@ -9,7 +9,7 @@ use futures::lock::Mutex;
 use std::io;
 use std::io::{Error, ErrorKind};
 
-use super::tt_wrapper::{Client, ClientConfig, IteratorType};
+use super::tt_wrapper::{Client, IteratorType};
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;

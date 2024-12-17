@@ -1,12 +1,12 @@
 use crate::onto::datatype::Lang;
 use crate::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
-use chrono::{NaiveDateTime, Utc};
 use evmap::ShallowCopy;
 use serde_json::Value;
 use std::hash::{Hash, Hasher};
 use std::mem::ManuallyDrop;
 use std::net::IpAddr;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct Ticket {
@@ -105,7 +105,7 @@ impl Ticket {
         ticket_indv.add_string("ticket:accessor", &self.user_uri, Lang::none());
         ticket_indv.add_string("ticket:addr", &self.user_addr, Lang::none());
 
-        let start_time_str = NaiveDateTime::from_timestamp(self.start_time, 0).format("%Y-%m-%dT%H:%M:%S%.f").to_string();
+        let start_time_str = DateTime::<Utc>::from_timestamp(self.start_time, 0).unwrap_or_default().format("%Y-%m-%dT%H:%M:%S%.f").to_string();
 
         if start_time_str.len() > 28 {
             ticket_indv.add_string("ticket:when", &start_time_str[0..28], Lang::none());
@@ -140,7 +140,7 @@ impl Ticket {
         let when = when.unwrap();
 
         if let Ok(t) = NaiveDateTime::parse_from_str(&when, "%Y-%m-%dT%H:%M:%S%.f") {
-            self.start_time = t.timestamp();
+            self.start_time = t.and_utc().timestamp();
             self.end_time = self.start_time + duration as i64;
         } else {
             error!("fail parse field [ticket:when] = {}", when);
