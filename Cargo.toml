@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.13.1"
+version = "0.13.2"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -73,10 +73,11 @@ strum = "0.26"
 strum_macros = "0.26"
 string-builder = "0.2"
 klickhouse = "0.13.0"
-xapian-rusty = "=0.0.55"
-v_authorization = "=0.4.0"
-v_queue = "=0.2.4"
 rand = "0.7.3"
 http = "0.2.9"
 bytes = "0.5.6"
 futures-util = "0.3.30"
+
+xapian-rusty = "=0.0.55"
+v_authorization = "=0.4.0"
+v_queue = "=0.2.7"
