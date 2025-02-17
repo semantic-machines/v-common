@@ -148,7 +148,12 @@ fn from_string<'a>(id: &'a str, in_predicate: &'a str, s: &'a str, l: &'a Lang) 
     }
 }
 
-pub fn format_resources(subject: &str, predicate: &str, resources: &[Resource], formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>) -> Result<(), io::Error> {
+pub fn format_resources(
+    subject: &str,
+    predicate: &str,
+    resources: &[Resource],
+    formatter: &mut TurtleFormatterWithPrefixes<Vec<u8>>,
+) -> Result<(), io::Error> {
     for r in resources {
         format_resource(subject, predicate, r, formatter)?;
     }

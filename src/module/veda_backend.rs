@@ -163,6 +163,9 @@ pub fn indv_apply_cmd(cmd: &IndvOp, prev_indv: &mut Individual, indv: &mut Indiv
                 } else if cmd == &IndvOp::RemoveFrom {
                     // remove predicate or value in set
                     prev_indv.apply_predicate_as_remove(&predicate, indv);
+                } else if cmd == &IndvOp::RemovePredicates {
+                    // remove entire predicates
+                    prev_indv.remove(&predicate);
                 }
             }
         }

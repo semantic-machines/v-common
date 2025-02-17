@@ -316,7 +316,10 @@ pub(crate) fn transform_vql_to_xapian(
                                             *query = Query::new_double_with_prefix(&format!("X{}X", slot), d)?;
                                         },
                                         Err(_) => {
-                                            return Err(XError::from(Error::new(ErrorKind::Other, format!("transform_vql_to_xapian, invalid tta=[{}]", tta))));
+                                            return Err(XError::from(Error::new(
+                                                ErrorKind::Other,
+                                                format!("transform_vql_to_xapian, invalid tta=[{}]", tta),
+                                            )));
                                         },
                                     }
                                 }
@@ -532,7 +535,8 @@ fn get_token_type(token_in: &str) -> (TokenType, f64) {
         if let Ok(nv) = NaiveDateTime::parse_from_str(token_in, "%Y-%m-%dT%H:%M:%S") {
             return (TokenType::Date, nv.and_utc().timestamp() as f64);
         }
-    } else if token.len() == 24 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' && token[19] == b'.' {
+    } else if token.len() == 24 && token[4] == b'-' && token[7] == b'-' && token[10] == b'T' && token[13] == b':' && token[16] == b':' && token[19] == b'.'
+    {
         let (token, _) = token_in.split_at(token_in.len() - 1);
         if let Ok(nv) = NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S%.f") {
             return (TokenType::Date, nv.and_utc().timestamp() as f64);

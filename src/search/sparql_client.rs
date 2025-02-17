@@ -54,8 +54,13 @@ impl SparqlClient {
         let total_time = Instant::now();
 
         #[cfg(feature = "awc_2")]
-        let res_req =
-            self.client.post(&self.point).header("Content-Type", "application/sparql-query").header("Accept", "application/sparql-results+json").send_body(query).await;
+        let res_req = self
+            .client
+            .post(&self.point)
+            .header("Content-Type", "application/sparql-query")
+            .header("Accept", "application/sparql-results+json")
+            .send_body(query)
+            .await;
 
         #[cfg(feature = "awc_3")]
         let res_req = self

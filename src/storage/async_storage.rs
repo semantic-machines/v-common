@@ -19,7 +19,12 @@ pub struct AStorage {
     pub lmdb: Option<Mutex<LMDBStorage>>,
 }
 
-pub async fn check_indv_access_read(mut indv: Individual, uri: &str, user_uri: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+pub async fn check_indv_access_read(
+    mut indv: Individual,
+    uri: &str,
+    user_uri: &str,
+    az: Option<&Mutex<LmdbAzContext>>,
+) -> io::Result<(Individual, ResultCode)> {
     if indv.get_id().is_empty() {
         return Ok((indv, ResultCode::NotFound));
     }

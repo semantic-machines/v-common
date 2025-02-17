@@ -160,7 +160,14 @@ impl AuthorizationContext for LmdbAzContext {
         r
     }
 
-    fn authorize_and_trace(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, std::io::Error> {
+    fn authorize_and_trace(
+        &mut self,
+        uri: &str,
+        user_uri: &str,
+        request_access: u8,
+        _is_check_for_reload: bool,
+        trace: &mut Trace,
+    ) -> Result<u8, std::io::Error> {
         self.authorize_counter += 1;
         //info!("az counter={}", self.authorize_counter);
         if self.authorize_counter >= self.max_authorize_counter {
@@ -271,7 +278,14 @@ impl<'a> Storage for AzLmdbStorage<'a> {
 }
 
 impl LmdbAzContext {
-    fn authorize_use_db(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool, trace: &mut Trace) -> Result<u8, std::io::Error> {
+    fn authorize_use_db(
+        &mut self,
+        uri: &str,
+        user_uri: &str,
+        request_access: u8,
+        _is_check_for_reload: bool,
+        trace: &mut Trace,
+    ) -> Result<u8, std::io::Error> {
         let db_handle = match self.env.get_default_db(DbFlags::empty()) {
             Ok(db_handle_res) => db_handle_res,
             Err(e) => {

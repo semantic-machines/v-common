@@ -59,7 +59,11 @@ pub enum IndvOp {
     /// Убрать
     Remove = 51,
 
+    /// Оставляем как было
     None = 52,
+
+    /// Убрать предикат (новая операция со следующим свободным номером)
+    RemovePredicates = 53,
 }
 
 impl IndvOp {
@@ -70,6 +74,8 @@ impl IndvOp {
             47 => IndvOp::AddTo,
             45 => IndvOp::SetIn,
             48 => IndvOp::RemoveFrom,
+            52 => IndvOp::None,
+            53 => IndvOp::RemovePredicates,
             // ...
             _ => IndvOp::None,
         }
@@ -82,8 +88,8 @@ impl IndvOp {
             IndvOp::AddTo => 47,
             IndvOp::SetIn => 45,
             IndvOp::RemoveFrom => 48,
-            // ...
             IndvOp::None => 52,
+            IndvOp::RemovePredicates => 53,
         }
     }
 
@@ -94,8 +100,8 @@ impl IndvOp {
             IndvOp::AddTo => "add_to",
             IndvOp::SetIn => "set_in",
             IndvOp::RemoveFrom => "remove_from",
-            // ...
             IndvOp::None => "none",
+            IndvOp::RemovePredicates => "remove_predicates",
         }
         .to_string()
     }
@@ -282,7 +288,15 @@ impl MStorageClient {
         self.update_use_param(ticket, event_id, src, ALL_MODULES, cmd, indv)
     }
 
-    pub fn update_use_param(&mut self, ticket: &str, event_id: &str, src: &str, assigned_subsystems: i64, cmd: IndvOp, indv: &Individual) -> Result<OpResult, ApiError> {
+    pub fn update_use_param(
+        &mut self,
+        ticket: &str,
+        event_id: &str,
+        src: &str,
+        assigned_subsystems: i64,
+        cmd: IndvOp,
+        indv: &Individual,
+    ) -> Result<OpResult, ApiError> {
         let query = json!({
             "function": cmd.as_string(),
             "ticket": ticket,

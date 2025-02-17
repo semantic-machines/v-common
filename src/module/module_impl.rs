@@ -539,7 +539,9 @@ pub fn init_log_with_params(module_name: &str, filter: Option<&str>, with_thread
 
     if with_thread_id {
         Builder::new()
-            .format(|buf, record| writeln!(buf, "{} {} [{}] - {}", thread_id::get(), Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"), record.level(), record.args()))
+            .format(|buf, record| {
+                writeln!(buf, "{} {} [{}] - {}", thread_id::get(), Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"), record.level(), record.args())
+            })
             .parse_filters(&filters_str)
             .try_init()
             .unwrap_or(())
