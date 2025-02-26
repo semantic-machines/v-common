@@ -1,5 +1,5 @@
-use crate::onto::individual::Individual;
-use crate::onto::resource::Value;
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::resource::Value;
 use crate::search::sql_lex_tree::tr_statement;
 use klickhouse::query_parser::parse_query_arguments;
 use regex::Regex;
@@ -30,7 +30,7 @@ pub fn parse_sql_query_arguments(query: &str, params: &mut Individual, dialect: 
 
             for arg_name in &arg_names {
                 //info!("@arg_name={}", arg_name);
-                if let Some(res) = params.obj.resources.get(arg_name) {
+                if let Some(res) = params.get_obj().get_resources().get(arg_name) {
                     let arg_value = match &res[0].value {
                         Value::Uri(v) | Value::Str(v, _) => klickhouse::Value::string(v),
                         Value::Int(v) => klickhouse::Value::Int64(*v),

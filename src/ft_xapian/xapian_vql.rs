@@ -2,7 +2,7 @@ use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};
-use crate::onto::onto_impl::Onto;
+use v_individual_model::onto::onto_impl::Onto;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;

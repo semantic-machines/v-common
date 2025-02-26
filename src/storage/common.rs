@@ -1,4 +1,4 @@
-use crate::onto::individual::Individual;
+use v_individual_model::onto::individual::Individual;
 use crate::storage::lmdb_storage::LMDBStorage;
 use crate::storage::memory_storage::MemoryStorage;
 use crate::storage::remote_storage_client::StorageROClient;

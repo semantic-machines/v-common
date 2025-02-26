@@ -1,5 +1,5 @@
-use crate::onto::datatype::Lang;
-use crate::onto::individual::Individual;
+use v_individual_model::onto::datatype::Lang;
+use v_individual_model::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use evmap::ShallowCopy;

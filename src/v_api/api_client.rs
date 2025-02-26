@@ -1,4 +1,4 @@
-use crate::onto::individual::Individual;
+use v_individual_model::onto::individual::Individual;
 use crate::v_api::obj::ResultCode;
 use nng::options::{Options, RecvTimeout, SendTimeout};
 use nng::{Message, Protocol, Socket};

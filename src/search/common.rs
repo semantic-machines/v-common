@@ -1,4 +1,4 @@
-use crate::onto::onto_index::OntoIndex;
+use v_individual_model::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::get_individual_from_db;
 use crate::storage::async_storage::AStorage;
 use crate::v_api::obj::ResultCode;

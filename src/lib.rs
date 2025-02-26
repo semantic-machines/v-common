@@ -13,7 +13,6 @@ extern crate maplit;
 pub mod az_impl;
 pub mod ft_xapian;
 pub mod module;
-pub mod onto;
 pub mod search;
 pub mod storage;
 pub mod v_api;

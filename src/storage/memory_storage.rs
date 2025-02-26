@@ -1,7 +1,7 @@
 // memory_storage.rs
 
-use crate::onto::individual::Individual;
-use crate::onto::parser::parse_raw;
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
 use crate::v_api::obj::ResultCode;
 use std::collections::HashMap;

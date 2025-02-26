@@ -1,7 +1,7 @@
 use crate::module::common::sys_sig_listener;
 use crate::module::module_impl::{init_log, Module, PrepareError};
-use crate::onto::individual::{Individual, RawObj};
-use crate::onto::parser::parse_raw;
+use v_individual_model::onto::individual::{Individual, RawObj};
+use v_individual_model::onto::parser::parse_raw;
 use crossbeam_channel::{select, tick};
 use nng::{Protocol, Socket};
 use std::time::{Duration, Instant};

@@ -1,6 +1,6 @@
-use crate::onto::individual::Individual;
-use crate::onto::resource::Resource;
-use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::resource::Resource;
+use v_individual_model::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
 use crate::search::common::{get_full_prefix, split_short_prefix, PrefixesCache};
 use chrono::{TimeZone, Utc};
 use oxrdf::vocab::xsd;
@@ -227,7 +227,7 @@ fn tr_triple_pattern(f: &mut TriplePattern, args_map: &mut Individual, prefix_ca
             let v_s = v.value();
             if v_s.starts_with('{') && v_s.ends_with('}') {
                 let val = v_s[1..v_s.len() - 1].to_string();
-                if let Some(m) = args_map.obj.resources.get(&val) {
+                if let Some(m) = args_map.get_obj().get_resources().get(&val) {
                     f.object = resource_val_to_sparql_val(m.get(0), prefix_cache)?;
                 }
             }
@@ -256,7 +256,7 @@ fn tr_expression(f: &mut Expression, args_map: &mut Individual, prefix_cache: &P
             if v_s.starts_with('{') && v_s.ends_with('}') {
                 let val = v_s[1..v_s.len() - 1].to_string();
 
-                if let Some(m) = args_map.obj.resources.get(&val) {
+                if let Some(m) = args_map.get_obj().get_resources().get(&val) {
                     *f = part_copy_termpattern_to_expression(resource_val_to_sparql_val(m.get(0), prefix_cache)?)?;
                 }
             }

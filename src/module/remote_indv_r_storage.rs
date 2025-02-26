@@ -1,7 +1,7 @@
 use crate::module::common::get_queue_status;
 use crate::module::veda_backend::get_storage_use_prop;
-use crate::onto::individual::{Individual, RawObj};
-use crate::onto::individual2msgpack::to_msgpack;
+use v_individual_model::onto::individual::{Individual, RawObj};
+use v_individual_model::onto::individual2msgpack::to_msgpack;
 use crate::storage::common::{StorageId, StorageMode, VStorage};
 use crate::storage::remote_storage_client::StorageROClient;
 use nng::{Message, Protocol, Socket};

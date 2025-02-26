@@ -1,6 +1,6 @@
 use crate::module::module_impl::Module;
 use crate::module::ticket::Ticket;
-use crate::onto::individual::Individual;
+use v_individual_model::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
 use crate::storage::common::{StorageId, StorageMode, VStorage};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};

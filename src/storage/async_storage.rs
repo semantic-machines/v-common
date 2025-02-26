@@ -1,6 +1,6 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
-use crate::onto::individual::Individual;
-use crate::onto::parser::parse_raw;
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::parser::parse_raw;
 use crate::storage::common::{Storage, StorageId};
 use crate::storage::lmdb_storage::LMDBStorage;
 use crate::v_api::obj::ResultCode;

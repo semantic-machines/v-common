@@ -1,7 +1,7 @@
 use crate::ft_xapian::xapian_reader::XapianReader;
 use crate::module::veda_backend::Backend;
-use crate::onto::individual::Individual;
-use crate::onto::onto_impl::Onto;
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::onto_impl::Onto;
 use crate::search::common::FTQuery;
 use crate::v_api::obj::ResultCode;
 use std::collections::{HashMap, HashSet};

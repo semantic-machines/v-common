@@ -1,6 +1,6 @@
-use crate::onto::individual::Individual;
-use crate::onto::resource::Resource;
-use crate::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
+use v_individual_model::onto::individual::Individual;
+use v_individual_model::onto::resource::Resource;
+use v_individual_model::onto::resource::Value::{Bool, Datetime, Int, Num, Str, Uri};
 use chrono::{TimeZone, Utc};
 use sqlparser::ast::TableFactor::UNNEST;
 use sqlparser::ast::{
@@ -116,7 +116,7 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
             for k in keys {
                 match k {
                     Expr::Value(v) => {
-                        if let Some(m) = args_map.obj.resources.get(&v.to_string()) {
+                        if let Some(m) = args_map.get_obj().get_resources().get(&v.to_string()) {
                             *v = resource_val_to_sql_val(m.get(0))?;
                         }
                     },
@@ -221,7 +221,7 @@ fn tr_expr(f: &mut Expr, args_map: &mut Individual) -> io::Result<()> {
             let v_s = v.to_string();
             if v_s.starts_with("'{") && v_s.ends_with("}'") {
                 let val = v_s[2..v_s.len() - 2].to_string();
-                if let Some(m) = args_map.obj.resources.get(&val) {
+                if let Some(m) = args_map.get_obj().get_resources().get(&val) {
                     *v = resource_val_to_sql_val(m.get(0))?;
                 }
             }
