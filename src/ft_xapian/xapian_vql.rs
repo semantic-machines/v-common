@@ -106,10 +106,18 @@ async fn exec<T>(
         if op_auth == OptAuthorize::YES {
             async {
                 auth_sw.start();
-                if az.authorize(&subject_id, &query.user, Access::CanRead as u8, true).unwrap_or(0) != Access::CanRead as u8 {
-                    is_passed = false;
-                } else {
-                    debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, query.user);
+                match az.authorize(&subject_id, &query.user, Access::CanRead as u8, true) {
+                    Ok(result) => {
+                        if result != Access::CanRead as u8 {
+                            is_passed = false;
+                        } else {
+                            debug!("subject_id=[{}] authorized for user_id=[{}]", subject_id, query.user);
+                        }
+                    },
+                    Err(e) => {
+                        is_passed = false;
+                        error!("Ошибка при проверке авторизации: subject_id=[{}], user_id=[{}], error=[{:?}]", subject_id, query.user, e);
+                    }
                 }
                 auth_sw.stop();
             }
