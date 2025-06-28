@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::time::Instant;
-use stopwatch::Stopwatch;
 use v_authorization::common::{Access, AuthorizationContext};
 
 use super::awc_wrapper::{Client, HeaderValue, ACCEPT, CONTENT_TYPE};
@@ -87,7 +86,7 @@ impl SparqlClient {
 
                     qres.result_code = ResultCode::Ok;
 
-                    let mut auth_sw = Stopwatch::new();
+                    let mut auth_time_ms = 0u64;
                     for el in v.results.bindings {
                         let r = &el[var];
                         if r["type"] == "uri" {
@@ -98,16 +97,16 @@ impl SparqlClient {
                                 let prefix = get_short_prefix(fullprefix, &prefix_cache);
                                 let short_iri = format!("{prefix}:{}", iri.1);
 
-                                auth_sw.start();
+                                let auth_start = Instant::now();
                                 if self.az.authorize(&short_iri, user_uri, Access::CanRead as u8, true).unwrap_or(0) == Access::CanRead as u8 {
                                     qres.result.push(short_iri);
                                 }
-                                auth_sw.stop();
+                                auth_time_ms += auth_start.elapsed().as_millis() as u64;
                             }
                         }
                     }
                     qres.processed = qres.result.len() as i64;
-                    qres.authorize_time = auth_sw.elapsed_ms();
+                    qres.authorize_time = auth_time_ms as i64;
                 },
                 Err(e) => {
                     error!("{:?}", e);

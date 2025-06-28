@@ -10,7 +10,7 @@ use chrono::NaiveDateTime;
 use regex::Regex;
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
-use stopwatch::Stopwatch;
+use std::time::Instant;
 use v_authorization::common::Access;
 use xapian_rusty::*;
 
@@ -86,7 +86,7 @@ async fn exec<T>(
 
     let mut it = matches.iterator()?;
 
-    let mut auth_sw = Stopwatch::new();
+    let mut auth_time_ms = 0u64;
 
     while it.is_next()? {
         processed += 1;
@@ -105,7 +105,7 @@ async fn exec<T>(
 
         if op_auth == OptAuthorize::YES {
             async {
-                auth_sw.start();
+                let auth_start = Instant::now();
                 match az.authorize(&subject_id, &query.user, Access::CanRead as u8, true) {
                     Ok(result) => {
                         if result != Access::CanRead as u8 {
@@ -119,7 +119,7 @@ async fn exec<T>(
                         error!("Ошибка при проверке авторизации: subject_id=[{}], user_id=[{}], error=[{:?}]", subject_id, query.user, e);
                     }
                 }
-                auth_sw.stop();
+                auth_time_ms += auth_start.elapsed().as_millis() as u64;
             }
             .await;
         }
@@ -138,7 +138,7 @@ async fn exec<T>(
     sr.processed = processed as i64;
     sr.count = read_count as i64;
     sr.cursor = (query.from + processed) as i64;
-    sr.authorize_time = auth_sw.elapsed_ms();
+    sr.authorize_time = auth_time_ms as i64;
 
     Ok(sr)
 }
