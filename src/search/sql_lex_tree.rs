@@ -84,11 +84,14 @@ fn tr_set_expr(f: &mut SetExpr, args_map: &mut Individual) -> io::Result<()> {
         SetExpr::Insert(v) => {
             tr_statement(v, args_map)?;
         },
+        SetExpr::Table(_table) => {
+            // Table variant doesn't need processing in this context
+        },
         SetExpr::SetOperation {
             ref mut left,
             ref mut right,
             op: _,
-            all: _,
+            set_quantifier: _,
         } => {
             tr_set_expr(left, args_map)?;
             tr_set_expr(right, args_map)?;
@@ -98,7 +101,7 @@ fn tr_set_expr(f: &mut SetExpr, args_map: &mut Individual) -> io::Result<()> {
 }
 
 fn tr_values(f: &mut Values, args_map: &mut Individual) -> io::Result<()> {
-    for row in f.0.iter_mut() {
+    for row in f.rows.iter_mut() {
         for x in row.iter_mut() {
             tr_expr(x, args_map)?;
         }
@@ -492,6 +495,22 @@ fn tr_join(f: &mut Join, args_map: &mut Individual) -> io::Result<()> {
         },
         JoinOperator::OuterApply => {
             tr_table_factor(&mut f.relation, args_map)?;
+        },
+        JoinOperator::LeftSemi(constraint) => {
+            tr_table_factor(&mut f.relation, args_map)?;
+            tr_join_constraint(constraint, args_map)?;
+        },
+        JoinOperator::RightSemi(constraint) => {
+            tr_table_factor(&mut f.relation, args_map)?;
+            tr_join_constraint(constraint, args_map)?;
+        },
+        JoinOperator::LeftAnti(constraint) => {
+            tr_table_factor(&mut f.relation, args_map)?;
+            tr_join_constraint(constraint, args_map)?;
+        },
+        JoinOperator::RightAnti(constraint) => {
+            tr_table_factor(&mut f.relation, args_map)?;
+            tr_join_constraint(constraint, args_map)?;
         },
     }
     Ok(())
