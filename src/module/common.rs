@@ -11,7 +11,7 @@ use v_individual_model::onto::individual::Individual;
 use v_individual_model::onto::onto_impl::Onto;
 use v_individual_model::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
-use crate::storage::common::VStorage;
+use v_storage::VStorage;
 use crate::v_api::obj::ResultCode;
 use chrono::Utc;
 #[cfg(not(feature = "extended-siginfo"))]

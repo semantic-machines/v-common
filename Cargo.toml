@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.13.8"
+version = "0.14.0"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -35,7 +35,7 @@ chrono-tz = "0.5.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
-lmdb-rs-m = "0.7.8"
+#lmdb-rs-m = "0.7.8"
 uuid = { version = "0.8", features = ["serde", "v4"] } 
 rust-ini = "0.18" 
 v-clickhouse-rs = { version = "1.0.1-alpha.1", default-features = false, features = ["async_std"] }
@@ -72,3 +72,5 @@ xapian-rusty = "=0.0.56"
 v_authorization = "=0.4.0"
 v_queue = "=0.2.7"
 v-individual-model = "0.1.1"
+
+v-storage = { version = "0.1.0", path = "./v-storage" }

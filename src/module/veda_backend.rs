@@ -2,7 +2,7 @@ use crate::module::module_impl::Module;
 use crate::module::ticket::Ticket;
 use v_individual_model::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
-use crate::storage::common::{StorageId, StorageMode, VStorage};
+use v_storage::{StorageId, StorageMode, VStorage};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
 use crate::v_api::obj::ResultCode;
 use std::env;
@@ -187,7 +187,7 @@ pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
                     let port = url.port().unwrap_or(3309);
                     let user = url.username();
                     let pass = url.password().unwrap_or("123");
-                    return VStorage::new_tt(format!("{}:{}", host, port), user, pass);
+                    return crate::storage::new_tt_storage(format!("{}:{}", host, port), user, pass);
                 },
                 Err(e) => {
                     error!("fail parse {}, err={}", p, e);

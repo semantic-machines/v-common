@@ -2,13 +2,14 @@ use crate::module::common::get_queue_status;
 use crate::module::veda_backend::get_storage_use_prop;
 use v_individual_model::onto::individual::{Individual, RawObj};
 use v_individual_model::onto::individual2msgpack::to_msgpack;
-use crate::storage::common::{StorageId, StorageMode, VStorage};
-use crate::storage::remote_storage_client::StorageROClient;
+use crate::storage::{StorageId, StorageMode, VStorage, StorageROClient};
 use nng::{Message, Protocol, Socket};
 use std::cell::RefCell;
 use std::str;
 use std::sync::Mutex;
 use uuid::Uuid;
+use lazy_static::lazy_static;
+use log::error;
 
 lazy_static! {
     pub static ref STORAGE: Mutex<RefCell<StorageROClient>> = Mutex::new(RefCell::new(StorageROClient::default()));
