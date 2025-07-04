@@ -71,10 +71,5 @@ xapian-rusty = "=0.0.56"
 v_authorization = "=0.4.0"
 v_queue = "=0.2.7"
 v-individual-model = "0.1.1"
-
-#v-storage = { path = "./v-storage" }
 lmdb-rs-m = "0.8.0"
-
-[dependencies.v-storage]
-path = "v-storage"
-version = "0.1.0"
+v-storage = "0.1.0"
