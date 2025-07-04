@@ -5,7 +5,6 @@ use v_individual_model::onto::individual::{Individual, RawObj};
 use v_individual_model::onto::parser::parse_raw;
 use v_storage::{StorageId, VStorage};
 use crate::v_api::api_client::IndvOp;
-use crate::v_api::obj::ResultCode;
 use chrono::Local;
 use crossbeam_channel::{select, tick, Receiver};
 use env_logger::Builder;
@@ -224,7 +223,7 @@ impl Module {
 
     pub fn get_sys_ticket_id_from_db(storage: &mut VStorage) -> Result<String, i32> {
         let mut indv = Individual::default();
-        if storage.get_individual_from_db(StorageId::Tickets, "systicket", &mut indv) == ResultCode::Ok {
+        if storage.get_individual_from_storage(StorageId::Tickets, "systicket", &mut indv).is_ok() {
             if let Some(c) = indv.get_first_literal("v-s:resource") {
                 return Ok(c);
             }

@@ -3,7 +3,7 @@ use crate::module::veda_backend::Backend;
 use v_individual_model::onto::individual::Individual;
 use v_individual_model::onto::onto_impl::Onto;
 use crate::search::common::FTQuery;
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 

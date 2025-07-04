@@ -1,6 +1,6 @@
 use v_individual_model::onto::datatype::Lang;
 use v_individual_model::onto::individual::Individual;
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use evmap::ShallowCopy;
 use serde_json::Value;

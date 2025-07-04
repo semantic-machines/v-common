@@ -1,0 +1,37 @@
+[package]
+name = "v-storage"
+version = "0.1.0"
+authors = ["itiu <ValeriyBushenev@gmail.com>"]
+edition = "2024"
+description = "Storage layer for the veda platform"
+license = "MIT"
+
+[features]
+#default = ["tokio_0_2", "tt_2", "awc_2"]
+default = []
+tokio_0_2 = ["tokio_dep_0_2"]
+tokio_1 = ["tokio_dep_1"]
+tt_2 = ["rusty_tarantool_2"]
+tt_3 = ["rusty_tarantool_3"]
+
+
+[dependencies]
+tokio_dep_0_2 = { version = "0.2", optional = true, package = "tokio", features = ["full"] }
+tokio_dep_1 = { version = "1.45", optional = true, package = "tokio", features = ["full"] }
+
+# Conditional dependencies with aliases
+rusty_tarantool_2 = { version = "=0.2.10", optional = true, package = "rusty_tarantool" }
+rusty_tarantool_3 = { version = "=0.3.0", optional = true, package = "rusty_tarantool" }
+
+v-individual-model = "0.1.1"
+# v-result-code = { path = "../v-resultcode" } # Удалено - используем теперь StorageResult<T>
+v_authorization = "=0.4.0"
+lmdb-rs-m = "0.8.0"
+#lmdb-rs-m = { path = "../lmdb-rs" }
+
+nng = "1.0.1"
+log = "0.4"
+futures = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

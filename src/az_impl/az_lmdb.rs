@@ -2,7 +2,7 @@ use crate::az_impl::formats::{decode_filter, decode_rec_to_rights, decode_rec_to
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::{DateTime, Utc};
 use io::Error;
-use lmdb_rs_m::core::{Database, EnvCreateNoLock, EnvCreateNoMetaSync, EnvCreateNoSync, EnvCreateReadOnly};
+use lmdb_rs_m::core::{Database, EnvCreateFlags};
 use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
 use std::cmp::PartialEq;
 use std::io::ErrorKind;
@@ -40,7 +40,8 @@ pub struct LmdbAzContext {
 }
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
-    let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+    let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
+    let env_builder = EnvBuilder::new().flags(flags);
 
     loop {
         let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
@@ -67,7 +68,8 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                 }
 
                 return if use_cache.unwrap_or(false) {
-                    let cache_env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+                    let cache_flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
+                    let cache_env_builder = EnvBuilder::new().flags(cache_flags);
                     let cache_env = match cache_env_builder.open(CACHE_DB_PATH, 0o644) {
                         Ok(env) => {
                             info!("LIB_AZ: Opened cache environment at path: {}", CACHE_DB_PATH);
@@ -173,7 +175,8 @@ impl AuthorizationContext for LmdbAzContext {
         if self.authorize_counter >= self.max_authorize_counter {
             //info!("az reopen, counter > {}", self.max_authorize_counter);
             self.authorize_counter = 0;
-            let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+            let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
+            let env_builder = EnvBuilder::new().flags(flags);
 
             match env_builder.open(DB_PATH, 0o644) {
                 Ok(env1) => {
@@ -191,7 +194,8 @@ impl AuthorizationContext for LmdbAzContext {
             },
             Err(e) => {
                 info!("reopen");
-                let env_builder = EnvBuilder::new().flags(EnvCreateNoLock | EnvCreateReadOnly | EnvCreateNoMetaSync | EnvCreateNoSync);
+                let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
+                let env_builder = EnvBuilder::new().flags(flags);
 
                 match env_builder.open(DB_PATH, 0o644) {
                     Ok(env1) => {

@@ -11,8 +11,9 @@ use v_individual_model::onto::onto_impl::Onto;
 use v_individual_model::onto::onto_index::OntoIndex;
 use crate::search::common::{FTQuery, QueryResult};
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
-use crate::storage::VStorage;
-use crate::v_api::obj::{OptAuthorize, ResultCode};
+use v_storage::VStorage;
+use crate::v_api::common_type::ResultCode;
+use crate::v_api::common_type::OptAuthorize;
 use futures::executor::block_on;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
@@ -229,7 +230,7 @@ impl XapianReader {
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
-        let mut ctx = vec![];
+        let mut ctx: Vec<String> = vec![];
 
         match block_on(self.query_use_collect_fn(
             &FTQuery::new_with_user("cfg:VedaSystem", "'rdf:type' === 'vdi:ClassIndex'"),
@@ -241,7 +242,7 @@ impl XapianReader {
                 if res.result_code == ResultCode::Ok && res.count > 0 {
                     for id in ctx.iter() {
                         let indv = &mut Individual::default();
-                        if storage.get_individual(id, indv) == ResultCode::Ok {
+                        if storage.get_individual(id, indv).is_ok() {
                             self.index_schema.add_schema_data(&self.onto, indv);
                         }
                     }
@@ -264,7 +265,7 @@ impl XapianReader {
         fn add_out_element(id: &str, ctx: &mut Vec<String>) {
             ctx.push(id.to_owned());
         }
-        let mut ctx = vec![];
+        let mut ctx: Vec<String> = vec![];
 
         info!("start load index schema");
         match self

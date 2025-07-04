@@ -1,7 +1,8 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
 use crate::search::common::{is_identifier, AuthorizationLevel, FTQuery, QueryResult, ResultFormat};
-use crate::v_api::obj::{OptAuthorize, ResultCode};
 use crate::v_authorization::common::AuthorizationContext;
+use crate::v_api::common_type::ResultCode;
+use crate::v_api::common_type::OptAuthorize;
 use chrono::prelude::*;
 use chrono::DateTime;
 use chrono_tz::Tz;

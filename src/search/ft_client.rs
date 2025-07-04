@@ -1,5 +1,5 @@
 use crate::search::common::{FTQuery, QueryResult};
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use nng::options::{Options, RecvTimeout, SendTimeout};
 use nng::{Message, Protocol, Socket};
 use serde_json::Value;

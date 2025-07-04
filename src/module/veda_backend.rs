@@ -2,9 +2,9 @@ use crate::module::module_impl::Module;
 use crate::module::ticket::Ticket;
 use v_individual_model::onto::individual::Individual;
 use crate::search::ft_client::FTClient;
-use v_storage::{StorageId, StorageMode, VStorage};
+use v_storage::{StorageId, StorageMode, VStorage, StorageResult, storage_factory::StorageProvider};
 use crate::v_api::api_client::{AuthClient, IndvOp, MStorageClient};
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use std::env;
 use url::Url;
 
@@ -44,7 +44,7 @@ impl Backend {
             get_storage_use_prop(storage_mode)
         } else {
             let ro_storage_url: String = Module::get_property("ro_storage_url").expect("param [ro_storage_url] not found in veda.properties");
-            VStorage::new_remote(&ro_storage_url)
+            VStorage::new(StorageProvider::remote(&ro_storage_url))
         };
 
         let ft_client = FTClient::new(ft_query_service_url);
@@ -80,7 +80,7 @@ impl Backend {
     pub fn get_literal_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<String> {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to) == StorageResult::Ok(()) {
                     return to.get_first_literal(field);
                 }
             }
@@ -93,7 +93,7 @@ impl Backend {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
                 let to = &mut Individual::default();
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to) == StorageResult::Ok(()) {
                     if let Some(s) = to.get_first_literal(field) {
                         res.push(s);
                     }
@@ -106,7 +106,7 @@ impl Backend {
     pub fn get_datetime_of_link(&mut self, indv: &mut Individual, link: &str, field: &str, to: &mut Individual) -> Option<i64> {
         if let Some(v) = indv.get_literals(link) {
             for el in v {
-                if self.storage.get_individual(&el, to) == ResultCode::Ok {
+                if self.storage.get_individual(&el, to) == StorageResult::Ok(()) {
                     return to.get_first_datetime(field);
                 }
             }
@@ -116,7 +116,7 @@ impl Backend {
 
     pub fn get_individual_h(&mut self, uri: &str) -> Option<Box<Individual>> {
         let mut iraw = Box::<Individual>::default();
-        if self.storage.get_individual(uri, &mut iraw) != ResultCode::Ok {
+        if self.storage.get_individual(uri, &mut iraw) != StorageResult::Ok(()) {
             return None;
         }
         Some(iraw)
@@ -124,14 +124,14 @@ impl Backend {
 
     pub fn get_individual_s(&mut self, uri: &str) -> Option<Individual> {
         let mut iraw = Individual::default();
-        if self.storage.get_individual(uri, &mut iraw) != ResultCode::Ok {
+        if self.storage.get_individual(uri, &mut iraw) != StorageResult::Ok(()) {
             return None;
         }
         Some(iraw)
     }
 
     pub fn get_individual<'a>(&mut self, uri: &str, iraw: &'a mut Individual) -> Option<&'a mut Individual> {
-        if uri.is_empty() || self.storage.get_individual(uri, iraw) != ResultCode::Ok {
+        if uri.is_empty() || self.storage.get_individual(uri, iraw) != StorageResult::Ok(()) {
             return None;
         }
         Some(iraw)
@@ -140,7 +140,7 @@ impl Backend {
     pub fn get_ticket_from_db(&mut self, id: &str) -> Ticket {
         let mut dest = Ticket::default();
         let mut indv = Individual::default();
-        if self.storage.get_individual_from_db(StorageId::Tickets, id, &mut indv) == ResultCode::Ok {
+        if self.storage.get_individual_from_storage(StorageId::Tickets, id, &mut indv) == StorageResult::Ok(()) {
             dest.update_from_individual(&mut indv);
             dest.result = ResultCode::Ok;
         }
@@ -187,7 +187,7 @@ pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
                     let port = url.port().unwrap_or(3309);
                     let user = url.username();
                     let pass = url.password().unwrap_or("123");
-                    return crate::storage::new_tt_storage(format!("{}:{}", host, port), user, pass);
+                    return VStorage::new(StorageProvider::tarantool(format!("{}:{}", host, port), user, pass));
                 },
                 Err(e) => {
                     error!("fail parse {}, err={}", p, e);
@@ -199,7 +199,7 @@ pub fn get_storage_with_prop(mode: StorageMode, prop_name: &str) -> VStorage {
     }
 
     if let Some(db_path) = lmdb_db_path {
-        return VStorage::new_lmdb(&db_path, mode, None);
+        return VStorage::new(StorageProvider::lmdb(&db_path, mode, None));
     }
 
     VStorage::none()

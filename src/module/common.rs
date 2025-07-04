@@ -12,7 +12,7 @@ use v_individual_model::onto::onto_impl::Onto;
 use v_individual_model::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::{get_individual_from_db, AStorage};
 use v_storage::VStorage;
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use chrono::Utc;
 #[cfg(not(feature = "extended-siginfo"))]
 use signal_hook::iterator::Signals;
@@ -60,7 +60,7 @@ pub fn load_onto(storage: &mut VStorage, onto: &mut Onto) -> bool {
 
     for id in onto_index.data.keys() {
         let mut indv: Individual = Individual::default();
-        if storage.get_individual(id, &mut indv) == ResultCode::Ok {
+        if storage.get_individual(id, &mut indv).is_ok() {
             onto.update(&mut indv);
         }
     }

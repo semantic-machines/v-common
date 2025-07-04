@@ -1,7 +1,7 @@
 use v_individual_model::onto::onto_index::OntoIndex;
 use crate::storage::async_storage::get_individual_from_db;
 use crate::storage::async_storage::AStorage;
-use crate::v_api::obj::ResultCode;
+use crate::v_api::common_type::ResultCode;
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

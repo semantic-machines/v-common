@@ -2,7 +2,7 @@ use crate::module::common::get_queue_status;
 use crate::module::veda_backend::get_storage_use_prop;
 use v_individual_model::onto::individual::{Individual, RawObj};
 use v_individual_model::onto::individual2msgpack::to_msgpack;
-use crate::storage::{StorageId, StorageMode, VStorage, StorageROClient};
+use v_storage::{StorageId, StorageMode, VStorage, StorageROClient};
 use nng::{Message, Protocol, Socket};
 use std::cell::RefCell;
 use std::str;
@@ -54,10 +54,17 @@ fn req_prepare(request: &Message, storage: &mut VStorage) -> Message {
         }
 
         let binobj = storage.get_raw_value(StorageId::Individuals, id);
-        if binobj.is_empty() {
-            return Message::from("[]".as_bytes());
+        match binobj {
+            v_storage::StorageResult::Ok(data) => {
+                if data.is_empty() {
+                    return Message::from("[]".as_bytes());
+                }
+                return Message::from(data.as_slice());
+            },
+            _ => {
+                return Message::from("[]".as_bytes());
+            }
         }
-        return Message::from(binobj.as_slice());
     }
 
     Message::default()

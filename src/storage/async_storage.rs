@@ -1,15 +1,14 @@
 use crate::az_impl::az_lmdb::LmdbAzContext;
 use v_individual_model::onto::individual::Individual;
 use v_individual_model::onto::parser::parse_raw;
-use crate::storage::common::{Storage, StorageId};
-use crate::storage::lmdb_storage::LMDBStorage;
-use crate::v_api::obj::ResultCode;
+use v_storage::{Storage, StorageId, StorageResult};
+use v_storage::lmdb_storage::LMDBStorage;
+use crate::v_api::common_type::ResultCode;
 use crate::v_authorization::common::{Access, AuthorizationContext, Trace};
 use futures::lock::Mutex;
 use std::io;
 use std::io::{Error, ErrorKind};
-
-use super::tt_wrapper::{Client, IteratorType};
+use v_storage::tt_wrapper::{Client, IteratorType};      
 
 pub const INDIVIDUALS_SPACE_ID: i32 = 512;
 pub const TICKETS_SPACE_ID: i32 = 513;
@@ -93,11 +92,17 @@ pub async fn get_individual_use_storage_id(
     }
     if let Some(lmdb) = &db.lmdb {
         let mut iraw = Individual::default();
-        let res = lmdb.lock().await.get_individual_from_db(storage_id, uri, &mut iraw);
-        if res == ResultCode::Ok {
-            return check_indv_access_read(iraw, uri, user_uri, az).await;
-        } else if res == ResultCode::NotFound {
-            return Ok((Individual::default(), ResultCode::NotFound));
+        let res = lmdb.lock().await.get_individual(storage_id, uri, &mut iraw);
+        match res {
+            StorageResult::Ok(()) => {
+                return check_indv_access_read(iraw, uri, user_uri, az).await;
+            }
+            StorageResult::NotFound => {
+                return Ok((Individual::default(), ResultCode::NotFound));
+            }
+            _ => {
+                return Ok((Individual::default(), ResultCode::UnprocessableEntity));
+            }
         }
     }
 
