@@ -1,4 +1,4 @@
-use crate::az_impl::formats::{decode_filter, decode_rec_to_rights, decode_rec_to_rightset};
+use v_authorization::record_formats::{decode_filter, decode_rec_to_rights, decode_rec_to_rightset};
 use crate::v_authorization::common::AuthorizationContext;
 use chrono::{DateTime, Utc};
 use io::Error;
