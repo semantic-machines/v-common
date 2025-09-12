@@ -22,6 +22,12 @@ pub struct Ticket {
     /// Дата окончания действия тикета
     pub end_time: i64,
     pub user_addr: String,
+    /// Authentication method used (e.g., "sms", "password", "oauth")
+    pub auth_method: String,
+    /// Domain or service name (e.g., "Ideas", "Main")
+    pub domain: String,
+    /// Ticket creation initiator (e.g., "@https://optiflow.nn.local/ida/#/")
+    pub initiator: String,
 }
 
 impl Hash for Ticket {
@@ -39,7 +45,11 @@ impl PartialEq for Ticket {
             && self.id == other.id
             && self.end_time == other.end_time
             && self.start_time == other.start_time
-            && self.user_login == other.user_uri
+            && self.user_login == other.user_login
+            && self.user_addr == other.user_addr
+            && self.auth_method == other.auth_method
+            && self.domain == other.domain
+            && self.initiator == other.initiator
     }
 }
 
@@ -53,6 +63,9 @@ impl ShallowCopy for Ticket {
             start_time: self.start_time,
             end_time: self.end_time,
             user_addr: self.user_addr.clone(),
+            auth_method: self.auth_method.clone(),
+            domain: self.domain.clone(),
+            initiator: self.initiator.clone(),
         })
     }
 }
@@ -67,6 +80,9 @@ impl Default for Ticket {
             start_time: 0,
             end_time: 0,
             user_addr: "".to_string(),
+            auth_method: "".to_string(),
+            domain: "".to_string(),
+            initiator: "".to_string(),
         }
     }
 }
@@ -88,6 +104,18 @@ impl From<serde_json::Value> for Ticket {
         }
         if let Some(v) = val["end_time"].as_i64() {
             t.end_time = v;
+        }
+        if let Some(v) = val["user_addr"].as_str() {
+            t.user_addr = v.to_owned();
+        }
+        if let Some(v) = val["auth_method"].as_str() {
+            t.auth_method = v.to_owned();
+        }
+        if let Some(v) = val["domain"].as_str() {
+            t.domain = v.to_owned();
+        }
+        if let Some(v) = val["initiator"].as_str() {
+            t.initiator = v.to_owned();
         }
 
         t
@@ -114,6 +142,12 @@ impl Ticket {
         }
 
         ticket_indv.add_string("ticket:duration", &(self.end_time - self.start_time).to_string(), Lang::none());
+        
+        // Add new fields
+        ticket_indv.add_string("ticket:authMethod", &self.auth_method, Lang::none());
+        ticket_indv.add_string("ticket:domain", &self.domain, Lang::none());
+        ticket_indv.add_string("ticket:initiator", &self.initiator, Lang::none());
+        
         ticket_indv
     }
 
@@ -125,6 +159,11 @@ impl Ticket {
         self.user_uri = src.get_first_literal("ticket:accessor").unwrap_or_default();
         self.user_login = src.get_first_literal("ticket:login").unwrap_or_default();
         self.user_addr = src.get_first_literal("ticket:addr").unwrap_or_default();
+        
+        // Load new fields from RDF
+        self.auth_method = src.get_first_literal("ticket:authMethod").unwrap_or_default();
+        self.domain = src.get_first_literal("ticket:domain").unwrap_or_default();
+        self.initiator = src.get_first_literal("ticket:initiator").unwrap_or_default();
 
         if self.user_uri.is_empty() {
             error!("found a session ticket is not complete, the user can not be found.");
