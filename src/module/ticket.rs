@@ -28,6 +28,8 @@ pub struct Ticket {
     pub domain: String,
     /// Ticket creation initiator (e.g., "@https://optiflow.nn.local/ida/#/")
     pub initiator: String,
+    /// Authentication origin type
+    pub auth_origin: String,
 }
 
 impl Hash for Ticket {
@@ -50,6 +52,7 @@ impl PartialEq for Ticket {
             && self.auth_method == other.auth_method
             && self.domain == other.domain
             && self.initiator == other.initiator
+            && self.auth_origin == other.auth_origin
     }
 }
 
@@ -66,6 +69,7 @@ impl ShallowCopy for Ticket {
             auth_method: self.auth_method.clone(),
             domain: self.domain.clone(),
             initiator: self.initiator.clone(),
+            auth_origin: self.auth_origin.clone(),
         })
     }
 }
@@ -83,6 +87,7 @@ impl Default for Ticket {
             auth_method: "".to_string(),
             domain: "".to_string(),
             initiator: "".to_string(),
+            auth_origin: "".to_string(),
         }
     }
 }
@@ -117,6 +122,9 @@ impl From<serde_json::Value> for Ticket {
         if let Some(v) = val["initiator"].as_str() {
             t.initiator = v.to_owned();
         }
+        if let Some(v) = val["auth_origin"].as_str() {
+            t.auth_origin = v.to_owned();
+        }
 
         t
     }
@@ -147,6 +155,7 @@ impl Ticket {
         ticket_indv.add_string("ticket:authMethod", &self.auth_method, Lang::none());
         ticket_indv.add_string("ticket:domain", &self.domain, Lang::none());
         ticket_indv.add_string("ticket:initiator", &self.initiator, Lang::none());
+        ticket_indv.add_string("ticket:authOrigin", &self.auth_origin, Lang::none());
         
         ticket_indv
     }
@@ -164,6 +173,7 @@ impl Ticket {
         self.auth_method = src.get_first_literal("ticket:authMethod").unwrap_or_default();
         self.domain = src.get_first_literal("ticket:domain").unwrap_or_default();
         self.initiator = src.get_first_literal("ticket:initiator").unwrap_or_default();
+        self.auth_origin = src.get_first_literal("ticket:authOrigin").unwrap_or_default();
 
         if self.user_uri.is_empty() {
             error!("found a session ticket is not complete, the user can not be found.");

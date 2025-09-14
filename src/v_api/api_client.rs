@@ -1,5 +1,6 @@
 use v_individual_model::onto::individual::Individual;
 use crate::v_api::common_type::ResultCode;
+use crate::module::ticket::Ticket;
 use nng::options::{Options, RecvTimeout, SendTimeout};
 use nng::{Message, Protocol, Socket};
 use serde_json::json;
@@ -228,24 +229,39 @@ impl AuthClient {
         }
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &Option<String>, addr: Option<IpAddr>, secret: &Option<String>) -> Result<Value, ApiError> {
-        let query = json!({
+    pub fn authenticate(&mut self, login: &str, password: &Option<String>, addr: Option<IpAddr>, secret: &Option<String>, domain: Option<&str>, initiator: Option<&str>) -> Result<Value, ApiError> {
+        let mut query = json!({
             "function": "authenticate",
             "login": login,
             "password": password,
             "addr" : addr.unwrap().to_string(),
             "secret" : secret
         });
+
+        // Add optional parameters if provided
+        if let Some(d) = domain {
+            query["domain"] = json!(d);
+        }
+        if let Some(i) = initiator {
+            query["initiator"] = json!(i);
+        }
+
         self.req_recv(query)
     }
 
-    pub fn get_ticket_trusted(&mut self, ticket: &str, login: Option<&String>, addr: Option<IpAddr>) -> Result<Value, ApiError> {
-        let query = json!({
+    pub fn get_ticket_trusted(&mut self, ticket: &str, login: Option<&String>, addr: Option<IpAddr>, domain: Option<&str>) -> Result<Value, ApiError> {
+        let mut query = json!({
             "function": "get_ticket_trusted",
             "login": login,
             "addr" : addr.unwrap().to_string(),
             "ticket": ticket,
         });
+
+        // Add optional domain parameter if provided
+        if let Some(d) = domain {
+            query["domain"] = json!(d);
+        }
+
         self.req_recv(query)
     }
 
