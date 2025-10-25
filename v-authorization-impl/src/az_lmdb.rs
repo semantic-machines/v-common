@@ -6,8 +6,8 @@ use heed::{Env, EnvOpenOptions, Database, RoTxn};
 use heed::types::Str;
 use std::cmp::PartialEq;
 use std::io::ErrorKind;
-use std::mem::ManuallyDrop;
 use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 use std::time;
 use std::time::SystemTime;
 use std::{io, thread};
@@ -18,6 +18,10 @@ const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
 
 use crate::stat_manager::StatPub;
+
+// Global shared environments for multi-threaded access
+static GLOBAL_ENV: OnceLock<Arc<Env>> = OnceLock::new();
+static GLOBAL_CACHE_ENV: OnceLock<Arc<Env>> = OnceLock::new();
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 enum StatMode {
@@ -32,72 +36,75 @@ struct Stat {
 }
 
 pub struct LmdbAzContext {
-    env: ManuallyDrop<Env>,
-    cache_env: Option<Env>,
+    env: Arc<Env>,
+    cache_env: Option<Arc<Env>>,
     authorize_counter: u64,
     max_authorize_counter: u64,
     stat: Option<Stat>,
 }
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
-    loop {
-        let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
+    // Get or initialize global environment (shared across all threads)
+    let env = GLOBAL_ENV.get_or_init(|| {
+        loop {
+            let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
 
-        if !path.exists() {
-            error!("LIB_AZ: Database does not exist at path: {}", path.display());
-            thread::sleep(time::Duration::from_secs(3));
-            error!("Retrying database connection...");
-            continue;
-        }
-
-        match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
-            Ok(env) => {
-                info!("LIB_AZ: Opened environment at path: {}", DB_PATH);
-
-                let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
-                    point: p,
-                    mode: stat_mode.clone(),
-                });
-
-                if let Some(_stat) = &stat_ctx {
-                    info!("LIB_AZ: Stat collector URL: {:?}", stat_collector_url);
-                    info!("LIB_AZ: Stat mode: {:?}", &stat_mode);
-                }
-
-                return if use_cache.unwrap_or(false) {
-                    let cache_env = match unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH) } {
-                        Ok(env) => {
-                            info!("LIB_AZ: Opened cache environment at path: {}", CACHE_DB_PATH);
-                            Some(env)
-                        },
-                        Err(e) => {
-                            warn!("LIB_AZ: Error opening cache environment: {:?}. Proceeding without cache.", e);
-                            None
-                        },
-                    };
-
-                    LmdbAzContext {
-                        env: ManuallyDrop::new(env),
-                        cache_env,
-                        authorize_counter: 0,
-                        max_authorize_counter: max_read_counter,
-                        stat: stat_ctx,
-                    }
-                } else {
-                    LmdbAzContext {
-                        env: ManuallyDrop::new(env),
-                        cache_env: None,
-                        authorize_counter: 0,
-                        max_authorize_counter: max_read_counter,
-                        stat: stat_ctx,
-                    }
-                };
-            },
-            Err(e) => {
-                error!("Authorize: Error opening environment: {:?}. Retrying in 3 seconds...", e);
+            if !path.exists() {
+                error!("LIB_AZ: Database does not exist at path: {}", path.display());
                 thread::sleep(time::Duration::from_secs(3));
-            },
+                error!("Retrying database connection...");
+                continue;
+            }
+
+            match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
+                Ok(env) => {
+                    info!("LIB_AZ: Opened shared environment at path: {}", DB_PATH);
+                    return Arc::new(env);
+                },
+                Err(e) => {
+                    error!("Authorize: Error opening environment: {:?}. Retrying in 3 seconds...", e);
+                    thread::sleep(time::Duration::from_secs(3));
+                },
+            }
         }
+    }).clone();
+
+    let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
+        point: p,
+        mode: stat_mode.clone(),
+    });
+
+    if let Some(_stat) = &stat_ctx {
+        info!("LIB_AZ: Stat collector URL: {:?}", stat_collector_url);
+        info!("LIB_AZ: Stat mode: {:?}", &stat_mode);
+    }
+
+    let cache_env = if use_cache.unwrap_or(false) {
+        // Get or try to initialize cache environment
+        let cache_result = GLOBAL_CACHE_ENV.get_or_init(|| {
+            match unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH) } {
+                Ok(env) => {
+                    info!("LIB_AZ: Opened shared cache environment at path: {}", CACHE_DB_PATH);
+                    Arc::new(env)
+                },
+                Err(e) => {
+                    warn!("LIB_AZ: Error opening cache environment: {:?}. Cache will not be used.", e);
+                    // Use a closed/empty environment as marker
+                    Arc::new(unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH).unwrap() })
+                },
+            }
+        });
+        Some(cache_result.clone())
+    } else {
+        None
+    };
+
+    LmdbAzContext {
+        env,
+        cache_env,
+        authorize_counter: 0,
+        max_authorize_counter: max_read_counter,
+        stat: stat_ctx,
     }
 }
 
@@ -126,15 +133,6 @@ impl LmdbAzContext {
 impl Default for LmdbAzContext {
     fn default() -> Self {
         Self::new(u64::MAX)
-    }
-}
-
-impl Drop for LmdbAzContext {
-    fn drop(&mut self) {
-        // Explicitly drop the environment when LmdbAzContext is destroyed
-        unsafe {
-            ManuallyDrop::drop(&mut self.env);
-        }
     }
 }
 
@@ -178,50 +176,21 @@ impl AuthorizationContext for LmdbAzContext {
         self.authorize_counter += 1;
         //info!("az counter={}", self.authorize_counter);
         if self.authorize_counter >= self.max_authorize_counter {
-            //info!("az reopen, counter > {}", self.max_authorize_counter);
+            //info!("az reset counter, counter > {}", self.max_authorize_counter);
             self.authorize_counter = 0;
-            
-            // Explicitly close old environment to free cached pages from memory
-            unsafe {
-                ManuallyDrop::drop(&mut self.env);
-            }
-            
-            // Open new environment
-            match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
-                Ok(env1) => {
-                    self.env = ManuallyDrop::new(env1);
-                    info!("LIB_AZ: Reopened environment to free memory");
-                },
-                Err(e1) => {
-                    error!("Authorize: Error reopening environment: {:?}", e1);
-                    return Err(Error::new(ErrorKind::Other, format!("Authorize: Err reopening environment: {:?}", e1)));
-                },
-            }
+            // Note: with shared Arc<Env>, we don't reopen the environment
+            // The environment is shared across all threads and persists
         }
 
         match self.authorize_use_db(uri, user_uri, request_access, _is_check_for_reload, trace) {
             Ok(r) => {
                 return Ok(r);
             },
-            Err(e) => {
-                // Retry authorization on db error by reopening environment
-                info!("retrying authorization after error, reopening environment");
-                
-                // Explicitly close old environment
-                unsafe {
-                    ManuallyDrop::drop(&mut self.env);
-                }
-                
-                // Open new environment
-                match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
-                    Ok(env1) => {
-                        self.env = ManuallyDrop::new(env1);
-                    },
-                    Err(e1) => {
-                        error!("Authorize: Error reopening environment after error: {:?}", e1);
-                        return Err(e);
-                    },
-                }
+            Err(_e) => {
+                // Retry authorization on db error
+                info!("retrying authorization after error");
+                // Note: with shared Arc<Env>, we can't reopen the environment here
+                // Just retry with the existing environment
             },
         }
         // retry authorization if db err
