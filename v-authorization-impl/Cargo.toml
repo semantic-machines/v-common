@@ -1,5 +1,5 @@
 [package]
-name = "v-authorization-lmpl"
+name = "v-authorization-impl"
 version = "0.2.0"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"

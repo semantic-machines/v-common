@@ -1,4 +1,4 @@
-# v-authorization-lmpl
+# v-authorization-impl
 
 LMDB implementation for Veda authorization system.
 
