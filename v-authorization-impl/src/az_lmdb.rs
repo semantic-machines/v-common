@@ -6,6 +6,7 @@ use heed::{Env, EnvOpenOptions, Database, RoTxn};
 use heed::types::Str;
 use std::cmp::PartialEq;
 use std::io::ErrorKind;
+use std::mem::ManuallyDrop;
 use std::path::PathBuf;
 use std::time;
 use std::time::SystemTime;
@@ -31,7 +32,7 @@ struct Stat {
 }
 
 pub struct LmdbAzContext {
-    env: Env,
+    env: ManuallyDrop<Env>,
     cache_env: Option<Env>,
     authorize_counter: u64,
     max_authorize_counter: u64,
@@ -76,7 +77,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                     };
 
                     LmdbAzContext {
-                        env,
+                        env: ManuallyDrop::new(env),
                         cache_env,
                         authorize_counter: 0,
                         max_authorize_counter: max_read_counter,
@@ -84,7 +85,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                     }
                 } else {
                     LmdbAzContext {
-                        env,
+                        env: ManuallyDrop::new(env),
                         cache_env: None,
                         authorize_counter: 0,
                         max_authorize_counter: max_read_counter,
@@ -125,6 +126,15 @@ impl LmdbAzContext {
 impl Default for LmdbAzContext {
     fn default() -> Self {
         Self::new(u64::MAX)
+    }
+}
+
+impl Drop for LmdbAzContext {
+    fn drop(&mut self) {
+        // Explicitly drop the environment when LmdbAzContext is destroyed
+        unsafe {
+            ManuallyDrop::drop(&mut self.env);
+        }
     }
 }
 
@@ -170,13 +180,21 @@ impl AuthorizationContext for LmdbAzContext {
         if self.authorize_counter >= self.max_authorize_counter {
             //info!("az reopen, counter > {}", self.max_authorize_counter);
             self.authorize_counter = 0;
-
+            
+            // Explicitly close old environment to free cached pages from memory
+            unsafe {
+                ManuallyDrop::drop(&mut self.env);
+            }
+            
+            // Open new environment
             match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
                 Ok(env1) => {
-                    self.env = env1;
+                    self.env = ManuallyDrop::new(env1);
+                    info!("LIB_AZ: Reopened environment to free memory");
                 },
                 Err(e1) => {
-                    return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening environment: {:?}", e1)));
+                    error!("Authorize: Error reopening environment: {:?}", e1);
+                    return Err(Error::new(ErrorKind::Other, format!("Authorize: Err reopening environment: {:?}", e1)));
                 },
             }
         }
@@ -186,14 +204,21 @@ impl AuthorizationContext for LmdbAzContext {
                 return Ok(r);
             },
             Err(e) => {
-                info!("reopen");
-
+                // Retry authorization on db error by reopening environment
+                info!("retrying authorization after error, reopening environment");
+                
+                // Explicitly close old environment
+                unsafe {
+                    ManuallyDrop::drop(&mut self.env);
+                }
+                
+                // Open new environment
                 match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
                     Ok(env1) => {
-                        self.env = env1;
+                        self.env = ManuallyDrop::new(env1);
                     },
                     Err(e1) => {
-                        error!("Authorize: Err opening environment: {:?}", e1);
+                        error!("Authorize: Error reopening environment after error: {:?}", e1);
                         return Err(e);
                     },
                 }
