@@ -1,5 +1,5 @@
 use v_authorization::record_formats::{decode_filter, decode_rec_to_rights, decode_rec_to_rightset};
-use crate::v_authorization::common::AuthorizationContext;
+use v_authorization::common::AuthorizationContext;
 use chrono::{DateTime, Utc};
 use io::Error;
 use lmdb_rs_m::core::{Database, EnvCreateFlags};
@@ -16,8 +16,7 @@ use v_authorization::*;
 const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
 
-use crate::az_impl::stat_manager::StatPub;
-use crate::module::module_impl::Module;
+use crate::stat_manager::StatPub;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 enum StatMode {
@@ -107,8 +106,8 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
 }
 
 impl LmdbAzContext {
-    pub fn new(max_read_counter: u64) -> LmdbAzContext {
-        let mode = if let Some(v) = Module::get_property::<String>("stat_mode") {
+    pub fn new_with_config(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode_str: Option<String>, use_cache: Option<bool>) -> LmdbAzContext {
+        let mode = if let Some(v) = stat_mode_str {
             match v.to_lowercase().as_str() {
                 "full" => StatMode::Full,
                 "minimal" => StatMode::Minimal,
@@ -120,10 +119,11 @@ impl LmdbAzContext {
             StatMode::Full
         };
 
-        let stat_collector_url = Module::get_property("stat_collector_url");
-        let use_authorization_cache = Module::get_property("use_authorization_cache");
+        open(max_read_counter, stat_collector_url, mode, use_cache)
+    }
 
-        open(max_read_counter, stat_collector_url, mode, use_authorization_cache)
+    pub fn new(max_read_counter: u64) -> LmdbAzContext {
+        open(max_read_counter, None, StatMode::None, None)
     }
 }
 
@@ -242,7 +242,7 @@ impl<'a> Storage for AzLmdbStorage<'a> {
                 },
                 Err(e) => match e {
                     MdbError::NotFound => {
-                        // Данные не найдены в кеше, продолжаем чтение из основной базы
+                        // Data not found in cache, continue reading from main database
                     },
                     _ => {},
                 },
@@ -333,3 +333,4 @@ impl LmdbAzContext {
         authorize(uri, user_uri, request_access, &mut storage, trace)
     }
 }
+

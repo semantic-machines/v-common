@@ -53,19 +53,20 @@ impl StatPub {
         //    return Ok(());
         //}
 
-        // Объединяем все сообщения в одну строку, используя точку с запятой в качестве разделителя
+        // Combine all messages into one string using semicolon as separator
         let combined_message = self.message_buffer.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(";");
 
-        // Формируем строку с датой, идентификатором отправителя и объединенными сообщениями,
-        // используя запятую в качестве разделителя между элементами
+        // Format string with date, sender ID and combined messages,
+        // using comma as separator between elements
         let message_with_timestamp = format!("{},{},{}", self.sender_id, self.duration.as_micros(), combined_message);
 
-        // Отправляем сообщение
+        // Send message
         self.socket.send(message_with_timestamp.as_bytes())?;
 
-        // Очищаем буфер после отправки
+        // Clear buffer after sending
         self.message_buffer.clear();
 
         Ok(())
     }
 }
+
