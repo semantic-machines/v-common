@@ -2,8 +2,8 @@ use v_authorization::record_formats::{decode_filter, decode_rec_to_rights, decod
 use v_authorization::common::AuthorizationContext;
 use chrono::{DateTime, Utc};
 use io::Error;
-use lmdb_rs_m::core::{Database, EnvCreateFlags};
-use lmdb_rs_m::{DbFlags, EnvBuilder, Environment, MdbError};
+use heed::{Env, EnvOpenOptions, Database, RoTxn};
+use heed::types::Str;
 use std::cmp::PartialEq;
 use std::io::ErrorKind;
 use std::path::PathBuf;
@@ -31,17 +31,14 @@ struct Stat {
 }
 
 pub struct LmdbAzContext {
-    env: Environment,
-    cache_env: Option<Environment>,
+    env: Env,
+    cache_env: Option<Env>,
     authorize_counter: u64,
     max_authorize_counter: u64,
     stat: Option<Stat>,
 }
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
-    let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
-    let env_builder = EnvBuilder::new().flags(flags);
-
     loop {
         let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
 
@@ -52,7 +49,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
             continue;
         }
 
-        match env_builder.open(DB_PATH, 0o644) {
+        match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
             Ok(env) => {
                 info!("LIB_AZ: Opened environment at path: {}", DB_PATH);
 
@@ -67,9 +64,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
                 }
 
                 return if use_cache.unwrap_or(false) {
-                    let cache_flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
-                    let cache_env_builder = EnvBuilder::new().flags(cache_flags);
-                    let cache_env = match cache_env_builder.open(CACHE_DB_PATH, 0o644) {
+                    let cache_env = match unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH) } {
                         Ok(env) => {
                             info!("LIB_AZ: Opened cache environment at path: {}", CACHE_DB_PATH);
                             Some(env)
@@ -175,10 +170,8 @@ impl AuthorizationContext for LmdbAzContext {
         if self.authorize_counter >= self.max_authorize_counter {
             //info!("az reopen, counter > {}", self.max_authorize_counter);
             self.authorize_counter = 0;
-            let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
-            let env_builder = EnvBuilder::new().flags(flags);
 
-            match env_builder.open(DB_PATH, 0o644) {
+            match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
                 Ok(env1) => {
                     self.env = env1;
                 },
@@ -194,10 +187,8 @@ impl AuthorizationContext for LmdbAzContext {
             },
             Err(e) => {
                 info!("reopen");
-                let flags = EnvCreateFlags::EnvCreateNoLock | EnvCreateFlags::EnvCreateReadOnly | EnvCreateFlags::EnvCreateNoMetaSync | EnvCreateFlags::EnvCreateNoSync;
-                let env_builder = EnvBuilder::new().flags(flags);
 
-                match env_builder.open(DB_PATH, 0o644) {
+                match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
                     Ok(env1) => {
                         self.env = env1;
                     },
@@ -214,8 +205,10 @@ impl AuthorizationContext for LmdbAzContext {
 }
 
 pub struct AzLmdbStorage<'a> {
-    db: &'a Database<'a>,
-    cache_db: Option<&'a Database<'a>>,
+    txn: &'a RoTxn<'a>,
+    db: Database<Str, Str>,
+    cache_txn: Option<&'a RoTxn<'a>>,
+    cache_db: Option<Database<Str, Str>>,
     stat: &'a mut Option<Stat>,
 }
 
@@ -230,39 +223,39 @@ fn message(key: &str, use_cache: bool, from_cache: bool) -> String {
 impl<'a> Storage for AzLmdbStorage<'a> {
     fn get(&mut self, key: &str) -> io::Result<Option<String>> {
         if let Some(cache_db) = self.cache_db {
-            match cache_db.get::<String>(&key) {
-                Ok(val) => {
-                    if let Some(stat) = self.stat {
-                        if stat.mode == StatMode::Full {
-                            stat.point.collect(message(key, true, true));
+            if let Some(cache_txn) = self.cache_txn {
+                match cache_db.get(cache_txn, key) {
+                    Ok(Some(val)) => {
+                        if let Some(stat) = self.stat {
+                            if stat.mode == StatMode::Full {
+                                stat.point.collect(message(key, true, true));
+                            }
                         }
-                    }
-                    debug!("@cache val={}", val);
-                    return Ok(Some(val));
-                },
-                Err(e) => match e {
-                    MdbError::NotFound => {
+                        debug!("@cache val={}", val);
+                        return Ok(Some(val.to_string()));
+                    },
+                    Ok(None) => {
                         // Data not found in cache, continue reading from main database
                     },
-                    _ => {},
-                },
+                    Err(_e) => {
+                        // Error reading cache, continue reading from main database
+                    },
+                }
             }
         }
 
-        match self.db.get::<String>(&key) {
-            Ok(val) => {
+        match self.db.get(self.txn, key) {
+            Ok(Some(val)) => {
                 if let Some(stat) = self.stat {
                     if stat.mode == StatMode::Full {
                         stat.point.collect(message(key, self.cache_db.is_some(), false));
                     }
                 }
                 debug!("@db val={}", val);
-                Ok(Some(val))
+                Ok(Some(val.to_string()))
             },
-            Err(e) => match e {
-                MdbError::NotFound => Ok(None),
-                _ => Err(Error::new(ErrorKind::Other, format!("Authorize: db.get {:?}, {}", e, key))),
-            },
+            Ok(None) => Ok(None),
+            Err(e) => Err(Error::new(ErrorKind::Other, format!("Authorize: db.get {:?}, {}", e, key))),
         }
     }
 
@@ -290,43 +283,59 @@ impl LmdbAzContext {
         _is_check_for_reload: bool,
         trace: &mut Trace,
     ) -> Result<u8, std::io::Error> {
-        let db_handle = match self.env.get_default_db(DbFlags::empty()) {
-            Ok(db_handle_res) => db_handle_res,
-            Err(e) => {
-                return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening db handle: {:?}", e)));
-            },
-        };
-        let txn = match self.env.get_reader() {
+        let txn = match self.env.read_txn() {
             Ok(txn1) => txn1,
             Err(e) => {
                 return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING TRANSACTION {:?}", e)));
             },
         };
-        let db = txn.bind(&db_handle);
 
-        let txn_cache;
-        let cache_db = if let Some(env) = &self.cache_env {
-            let db_handle = match env.get_default_db(DbFlags::empty()) {
-                Ok(db_handle_res) => db_handle_res,
-                Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening db handle: {:?}", e)));
-                },
-            };
-            txn_cache = match env.get_reader() {
-                Ok(txn1) => txn1,
-                Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING TRANSACTION {:?}", e)));
-                },
-            };
-            let cache_db = txn_cache.bind(&db_handle);
-            Some(cache_db)
-        } else {
-            None
+        let db: Database<Str, Str> = match self.env.open_database(&txn, None) {
+            Ok(Some(db_res)) => db_res,
+            Ok(None) => {
+                return Err(Error::new(ErrorKind::Other, "Authorize: database not found"));
+            },
+            Err(e) => {
+                return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening database: {:?}", e)));
+            },
         };
 
+        let (cache_txn_owned, cache_db, cache_txn_ref) = if let Some(env) = &self.cache_env {
+            let txn_cache = match env.read_txn() {
+                Ok(txn1) => txn1,
+                Err(e) => {
+                    return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING CACHE TRANSACTION {:?}", e)));
+                },
+            };
+            
+            let db = match env.open_database(&txn_cache, None) {
+                Ok(Some(db_res)) => Some(db_res),
+                Ok(None) => {
+                    warn!("Authorize: cache database not found");
+                    None
+                },
+                Err(e) => {
+                    warn!("Authorize: Err opening cache database: {:?}", e);
+                    None
+                },
+            };
+            
+            (Some(txn_cache), db, true)
+        } else {
+            (None, None, false)
+        };
+
+        let cache_txn_ptr = if cache_txn_ref { 
+            cache_txn_owned.as_ref().map(|v| &**v)
+        } else { 
+            None 
+        };
+        
         let mut storage = AzLmdbStorage {
-            db: &db,
-            cache_db: cache_db.as_ref(),
+            txn: &txn,
+            db,
+            cache_txn: cache_txn_ptr,
+            cache_db,
             stat: &mut self.stat,
         };
 

@@ -1,5 +1,5 @@
 use nng::{Protocol, Socket};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{distributions::Alphanumeric, Rng};
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -16,7 +16,7 @@ impl StatPub {
     pub(crate) fn new(url: &str) -> Result<Self, nng::Error> {
         let socket = Socket::new(Protocol::Pub0)?;
 
-        let sender_id: String = thread_rng().sample_iter(&Alphanumeric).take(8).map(char::from).collect();
+        let sender_id: String = rand::thread_rng().sample_iter(&Alphanumeric).take(8).map(char::from).collect();
 
         info!("StatManager: id={}, connected to {}", sender_id, url);
 

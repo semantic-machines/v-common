@@ -1,6 +1,6 @@
 [package]
 name = "v-authorization-lmpl"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "LMDB implementation for Veda authorization"
@@ -9,8 +9,8 @@ license = "MIT"
 [dependencies]
 log = "0.4"
 chrono = "0.4.41"
-lmdb-rs-m = "0.8.1"
+heed = "0.22.0"
 v_authorization = "=0.5.1"
 nng = "1.0.1"
-rand = "0.7.3"
+rand = "0.9.2"
 
