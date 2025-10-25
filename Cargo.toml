@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.17.1"
+version = "0.18.0-az-heed"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -73,6 +73,6 @@ v_queue = "=0.2.7"
 v-individual-model = "0.2.1"
 #v-individual-model = { package = "v-individual-model", path = "../v-individual-model"}
 
-lmdb-rs-m = "0.8.0"
 v-storage = "0.1.2"
 #v-storage = { package = "v-storage", path = "../v-storage"}
+v-authorization-impl = "0.2.2"

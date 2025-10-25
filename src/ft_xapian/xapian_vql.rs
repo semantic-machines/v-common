@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::LmdbAzContext;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};

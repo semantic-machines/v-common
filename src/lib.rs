@@ -10,7 +10,6 @@ extern crate scan_fmt;
 #[macro_use]
 extern crate maplit;
 
-pub mod az_impl;
 pub mod ft_xapian;
 pub mod module;
 pub mod search;
@@ -18,6 +17,7 @@ pub mod storage;
 pub mod v_api;
 
 pub use v_authorization;
+pub use v_authorization_impl;
 pub use v_queue;
 
 pub mod runtime_wrapper;

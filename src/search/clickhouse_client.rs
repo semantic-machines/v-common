@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::LmdbAzContext;
 use crate::search::common::{is_identifier, AuthorizationLevel, FTQuery, QueryResult, ResultFormat};
 use crate::v_authorization::common::AuthorizationContext;
 use crate::v_api::common_type::ResultCode;
