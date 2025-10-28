@@ -116,10 +116,10 @@ impl LmdbAzContext {
                 "minimal" => StatMode::Minimal,
                 "off" => StatMode::None,
                 "none" => StatMode::None,
-                _ => StatMode::Full,
+                _ => StatMode::None,
             }
         } else {
-            StatMode::Full
+            StatMode::None
         };
 
         open(max_read_counter, stat_collector_url, mode, use_cache)
