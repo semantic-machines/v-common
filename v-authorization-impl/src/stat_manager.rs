@@ -4,6 +4,35 @@ use rand::Rng;
 use std::collections::VecDeque;
 use std::time::Duration;
 
+// Statistics collection mode
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub(crate) enum StatMode {
+    Full,
+    Minimal,
+    None,
+}
+
+// Statistics context wrapper
+pub(crate) struct Stat {
+    pub(crate) point: StatPub,
+    pub(crate) mode: StatMode,
+}
+
+// Parse stat mode from string
+pub(crate) fn parse_stat_mode(stat_mode_str: Option<String>) -> StatMode {
+    if let Some(v) = stat_mode_str {
+        match v.to_lowercase().as_str() {
+            "full" => StatMode::Full,
+            "minimal" => StatMode::Minimal,
+            "off" => StatMode::None,
+            "none" => StatMode::None,
+            _ => StatMode::None,
+        }
+    } else {
+        StatMode::None
+    }
+}
+
 pub(crate) struct StatPub {
     socket: Socket,
     url: String,
@@ -68,6 +97,15 @@ impl StatPub {
         self.message_buffer.clear();
 
         Ok(())
+    }
+}
+
+// Format message for statistics collection based on cache usage
+pub(crate) fn format_stat_message(key: &str, use_cache: bool, from_cache: bool) -> String {
+    match (use_cache, from_cache) {
+        (true, true) => format!("{}/C", key),
+        (true, false) => format!("{}/cB", key),
+        (false, _) => format!("{}/B", key),
     }
 }
 

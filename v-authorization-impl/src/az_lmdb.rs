@@ -1,15 +1,11 @@
 use v_authorization::record_formats::{decode_filter, decode_rec_to_rights, decode_rec_to_rightset};
-use v_authorization::common::AuthorizationContext;
 use chrono::{DateTime, Utc};
 use io::Error;
 use heed::{Env, EnvOpenOptions, Database, RoTxn};
 use heed::types::Str;
-use std::cmp::PartialEq;
-use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time;
-use std::time::SystemTime;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
@@ -17,23 +13,13 @@ use v_authorization::*;
 const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
 
-use crate::stat_manager::StatPub;
+use crate::stat_manager::{StatPub, StatMode, Stat, parse_stat_mode, format_stat_message};
+use crate::common::AuthorizationHelper;
+use crate::impl_authorization_context;
 
 // Global shared environments for multi-threaded access
 static GLOBAL_ENV: OnceLock<Arc<Env>> = OnceLock::new();
 static GLOBAL_CACHE_ENV: OnceLock<Arc<Env>> = OnceLock::new();
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-enum StatMode {
-    Full,
-    Minimal,
-    None,
-}
-
-struct Stat {
-    point: StatPub,
-    mode: StatMode,
-}
 
 pub struct LmdbAzContext {
     env: Arc<Env>,
@@ -110,18 +96,7 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
 
 impl LmdbAzContext {
     pub fn new_with_config(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode_str: Option<String>, use_cache: Option<bool>) -> LmdbAzContext {
-        let mode = if let Some(v) = stat_mode_str {
-            match v.to_lowercase().as_str() {
-                "full" => StatMode::Full,
-                "minimal" => StatMode::Minimal,
-                "off" => StatMode::None,
-                "none" => StatMode::None,
-                _ => StatMode::None,
-            }
-        } else {
-            StatMode::None
-        };
-
+        let mode = parse_stat_mode(stat_mode_str);
         open(max_read_counter, stat_collector_url, mode, use_cache)
     }
 
@@ -136,139 +111,23 @@ impl Default for LmdbAzContext {
     }
 }
 
-impl AuthorizationContext for LmdbAzContext {
-    fn authorize(&mut self, uri: &str, user_uri: &str, request_access: u8, _is_check_for_reload: bool) -> Result<u8, std::io::Error> {
-        let mut t = Trace {
-            acl: &mut String::new(),
-            is_acl: false,
-            group: &mut String::new(),
-            is_group: false,
-            info: &mut String::new(),
-            is_info: false,
-            str_num: 0,
-        };
-
-        let start_time = SystemTime::now();
-
-        let r = self.authorize_and_trace(uri, user_uri, request_access, _is_check_for_reload, &mut t);
-
-        if let Some(stat) = &mut self.stat {
-            if stat.mode == StatMode::Full || stat.mode == StatMode::Minimal {
-                let elapsed = start_time.elapsed().unwrap_or_default();
-                stat.point.set_duration(elapsed);
-                if let Err(e) = stat.point.flush() {
-                    warn!("fail flush stat, err={:?}", e);
-                }
-            }
-        }
-
-        r
+impl AuthorizationHelper for LmdbAzContext {
+    fn get_stat_mut(&mut self) -> &mut Option<Stat> {
+        &mut self.stat
     }
 
-    fn authorize_and_trace(
-        &mut self,
-        uri: &str,
-        user_uri: &str,
-        request_access: u8,
-        _is_check_for_reload: bool,
-        trace: &mut Trace,
-    ) -> Result<u8, std::io::Error> {
-        self.authorize_counter += 1;
-        //info!("az counter={}", self.authorize_counter);
-        if self.authorize_counter >= self.max_authorize_counter {
-            //info!("az reset counter, counter > {}", self.max_authorize_counter);
-            self.authorize_counter = 0;
-            // Note: with shared Arc<Env>, we don't reopen the environment
-            // The environment is shared across all threads and persists
-        }
-
-        match self.authorize_use_db(uri, user_uri, request_access, _is_check_for_reload, trace) {
-            Ok(r) => {
-                return Ok(r);
-            },
-            Err(_e) => {
-                // Retry authorization on db error
-                info!("retrying authorization after error");
-                // Note: with shared Arc<Env>, we can't reopen the environment here
-                // Just retry with the existing environment
-            },
-        }
-        // retry authorization if db err
-        self.authorize_use_db(uri, user_uri, request_access, _is_check_for_reload, trace)
-    }
-}
-
-pub struct AzLmdbStorage<'a> {
-    txn: &'a RoTxn<'a>,
-    db: Database<Str, Str>,
-    cache_txn: Option<&'a RoTxn<'a>>,
-    cache_db: Option<Database<Str, Str>>,
-    stat: &'a mut Option<Stat>,
-}
-
-fn message(key: &str, use_cache: bool, from_cache: bool) -> String {
-    match (use_cache, from_cache) {
-        (true, true) => format!("{}/C", key),
-        (true, false) => format!("{}/cB", key),
-        (false, _) => format!("{}/B", key),
-    }
-}
-
-impl<'a> Storage for AzLmdbStorage<'a> {
-    fn get(&mut self, key: &str) -> io::Result<Option<String>> {
-        if let Some(cache_db) = self.cache_db {
-            if let Some(cache_txn) = self.cache_txn {
-                match cache_db.get(cache_txn, key) {
-                    Ok(Some(val)) => {
-                        if let Some(stat) = self.stat {
-                            if stat.mode == StatMode::Full {
-                                stat.point.collect(message(key, true, true));
-                            }
-                        }
-                        debug!("@cache val={}", val);
-                        return Ok(Some(val.to_string()));
-                    },
-                    Ok(None) => {
-                        // Data not found in cache, continue reading from main database
-                    },
-                    Err(_e) => {
-                        // Error reading cache, continue reading from main database
-                    },
-                }
-            }
-        }
-
-        match self.db.get(self.txn, key) {
-            Ok(Some(val)) => {
-                if let Some(stat) = self.stat {
-                    if stat.mode == StatMode::Full {
-                        stat.point.collect(message(key, self.cache_db.is_some(), false));
-                    }
-                }
-                debug!("@db val={}", val);
-                Ok(Some(val.to_string()))
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(Error::new(ErrorKind::Other, format!("Authorize: db.get {:?}, {}", e, key))),
-        }
+    fn get_authorize_counter(&self) -> u64 {
+        self.authorize_counter
     }
 
-    fn fiber_yield(&self) {}
-
-    fn decode_rec_to_rights(&self, src: &str, result: &mut Vec<ACLRecord>) -> (bool, Option<DateTime<Utc>>) {
-        decode_rec_to_rights(src, result)
+    fn get_max_authorize_counter(&self) -> u64 {
+        self.max_authorize_counter
     }
 
-    fn decode_rec_to_rightset(&self, src: &str, new_rights: &mut ACLRecordSet) -> (bool, Option<DateTime<Utc>>) {
-        decode_rec_to_rightset(src, new_rights)
+    fn set_authorize_counter(&mut self, value: u64) {
+        self.authorize_counter = value;
     }
 
-    fn decode_filter(&self, filter_value: String) -> (Option<ACLRecord>, Option<DateTime<Utc>>) {
-        decode_filter(filter_value)
-    }
-}
-
-impl LmdbAzContext {
     fn authorize_use_db(
         &mut self,
         uri: &str,
@@ -280,17 +139,17 @@ impl LmdbAzContext {
         let txn = match self.env.read_txn() {
             Ok(txn1) => txn1,
             Err(e) => {
-                return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING TRANSACTION {:?}", e)));
+                return Err(Error::other(format!("Authorize:CREATING TRANSACTION {:?}", e)));
             },
         };
 
         let db: Database<Str, Str> = match self.env.open_database(&txn, None) {
             Ok(Some(db_res)) => db_res,
             Ok(None) => {
-                return Err(Error::new(ErrorKind::Other, "Authorize: database not found"));
+                return Err(Error::other("Authorize: database not found"));
             },
             Err(e) => {
-                return Err(Error::new(ErrorKind::Other, format!("Authorize: Err opening database: {:?}", e)));
+                return Err(Error::other(format!("Authorize: Err opening database: {:?}", e)));
             },
         };
 
@@ -298,7 +157,7 @@ impl LmdbAzContext {
             let txn_cache = match env.read_txn() {
                 Ok(txn1) => txn1,
                 Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, format!("Authorize:CREATING CACHE TRANSACTION {:?}", e)));
+                    return Err(Error::other(format!("Authorize:CREATING CACHE TRANSACTION {:?}", e)));
                 },
             };
             
@@ -320,7 +179,7 @@ impl LmdbAzContext {
         };
 
         let cache_txn_ptr = if cache_txn_ref { 
-            cache_txn_owned.as_ref().map(|v| &**v)
+            cache_txn_owned.as_deref()
         } else { 
             None 
         };
@@ -334,6 +193,70 @@ impl LmdbAzContext {
         };
 
         authorize(uri, user_uri, request_access, &mut storage, trace)
+    }
+}
+
+impl_authorization_context!(LmdbAzContext);
+
+pub struct AzLmdbStorage<'a> {
+    txn: &'a RoTxn<'a>,
+    db: Database<Str, Str>,
+    cache_txn: Option<&'a RoTxn<'a>>,
+    cache_db: Option<Database<Str, Str>>,
+    stat: &'a mut Option<Stat>,
+}
+
+impl<'a> Storage for AzLmdbStorage<'a> {
+    fn get(&mut self, key: &str) -> io::Result<Option<String>> {
+        if let Some(cache_db) = self.cache_db {
+            if let Some(cache_txn) = self.cache_txn {
+                match cache_db.get(cache_txn, key) {
+                    Ok(Some(val)) => {
+                        if let Some(stat) = self.stat {
+                            if stat.mode == StatMode::Full {
+                                stat.point.collect(format_stat_message(key, true, true));
+                            }
+                        }
+                        debug!("@cache val={}", val);
+                        return Ok(Some(val.to_string()));
+                    },
+                    Ok(None) => {
+                        // Data not found in cache, continue reading from main database
+                    },
+                    Err(_e) => {
+                        // Error reading cache, continue reading from main database
+                    },
+                }
+            }
+        }
+
+        match self.db.get(self.txn, key) {
+            Ok(Some(val)) => {
+                if let Some(stat) = self.stat {
+                    if stat.mode == StatMode::Full {
+                        stat.point.collect(format_stat_message(key, self.cache_db.is_some(), false));
+                    }
+                }
+                debug!("@db val={}", val);
+                Ok(Some(val.to_string()))
+            },
+            Ok(None) => Ok(None),
+            Err(e) => Err(Error::other(format!("Authorize: db.get {:?}, {}", e, key))),
+        }
+    }
+
+    fn fiber_yield(&self) {}
+
+    fn decode_rec_to_rights(&self, src: &str, result: &mut Vec<ACLRecord>) -> (bool, Option<DateTime<Utc>>) {
+        decode_rec_to_rights(src, result)
+    }
+
+    fn decode_rec_to_rightset(&self, src: &str, new_rights: &mut ACLRecordSet) -> (bool, Option<DateTime<Utc>>) {
+        decode_rec_to_rightset(src, new_rights)
+    }
+
+    fn decode_filter(&self, filter_value: String) -> (Option<ACLRecord>, Option<DateTime<Utc>>) {
+        decode_filter(filter_value)
     }
 }
 
