@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate log;
 
-pub mod az_lmdb;
-pub mod az_mdbx;
+mod az_lmdb;
+mod az_mdbx;
 mod stat_manager;
 mod common;
 
-pub use az_lmdb::LmdbAzContext;
-pub use az_mdbx::MdbxAzContext;
+use az_lmdb::LmdbAzContext;
+use az_mdbx::MdbxAzContext;
+
 pub use v_authorization;
 
 use v_authorization::common::AuthorizationContext;
