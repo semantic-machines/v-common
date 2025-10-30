@@ -11,6 +11,9 @@ use az_mdbx::MdbxAzContext;
 
 pub use v_authorization;
 
+// Re-export functions for test usage
+pub use az_lmdb::{reset_global_envs as reset_lmdb_global_envs, sync_env as sync_lmdb_env};
+
 use v_authorization::common::AuthorizationContext;
 
 // Database backend type selection

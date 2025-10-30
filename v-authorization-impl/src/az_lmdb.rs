@@ -4,7 +4,8 @@ use io::Error;
 use heed::{Env, EnvOpenOptions, Database, RoTxn};
 use heed::types::Str;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex};
+use std::sync::LazyLock;
 use std::time;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
@@ -18,8 +19,40 @@ use crate::common::AuthorizationHelper;
 use crate::impl_authorization_context;
 
 // Global shared environments for multi-threaded access
-static GLOBAL_ENV: OnceLock<Arc<Env>> = OnceLock::new();
-static GLOBAL_CACHE_ENV: OnceLock<Arc<Env>> = OnceLock::new();
+static GLOBAL_ENV: LazyLock<Mutex<Option<Arc<Env>>>> = LazyLock::new(|| Mutex::new(None));
+static GLOBAL_CACHE_ENV: LazyLock<Mutex<Option<Arc<Env>>>> = LazyLock::new(|| Mutex::new(None));
+
+// Reset global environments (useful for tests)
+// This drops the Arc references and allows the database to be fully closed
+pub fn reset_global_envs() {
+    let mut env = GLOBAL_ENV.lock().unwrap();
+    *env = None;
+    
+    let mut cache_env = GLOBAL_CACHE_ENV.lock().unwrap();
+    *cache_env = None;
+    
+    info!("LIB_AZ: Reset global environments");
+}
+
+// Helper function to force sync of environment
+// This ensures data is written to disk before reopening
+pub fn sync_env() -> bool {
+    let env_opt = GLOBAL_ENV.lock().unwrap();
+    if let Some(env) = env_opt.as_ref() {
+        match env.force_sync() {
+            Ok(_) => {
+                info!("LIB_AZ: Successfully synced environment");
+                true
+            },
+            Err(e) => {
+                error!("LIB_AZ: Failed to sync environment: {:?}", e);
+                false
+            }
+        }
+    } else {
+        true // No environment to sync
+    }
+}
 
 pub struct LmdbAzContext {
     env: Arc<Env>,
@@ -31,29 +64,39 @@ pub struct LmdbAzContext {
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> LmdbAzContext {
     // Get or initialize global environment (shared across all threads)
-    let env = GLOBAL_ENV.get_or_init(|| {
-        loop {
-            let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
+    let env = {
+        let mut env_lock = GLOBAL_ENV.lock().unwrap();
+        
+        if let Some(existing_env) = env_lock.as_ref() {
+            existing_env.clone()
+        } else {
+            // Create new environment
+            let new_env = loop {
+                let path: PathBuf = PathBuf::from(format!("{}{}", DB_PATH, "data.mdb"));
 
-            if !path.exists() {
-                error!("LIB_AZ: Database does not exist at path: {}", path.display());
-                thread::sleep(time::Duration::from_secs(3));
-                error!("Retrying database connection...");
-                continue;
-            }
-
-            match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
-                Ok(env) => {
-                    info!("LIB_AZ: Opened shared environment at path: {}", DB_PATH);
-                    return Arc::new(env);
-                },
-                Err(e) => {
-                    error!("Authorize: Error opening environment: {:?}. Retrying in 3 seconds...", e);
+                if !path.exists() {
+                    error!("LIB_AZ: Database does not exist at path: {}", path.display());
                     thread::sleep(time::Duration::from_secs(3));
-                },
-            }
+                    error!("Retrying database connection...");
+                    continue;
+                }
+
+                match unsafe { EnvOpenOptions::new().max_dbs(1).open(DB_PATH) } {
+                    Ok(env) => {
+                        info!("LIB_AZ: Opened shared environment at path: {}", DB_PATH);
+                        break Arc::new(env);
+                    },
+                    Err(e) => {
+                        error!("Authorize: Error opening environment: {:?}. Retrying in 3 seconds...", e);
+                        thread::sleep(time::Duration::from_secs(3));
+                    },
+                }
+            };
+            
+            *env_lock = Some(new_env.clone());
+            new_env
         }
-    }).clone();
+    };
 
     let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
         point: p,
@@ -66,21 +109,25 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
     }
 
     let cache_env = if use_cache.unwrap_or(false) {
-        // Get or try to initialize cache environment
-        let cache_result = GLOBAL_CACHE_ENV.get_or_init(|| {
+        let mut cache_lock = GLOBAL_CACHE_ENV.lock().unwrap();
+        
+        if let Some(existing_cache) = cache_lock.as_ref() {
+            Some(existing_cache.clone())
+        } else {
+            // Try to initialize cache environment
             match unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH) } {
                 Ok(env) => {
                     info!("LIB_AZ: Opened shared cache environment at path: {}", CACHE_DB_PATH);
-                    Arc::new(env)
+                    let arc_env = Arc::new(env);
+                    *cache_lock = Some(arc_env.clone());
+                    Some(arc_env)
                 },
                 Err(e) => {
                     warn!("LIB_AZ: Error opening cache environment: {:?}. Cache will not be used.", e);
-                    // Use a closed/empty environment as marker
-                    Arc::new(unsafe { EnvOpenOptions::new().max_dbs(1).open(CACHE_DB_PATH).unwrap() })
+                    None
                 },
             }
-        });
-        Some(cache_result.clone())
+        }
     } else {
         None
     };
