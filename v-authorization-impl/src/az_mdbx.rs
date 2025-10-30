@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use io::Error;
 use libmdbx::{Database, NoWriteMap};
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex};
+use std::sync::LazyLock;
 use std::time;
 use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
@@ -17,8 +18,40 @@ use crate::common::AuthorizationHelper;
 use crate::impl_authorization_context;
 
 // Global shared databases for multi-threaded access
-static GLOBAL_DB: OnceLock<Arc<Database<NoWriteMap>>> = OnceLock::new();
-static GLOBAL_CACHE_DB: OnceLock<Arc<Database<NoWriteMap>>> = OnceLock::new();
+static GLOBAL_DB: LazyLock<Mutex<Option<Arc<Database<NoWriteMap>>>>> = LazyLock::new(|| Mutex::new(None));
+static GLOBAL_CACHE_DB: LazyLock<Mutex<Option<Arc<Database<NoWriteMap>>>>> = LazyLock::new(|| Mutex::new(None));
+
+// Reset global databases (useful for tests)
+// This drops the Arc references and allows the database to be fully closed
+pub fn reset_global_envs() {
+    let mut db = GLOBAL_DB.lock().unwrap();
+    *db = None;
+    
+    let mut cache_db = GLOBAL_CACHE_DB.lock().unwrap();
+    *cache_db = None;
+    
+    info!("LIB_AZ_MDBX: Reset global databases");
+}
+
+// Helper function to force sync of database
+// This ensures data is written to disk before reopening
+pub fn sync_env() -> bool {
+    let db_opt = GLOBAL_DB.lock().unwrap();
+    if let Some(db) = db_opt.as_ref() {
+        match db.sync(true) {
+            Ok(_) => {
+                info!("LIB_AZ_MDBX: Successfully synced database");
+                true
+            },
+            Err(e) => {
+                error!("LIB_AZ_MDBX: Failed to sync database: {:?}", e);
+                false
+            }
+        }
+    } else {
+        true // No database to sync
+    }
+}
 
 pub struct MdbxAzContext {
     db: Arc<Database<NoWriteMap>>,
@@ -30,29 +63,39 @@ pub struct MdbxAzContext {
 
 fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: StatMode, use_cache: Option<bool>) -> MdbxAzContext {
     // Get or initialize global database (shared across all threads)
-    let db = GLOBAL_DB.get_or_init(|| {
-        loop {
-            let path: PathBuf = PathBuf::from(DB_PATH);
+    let db = {
+        let mut db_lock = GLOBAL_DB.lock().unwrap();
+        
+        if let Some(existing_db) = db_lock.as_ref() {
+            existing_db.clone()
+        } else {
+            // Create new database
+            let new_db = loop {
+                let path: PathBuf = PathBuf::from(DB_PATH);
 
-            if !path.exists() {
-                error!("LIB_AZ: Database directory does not exist at path: {}", path.display());
-                thread::sleep(time::Duration::from_secs(3));
-                error!("Retrying database connection...");
-                continue;
-            }
-
-            match Database::open(&path) {
-                Ok(database) => {
-                    info!("LIB_AZ: Opened shared MDBX database at path: {}", DB_PATH);
-                    return Arc::new(database);
-                },
-                Err(e) => {
-                    error!("Authorize: Error opening MDBX database: {:?}. Retrying in 3 seconds...", e);
+                if !path.exists() {
+                    error!("LIB_AZ: Database directory does not exist at path: {}", path.display());
                     thread::sleep(time::Duration::from_secs(3));
-                },
-            }
+                    error!("Retrying database connection...");
+                    continue;
+                }
+
+                match Database::open(&path) {
+                    Ok(database) => {
+                        info!("LIB_AZ: Opened shared MDBX database at path: {}", DB_PATH);
+                        break Arc::new(database);
+                    },
+                    Err(e) => {
+                        error!("Authorize: Error opening MDBX database: {:?}. Retrying in 3 seconds...", e);
+                        thread::sleep(time::Duration::from_secs(3));
+                    },
+                }
+            };
+            
+            *db_lock = Some(new_db.clone());
+            new_db
         }
-    }).clone();
+    };
 
     let stat_ctx = stat_collector_url.clone().and_then(|s| StatPub::new(&s).ok()).map(|p| Stat {
         point: p,
@@ -65,25 +108,26 @@ fn open(max_read_counter: u64, stat_collector_url: Option<String>, stat_mode: St
     }
 
     let cache_db = if use_cache.unwrap_or(false) {
-        // Get or try to initialize cache database
-        let cache_result = GLOBAL_CACHE_DB.get_or_init(|| {
+        let mut cache_lock = GLOBAL_CACHE_DB.lock().unwrap();
+        
+        if let Some(existing_cache) = cache_lock.as_ref() {
+            Some(existing_cache.clone())
+        } else {
+            // Try to initialize cache database
             let path: PathBuf = PathBuf::from(CACHE_DB_PATH);
             match Database::open(&path) {
                 Ok(database) => {
                     info!("LIB_AZ: Opened shared MDBX cache database at path: {}", CACHE_DB_PATH);
-                    Arc::new(database)
+                    let arc_db = Arc::new(database);
+                    *cache_lock = Some(arc_db.clone());
+                    Some(arc_db)
                 },
                 Err(e) => {
                     warn!("LIB_AZ: Error opening MDBX cache database: {:?}. Cache will not be used.", e);
-                    // Return empty Arc - use dummy database
-                    match Database::open(CACHE_DB_PATH) {
-                        Ok(db) => Arc::new(db),
-                        Err(_) => panic!("Failed to create fallback cache database"),
-                    }
+                    None
                 },
             }
-        });
-        Some(cache_result.clone())
+        }
     } else {
         None
     };
@@ -219,4 +263,5 @@ impl<'a> Storage for AzMdbxStorage<'a> {
         decode_filter(filter_value)
     }
 }
+
 
