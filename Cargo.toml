@@ -77,4 +77,4 @@ lmdb-rs-m = "0.8.0"
 v-storage = "0.1.2"
 #v-storage = { package = "v-storage", path = "../v-storage"}
 
-v-authorization-impl = { path = "v-authorization-impl" }
+v-authorization-impl = { version = "0.2.2"}
