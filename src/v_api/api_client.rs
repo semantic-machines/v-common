@@ -1,6 +1,5 @@
 use v_individual_model::onto::individual::Individual;
 use crate::v_api::common_type::ResultCode;
-use crate::module::ticket::Ticket;
 use nng::options::{Options, RecvTimeout, SendTimeout};
 use nng::{Message, Protocol, Socket};
 use serde_json::json;
