@@ -228,7 +228,7 @@ impl AuthClient {
         }
     }
 
-    pub fn authenticate(&mut self, login: &str, password: &Option<String>, addr: Option<IpAddr>, secret: &Option<String>, domain: Option<&str>, initiator: Option<&str>) -> Result<Value, ApiError> {
+    pub fn authenticate(&mut self, login: &str, password: &Option<String>, addr: Option<IpAddr>, secret: &Option<String>, domain: Option<&str>, initiator: Option<&str>, provider: Option<&str>) -> Result<Value, ApiError> {
         let mut query = json!({
             "function": "authenticate",
             "login": login,
@@ -243,6 +243,9 @@ impl AuthClient {
         }
         if let Some(i) = initiator {
             query["initiator"] = json!(i);
+        }
+        if let Some(p) = provider {
+            query["provider"] = json!(p);
         }
 
         self.req_recv(query)
