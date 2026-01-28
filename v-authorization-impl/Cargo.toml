@@ -1,16 +1,18 @@
 [package]
 name = "v-authorization-impl"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "LMDB implementation for Veda authorization"
 license = "MIT"
 
 [features]
-default = []
-# Tarantool support with tokio version selection
-tt = ["tt_3"]  # alias for tt_3 (default tokio 1.x)
+default = ["lmdb"]
+# LMDB backend (default)
+lmdb = []
+# Tarantool backend with tokio 1.x
 tt_3 = ["rusty_tarantool_3", "tokio_dep_1"]
+# Tarantool backend with tokio 0.2
 tt_2 = ["rusty_tarantool_2", "tokio_dep_0_2", "rmp-serde", "rmpv"]
 
 [dependencies]
