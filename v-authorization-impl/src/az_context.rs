@@ -2,13 +2,13 @@ use std::io;
 use v_authorization::common::{AuthorizationContext, Trace};
 
 use crate::az_lmdb::LmdbAzContext;
-#[cfg(feature = "tt")]
+#[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
 use crate::az_tarantool::TarantoolAzContext;
 
 /// Unified authorization context with runtime backend selection
 pub enum AzContext {
     Lmdb(LmdbAzContext),
-    #[cfg(feature = "tt")]
+    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
     Tarantool(TarantoolAzContext),
 }
 
@@ -31,13 +31,13 @@ impl AzContext {
     }
     
     /// Create Tarantool-backed context
-    #[cfg(feature = "tt")]
+    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
     pub fn tarantool(uri: &str, login: &str, password: &str) -> Self {
         AzContext::Tarantool(TarantoolAzContext::new(uri, login, password))
     }
     
     /// Create Tarantool-backed context with stats
-    #[cfg(feature = "tt")]
+    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
     pub fn tarantool_with_stat(
         uri: &str, 
         login: &str, 
@@ -61,7 +61,7 @@ impl AuthorizationContext for AzContext {
     ) -> Result<u8, io::Error> {
         match self {
             AzContext::Lmdb(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
-            #[cfg(feature = "tt")]
+            #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
             AzContext::Tarantool(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
         }
     }
@@ -76,7 +76,7 @@ impl AuthorizationContext for AzContext {
     ) -> Result<u8, io::Error> {
         match self {
             AzContext::Lmdb(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
-            #[cfg(feature = "tt")]
+            #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
             AzContext::Tarantool(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
         }
     }

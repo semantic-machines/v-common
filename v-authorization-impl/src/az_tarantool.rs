@@ -1,4 +1,8 @@
-use rusty_tarantool::tarantool::{Client, ClientConfig};
+#[cfg(feature = "tt_02")]
+use rusty_tarantool_2::tarantool::{Client, ClientConfig};
+#[cfg(feature = "tt_1")]
+use rusty_tarantool_3::tarantool::{Client, ClientConfig};
+
 use std::io::{self, Error, ErrorKind};
 use std::time::SystemTime;
 use v_authorization::common::{AuthorizationContext, Trace};
