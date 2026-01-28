@@ -1,14 +1,13 @@
 [package]
 name = "v-authorization-impl"
-version = "0.4.4"
+version = "0.4.5"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "LMDB implementation for Veda authorization"
 license = "MIT"
 
 [features]
-default = ["lmdb"]
-# LMDB backend (default)
+# LMDB backend
 lmdb = []
 # Tarantool backend with tokio 1.x
 tt_3 = ["rusty_tarantool_3", "tokio_dep_1"]

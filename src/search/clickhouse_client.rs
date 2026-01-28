@@ -32,7 +32,7 @@ impl CHClient {
             client: None,
             addr: client_addr,
             is_ready: false,
-            az: AzContext::lmdb(1000),
+            az: AzContext::new(1000),
         }
     }
 
