@@ -176,7 +176,7 @@ impl Ticket {
         self.auth_origin = src.get_first_literal("ticket:authOrigin").unwrap_or_default();
 
         if self.user_uri.is_empty() {
-            error!("found a session ticket is not complete, the user can not be found.");
+            error!("found a session ticket is not complete, the user can not be found. ticket_id={}", self.id);
             self.user_uri = String::default();
             return;
         }
