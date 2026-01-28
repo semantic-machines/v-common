@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::AzContext;
 use v_individual_model::onto::individual::Individual;
 use v_individual_model::onto::parser::parse_raw;
 use v_storage::{Storage, StorageId, StorageResult};
@@ -22,7 +22,7 @@ pub async fn check_indv_access_read(
     mut indv: Individual,
     uri: &str,
     user_uri: &str,
-    az: Option<&Mutex<LmdbAzContext>>,
+    az: Option<&Mutex<AzContext>>,
 ) -> io::Result<(Individual, ResultCode)> {
     if indv.get_id().is_empty() {
         return Ok((indv, ResultCode::NotFound));
@@ -38,7 +38,7 @@ pub async fn check_indv_access_read(
     Ok((indv, ResultCode::Ok))
 }
 
-pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<bool> {
+pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mutex<AzContext>>) -> io::Result<bool> {
     if let Some(a) = az {
         let mut tr = Trace {
             acl: &mut "".to_string(),
@@ -63,7 +63,7 @@ pub async fn check_user_in_group(user_id: &str, group_id: &str, az: Option<&Mute
     Ok(false)
 }
 
-pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<LmdbAzContext>>) -> io::Result<(Individual, ResultCode)> {
+pub async fn get_individual_from_db(uri: &str, user_uri: &str, db: &AStorage, az: Option<&Mutex<AzContext>>) -> io::Result<(Individual, ResultCode)> {
     get_individual_use_storage_id(StorageId::Individuals, uri, user_uri, db, az).await
 }
 
@@ -72,7 +72,7 @@ pub async fn get_individual_use_storage_id(
     uri: &str,
     user_uri: &str,
     db: &AStorage,
-    az: Option<&Mutex<LmdbAzContext>>,
+    az: Option<&Mutex<AzContext>>,
 ) -> io::Result<(Individual, ResultCode)> {
     if let Some(tt) = &db.tt {
         let space_id = match storage_id {

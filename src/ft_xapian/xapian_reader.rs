@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::AzContext;
 use crate::ft_xapian::index_schema::IndexerSchema;
 use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
@@ -50,7 +50,7 @@ pub struct XapianReader {
     key2slot: Key2Slot,
     db2path: HashMap<String, String>,
     committed_op_id: i64,
-    az: LmdbAzContext,
+    az: AzContext,
 }
 
 impl XapianReader {
@@ -76,7 +76,7 @@ impl XapianReader {
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::now(),
-            az: LmdbAzContext::default(),
+            az: AzContext::default(),
         };
 
         xr.load_index_schema(storage);
@@ -103,7 +103,7 @@ impl XapianReader {
             db2path: init_db_path(),
             committed_op_id: 0,
             onto_modified: SystemTime::UNIX_EPOCH,
-            az: LmdbAzContext::default(),
+            az: AzContext::default(),
         };
 
         Some(xr)

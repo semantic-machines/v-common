@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::AzContext;
 use crate::ft_xapian::key2slot::Key2Slot;
 use crate::ft_xapian::to_lower_and_replace_delimiters;
 use crate::ft_xapian::vql::{Decor, TTA};
@@ -29,7 +29,7 @@ pub(crate) async fn exec_xapian_query_and_queue_authorize<T>(
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
     out_list: &mut T,
-    az: &mut LmdbAzContext,
+    az: &mut AzContext,
 ) -> QueryResult {
     let mut sr = QueryResult::default();
     match exec(query, xapian_enquire, add_out_element, op_auth, out_list, az).await {
@@ -57,7 +57,7 @@ async fn exec<T>(
     add_out_element: fn(uri: &str, ctx: &mut T),
     op_auth: OptAuthorize,
     out_list: &mut T,
-    az: &mut LmdbAzContext,
+    az: &mut AzContext,
 ) -> Result<QueryResult> {
     let mut sr = QueryResult::default();
 

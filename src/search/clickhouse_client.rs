@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::AzContext;
 use crate::search::common::{is_identifier, AuthorizationLevel, FTQuery, QueryResult, ResultFormat};
 use crate::v_authorization::common::AuthorizationContext;
 use crate::v_api::common_type::ResultCode;
@@ -23,7 +23,7 @@ pub struct CHClient {
     client: Option<Pool>,
     addr: String,
     is_ready: bool,
-    az: LmdbAzContext,
+    az: AzContext,
 }
 
 impl CHClient {
@@ -32,7 +32,7 @@ impl CHClient {
             client: None,
             addr: client_addr,
             is_ready: false,
-            az: LmdbAzContext::new(1000),
+            az: AzContext::lmdb(1000),
         }
     }
 
@@ -101,7 +101,7 @@ impl CHClient {
         query: &str,
         res_format: ResultFormat,
         authorization_level: AuthorizationLevel,
-        az: &Mutex<LmdbAzContext>,
+        az: &Mutex<AzContext>,
     ) -> Result<Value, Error> {
         let mut jres = Value::default();
         if let Some(pool) = &self.client {
@@ -181,7 +181,7 @@ async fn cltjs<'a, K: v_clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde
     user_uri: &str,
     res_format: &ResultFormat,
     authorization_level: &AuthorizationLevel,
-    az: &Mutex<LmdbAzContext>,
+    az: &Mutex<AzContext>,
 ) -> Result<bool, Error> {
     let v: T = row.get(col.name())?;
     let jv = json!(v);
@@ -193,7 +193,7 @@ async fn cltjs<'a, K: v_clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde
         user_uri: &str,
         res_format: &ResultFormat,
         authorization_level: &AuthorizationLevel,
-        az: &Mutex<LmdbAzContext>,
+        az: &Mutex<AzContext>,
     ) -> Result<bool, Error> {
         match jv {
             Value::String(vc) => {
@@ -246,7 +246,7 @@ async fn cltjs<'a, K: v_clickhouse_rs::types::ColumnType, T: FromSql<'a> + serde
         }
     }
 
-    async fn process_authorization(vc: &str, user_uri: &str, authorization_level: &AuthorizationLevel, az: &Mutex<LmdbAzContext>) -> Result<bool, Error> {
+    async fn process_authorization(vc: &str, user_uri: &str, authorization_level: &AuthorizationLevel, az: &Mutex<AzContext>) -> Result<bool, Error> {
         if (authorization_level == &AuthorizationLevel::Cell || authorization_level == &AuthorizationLevel::RowColumn) && is_identifier(vc) {
             let mut az_lock = az.lock().await;
             let authorized = az_lock.authorize(vc, user_uri, Access::CanRead as u8, false)?;
@@ -275,7 +275,7 @@ async fn col_to_json<K: v_clickhouse_rs::types::ColumnType>(
     user_uri: &str,
     res_format: &ResultFormat,
     authorization_level: &AuthorizationLevel,
-    az: &Mutex<LmdbAzContext>,
+    az: &Mutex<AzContext>,
 ) -> Result<bool, v_clickhouse_rs::errors::Error> {
     let mut res = true;
     let sql_type = col.sql_type();
@@ -478,7 +478,7 @@ async fn col_to_json<K: v_clickhouse_rs::types::ColumnType>(
     Ok(res)
 }
 
-async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize, out_res: &mut QueryResult, az: &mut LmdbAzContext) -> Result<(), Error> {
+async fn select_from_clickhouse(req: FTQuery, pool: &Pool, op_auth: OptAuthorize, out_res: &mut QueryResult, az: &mut AzContext) -> Result<(), Error> {
     let mut authorized_count = 0;
     let mut total_count = 0;
 

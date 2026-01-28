@@ -1,4 +1,4 @@
-use crate::az_impl::az_lmdb::LmdbAzContext;
+use v_authorization_impl::AzContext;
 use crate::module::module_impl::Module;
 use crate::search::common::{get_short_prefix, split_full_prefix, AuthorizationLevel, PrefixesCache, QueryResult, ResultFormat};
 use crate::v_api::common_type::ResultCode;
@@ -33,7 +33,7 @@ pub(crate) struct SparqlResponse {
 pub struct SparqlClient {
     pub(crate) point: String,
     pub(crate) client: Client,
-    pub(crate) az: LmdbAzContext,
+    pub(crate) az: AzContext,
 }
 
 impl Default for SparqlClient {
@@ -43,7 +43,7 @@ impl Default for SparqlClient {
         SparqlClient {
             point: format!("{}/{}?{}", Module::get_property::<String>("sparql_db").unwrap_or_default(), "query", "default"),
             client,
-            az: LmdbAzContext::default(),
+            az: AzContext::default(),
         }
     }
 }
@@ -126,7 +126,7 @@ impl SparqlClient {
         query: String,
         res_format: ResultFormat,
         authorization_level: AuthorizationLevel,
-        az: &Mutex<LmdbAzContext>,
+        az: &Mutex<AzContext>,
         prefix_cache: &PrefixesCache,
     ) -> Result<Value, Error> {
         #[cfg(feature = "awc_2")]
