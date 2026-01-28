@@ -1,6 +1,6 @@
 [package]
 name = "v-authorization-impl"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "LMDB implementation for Veda authorization"
@@ -31,6 +31,5 @@ rusty_tarantool_3 = { version = "=0.3.0", optional = true, package = "rusty_tara
 tokio_dep_1 = { version = "1.45", optional = true, package = "tokio", features = ["rt", "rt-multi-thread"] }
 
 # Tarantool client with tokio 0.2 (optional)
-rusty_tarantool_2 = { version = "=0.2.10", optional = true, package = "rusty_tarantool" }
+rusty_tarantool_2 = { version = "=0.2.11", optional = true, package = "rusty_tarantool" }
 tokio_dep_0_2 = { version = "0.2", optional = true, package = "tokio", features = ["full"] }
-
