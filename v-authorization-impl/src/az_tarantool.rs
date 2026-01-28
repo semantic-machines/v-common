@@ -1,6 +1,6 @@
-#[cfg(feature = "tt_02")]
+#[cfg(feature = "tt_2")]
 use rusty_tarantool_2::tarantool::{Client, ClientConfig};
-#[cfg(feature = "tt_1")]
+#[cfg(feature = "tt_3")]
 use rusty_tarantool_3::tarantool::{Client, ClientConfig};
 
 use std::io::{self, Error, ErrorKind};

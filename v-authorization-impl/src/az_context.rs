@@ -2,13 +2,13 @@ use std::io;
 use v_authorization::common::{AuthorizationContext, Trace};
 
 use crate::az_lmdb::LmdbAzContext;
-#[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+#[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
 use crate::az_tarantool::TarantoolAzContext;
 
 /// Unified authorization context with runtime backend selection
 pub enum AzContext {
     Lmdb(LmdbAzContext),
-    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+    #[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
     Tarantool(TarantoolAzContext),
 }
 
@@ -31,13 +31,13 @@ impl AzContext {
     }
     
     /// Create Tarantool-backed context
-    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+    #[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
     pub fn tarantool(uri: &str, login: &str, password: &str) -> Self {
         AzContext::Tarantool(TarantoolAzContext::new(uri, login, password))
     }
     
     /// Create Tarantool-backed context with stats
-    #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+    #[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
     pub fn tarantool_with_stat(
         uri: &str, 
         login: &str, 
@@ -61,7 +61,7 @@ impl AuthorizationContext for AzContext {
     ) -> Result<u8, io::Error> {
         match self {
             AzContext::Lmdb(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
-            #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+            #[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
             AzContext::Tarantool(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
         }
     }
@@ -76,7 +76,7 @@ impl AuthorizationContext for AzContext {
     ) -> Result<u8, io::Error> {
         match self {
             AzContext::Lmdb(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
-            #[cfg(any(feature = "tt", feature = "tt_02", feature = "tt_1"))]
+            #[cfg(any(feature = "tt", feature = "tt_2", feature = "tt_3"))]
             AzContext::Tarantool(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
         }
     }
