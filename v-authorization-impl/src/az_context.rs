@@ -1,28 +1,28 @@
 use std::io;
 use v_authorization::common::{AuthorizationContext, Trace};
 
-#[cfg(feature = "lmdb")]
+#[cfg(feature = "az_lmdb")]
 use crate::az_lmdb::LmdbAzContext;
-#[cfg(any(feature = "tt_2", feature = "tt_3"))]
+#[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
 use crate::az_tarantool::TarantoolAzContext;
 
 /// Unified authorization context with backend selection at compile time
 pub enum AzContext {
-    #[cfg(feature = "lmdb")]
+    #[cfg(feature = "az_lmdb")]
     Lmdb(LmdbAzContext),
-    #[cfg(any(feature = "tt_2", feature = "tt_3"))]
+    #[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
     Tarantool(TarantoolAzContext),
 }
 
 impl AzContext {
     /// Create LMDB-backed context
-    #[cfg(feature = "lmdb")]
+    #[cfg(feature = "az_lmdb")]
     pub fn new(max_read_counter: u64) -> Self {
         AzContext::Lmdb(LmdbAzContext::new(max_read_counter))
     }
     
     /// Create LMDB-backed context with full configuration
-    #[cfg(feature = "lmdb")]
+    #[cfg(feature = "az_lmdb")]
     pub fn new_with_config(
         max_read_counter: u64,
         stat_url: Option<String>,
@@ -35,13 +35,13 @@ impl AzContext {
     }
     
     /// Create Tarantool-backed context
-    #[cfg(any(feature = "tt_2", feature = "tt_3"))]
+    #[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
     pub fn new(uri: &str, login: &str, password: &str) -> Self {
         AzContext::Tarantool(TarantoolAzContext::new(uri, login, password))
     }
     
     /// Create Tarantool-backed context with stats
-    #[cfg(any(feature = "tt_2", feature = "tt_3"))]
+    #[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
     pub fn new_with_config(
         uri: &str, 
         login: &str, 
@@ -64,9 +64,9 @@ impl AuthorizationContext for AzContext {
         is_check_for_reload: bool,
     ) -> Result<u8, io::Error> {
         match self {
-            #[cfg(feature = "lmdb")]
+            #[cfg(feature = "az_lmdb")]
             AzContext::Lmdb(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
-            #[cfg(any(feature = "tt_2", feature = "tt_3"))]
+            #[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
             AzContext::Tarantool(ctx) => ctx.authorize(uri, user_uri, request_access, is_check_for_reload),
         }
     }
@@ -80,15 +80,15 @@ impl AuthorizationContext for AzContext {
         trace: &mut Trace,
     ) -> Result<u8, io::Error> {
         match self {
-            #[cfg(feature = "lmdb")]
+            #[cfg(feature = "az_lmdb")]
             AzContext::Lmdb(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
-            #[cfg(any(feature = "tt_2", feature = "tt_3"))]
+            #[cfg(any(feature = "az_tt_2", feature = "az_tt_3"))]
             AzContext::Tarantool(ctx) => ctx.authorize_and_trace(uri, user_uri, request_access, is_check_for_reload, trace),
         }
     }
 }
 
-#[cfg(feature = "lmdb")]
+#[cfg(feature = "az_lmdb")]
 impl Default for AzContext {
     fn default() -> Self {
         AzContext::new(u64::MAX)
