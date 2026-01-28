@@ -1,6 +1,6 @@
 [package]
 name = "v-common"
-version = "0.19.0"
+version = "0.19.1"
 authors = ["itiu <ValeriyBushenev@gmail.com>"]
 edition = "2021"
 description = "common part of the veda platform"
@@ -8,7 +8,7 @@ license     = "MIT"
 
 [features]
 #default = ["tokio_0_2", "tt_2", "awc_2"]
-default = ["tt_2"]
+default = ["tokio_0_2", "tt_2", "awc_2"]
 tokio_0_2 = ["tokio_dep_0_2", "v-storage/tokio_0_2"]
 tokio_1 = ["tokio_dep_1", "v-storage/tokio_1"]
 tt_2 = ["rusty_tarantool_2", "v-storage/tt_2"]
@@ -77,4 +77,4 @@ lmdb-rs-m = "0.8.0"
 v-storage = "0.1.3"
 #v-storage = { package = "v-storage", path = "../v-storage"}
 
-v-authorization-impl = { version = "0.4.0"}
+v-authorization-impl = { version = "0.4.1"}
