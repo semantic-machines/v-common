@@ -9,7 +9,7 @@ license = "MIT"
 [dependencies]
 log = "0.4"
 v_authorization = "=0.5.1"
-v-authorization-impl-common = { path = "../common" }
+v-authorization-impl-common = { version = "0.6.0", path = "../common" }
 
 # Tarantool client with tokio 0.2
 rusty_tarantool = "=0.2.11"
