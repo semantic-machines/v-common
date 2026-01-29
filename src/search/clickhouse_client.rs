@@ -1,4 +1,4 @@
-use v_authorization_impl::AzContext;
+use v_authorization_impl_tt2_lmdb::AzContext;
 use crate::search::common::{is_identifier, AuthorizationLevel, FTQuery, QueryResult, ResultFormat};
 use crate::v_authorization::common::AuthorizationContext;
 use crate::v_api::common_type::ResultCode;
@@ -32,7 +32,7 @@ impl CHClient {
             client: None,
             addr: client_addr,
             is_ready: false,
-            az: AzContext::new(1000),
+            az: AzContext::new_lmdb(1000),
         }
     }
 

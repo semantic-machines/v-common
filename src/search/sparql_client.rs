@@ -1,4 +1,4 @@
-use v_authorization_impl::AzContext;
+use v_authorization_impl_tt2_lmdb::AzContext;
 use crate::module::module_impl::Module;
 use crate::search::common::{get_short_prefix, split_full_prefix, AuthorizationLevel, PrefixesCache, QueryResult, ResultFormat};
 use crate::v_api::common_type::ResultCode;

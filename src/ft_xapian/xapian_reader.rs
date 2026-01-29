@@ -1,4 +1,4 @@
-use v_authorization_impl::AzContext;
+use v_authorization_impl_tt2_lmdb::AzContext;
 use crate::ft_xapian::index_schema::IndexerSchema;
 use crate::ft_xapian::init_db_path;
 use crate::ft_xapian::key2slot::Key2Slot;
