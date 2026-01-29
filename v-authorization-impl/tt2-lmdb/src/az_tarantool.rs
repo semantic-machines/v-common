@@ -1,14 +1,11 @@
-#[cfg(feature = "az_tt_2")]
-use rusty_tarantool_2::tarantool::{Client, ClientConfig};
-#[cfg(feature = "az_tt_3")]
-use rusty_tarantool_3::tarantool::{Client, ClientConfig};
+use rusty_tarantool::tarantool::{Client, ClientConfig};
 
 use std::io::{self, Error, ErrorKind};
 use std::time::SystemTime;
 use v_authorization::common::{AuthorizationContext, Trace};
 
 use crate::runtime_wrapper::RuntimeWrapper;
-use crate::stat_manager::StatPub;
+use v_authorization_impl_common::stat_manager::StatPub;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 enum StatMode {

@@ -1,0 +1,15 @@
+[package]
+name = "v-authorization-impl-common"
+version = "0.6.0"
+authors = ["itiu <ValeriyBushenev@gmail.com>"]
+edition = "2021"
+description = "Common components for Veda authorization implementations"
+license = "MIT"
+
+[dependencies]
+log = "0.4"
+chrono = "0.4.41"
+heed = "0.22.0"
+v_authorization = "=0.5.1"
+nng = "1.0.1"
+rand = "0.9.2"

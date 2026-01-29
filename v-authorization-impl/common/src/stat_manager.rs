@@ -4,7 +4,7 @@ use rand::Rng;
 use std::collections::VecDeque;
 use std::time::Duration;
 
-pub(crate) struct StatPub {
+pub struct StatPub {
     socket: Socket,
     url: String,
     is_connected: bool,
@@ -14,7 +14,7 @@ pub(crate) struct StatPub {
 }
 
 impl StatPub {
-    pub(crate) fn new(url: &str) -> Result<Self, nng::Error> {
+    pub fn new(url: &str) -> Result<Self, nng::Error> {
         let socket = Socket::new(Protocol::Pub0)?;
 
         let sender_id: String = rand::rng().sample_iter(&Alphanumeric).take(8).map(char::from).collect();
@@ -37,22 +37,18 @@ impl StatPub {
         Ok(())
     }
 
-    pub(crate) fn collect(&mut self, message: String) {
+    pub fn collect(&mut self, message: String) {
         self.message_buffer.push_back(message);
     }
 
-    pub(crate) fn set_duration(&mut self, duration: Duration) {
+    pub fn set_duration(&mut self, duration: Duration) {
         self.duration = duration;
     }
 
-    pub(crate) fn flush(&mut self) -> Result<(), nng::Error> {
+    pub fn flush(&mut self) -> Result<(), nng::Error> {
         if !self.is_connected {
             self.connect()?;
         }
-
-        //if self.message_buffer.is_empty() {
-        //    return Ok(());
-        //}
 
         // Combine all messages into one string using semicolon as separator
         let combined_message = self.message_buffer.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(";");
@@ -70,4 +66,3 @@ impl StatPub {
         Ok(())
     }
 }
-
