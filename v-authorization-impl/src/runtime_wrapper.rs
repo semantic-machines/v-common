@@ -1,5 +1,3 @@
-// RuntimeWrapper for tokio 1.x
-
 pub struct RuntimeWrapper {
     pub runtime: tokio::runtime::Runtime,
 }

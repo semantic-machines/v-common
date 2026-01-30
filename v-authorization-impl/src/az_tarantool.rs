@@ -1,11 +1,10 @@
 use rusty_tarantool::tarantool::{Client, ClientConfig};
-
 use std::io::{self, Error, ErrorKind};
 use std::time::SystemTime;
 use v_authorization::common::{AuthorizationContext, Trace};
 
 use crate::runtime_wrapper::RuntimeWrapper;
-use v_authorization_impl_common::stat_manager::StatPub;
+use crate::stat_manager::StatPub;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 enum StatMode {

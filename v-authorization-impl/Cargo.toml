@@ -1,7 +1,24 @@
-[workspace]
-members = [
-    "common",
-    "tt3-lmdb",
-    "tt2-lmdb",
-]
-resolver = "2"
+[package]
+name = "v-authorization-impl"
+version = "0.3.0"
+authors = ["itiu <ValeriyBushenev@gmail.com>"]
+edition = "2021"
+description = "LMDB implementation for Veda authorization"
+license = "MIT"
+
+[features]
+default = []
+tt = ["rusty_tarantool", "tokio"]
+
+[dependencies]
+log = "0.4"
+chrono = "0.4.41"
+heed = "0.22.0"
+v_authorization = "=0.5.1"
+nng = "1.0.1"
+rand = "0.9.2"
+
+# Tarantool client (optional)
+rusty_tarantool = { version = "=0.3.0", optional = true }
+tokio = { version = "1.45", optional = true, features = ["rt", "rt-multi-thread"] }
+

@@ -14,25 +14,25 @@ use std::{io, thread};
 use v_authorization::common::{Storage, Trace};
 use v_authorization::*;
 
-use crate::stat_manager::StatPub;
-
 const DB_PATH: &str = "./data/acl-indexes/";
 const CACHE_DB_PATH: &str = "./data/acl-cache-indexes/";
+
+use crate::stat_manager::StatPub;
 
 // Global shared environments for multi-threaded access
 static GLOBAL_ENV: OnceLock<Arc<Env>> = OnceLock::new();
 static GLOBAL_CACHE_ENV: OnceLock<Arc<Env>> = OnceLock::new();
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub enum StatMode {
+enum StatMode {
     Full,
     Minimal,
     None,
 }
 
-pub struct Stat {
-    pub point: StatPub,
-    pub mode: StatMode,
+struct Stat {
+    point: StatPub,
+    mode: StatMode,
 }
 
 pub struct LmdbAzContext {
@@ -174,7 +174,9 @@ impl AuthorizationContext for LmdbAzContext {
         trace: &mut Trace,
     ) -> Result<u8, std::io::Error> {
         self.authorize_counter += 1;
+        //info!("az counter={}", self.authorize_counter);
         if self.authorize_counter >= self.max_authorize_counter {
+            //info!("az reset counter, counter > {}", self.max_authorize_counter);
             self.authorize_counter = 0;
             // Note: with shared Arc<Env>, we don't reopen the environment
             // The environment is shared across all threads and persists
@@ -334,3 +336,4 @@ impl LmdbAzContext {
         authorize(uri, user_uri, request_access, &mut storage, trace)
     }
 }
+
